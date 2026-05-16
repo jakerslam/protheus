@@ -9242,7 +9242,7 @@ function chatPage() {
         if (this.freshInitAvatarUrl) {
           configPayload.avatar_url = String(this.freshInitAvatarUrl || '').trim();
         }
-        await InfringAPI.patch('/api/agents/' + agentId + '/config', {
+        await InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(agentId) + '/config', {
           ...configPayload
         });
         var appliedAgentName = requestedName || String(this.currentAgent.name || this.currentAgent.id || agentId).trim() || 'agent';
@@ -13539,7 +13539,7 @@ function chatPage() {
     async setDrawerMode(mode) {
       if (!this.agentDrawer || !this.agentDrawer.id) return;
       try {
-        await InfringAPI.put('/api/agents/' + this.agentDrawer.id + '/mode', { mode: mode });
+        await InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(this.agentDrawer.id) + '/mode', { mode: mode });
         InfringToast.success('Mode set to ' + mode);
         await this.syncDrawerAgentAfterChange();
       } catch(e) {
@@ -13582,7 +13582,7 @@ function chatPage() {
           this.agentDrawer._fallbacks = configPayload.fallback_models.slice();
         }
 
-        var configResponse = await InfringAPI.patch('/api/agents/' + agentId + '/config', configPayload);
+        var configResponse = await InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(agentId) + '/config', configPayload);
         if (configResponse && configResponse.rename_notice) {
           this.addNoticeEvent(configResponse.rename_notice);
         } else if (requestedName && requestedName !== previousName) {
@@ -13653,7 +13653,7 @@ function chatPage() {
       var requestedName = String((this.drawerConfigForm && this.drawerConfigForm.name) || '').trim();
       this.drawerConfigSaving = true;
       try {
-        var response = await InfringAPI.patch('/api/agents/' + this.agentDrawer.id + '/config', this.drawerConfigForm || {});
+        var response = await InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(this.agentDrawer.id) + '/config', this.drawerConfigForm || {});
         if (response && response.rename_notice) {
           this.addNoticeEvent(response.rename_notice);
         } else if (requestedName && requestedName !== previousName) {
@@ -13698,7 +13698,7 @@ function chatPage() {
       }
       this.drawerIdentitySaving = true;
       try {
-        var response = await InfringAPI.patch('/api/agents/' + this.agentDrawer.id + '/config', payload);
+        var response = await InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(this.agentDrawer.id) + '/config', payload);
         if (response && response.rename_notice) {
           this.addNoticeEvent(response.rename_notice);
         } else if (part === 'name' && payload.name && payload.name !== previousName) {
@@ -13803,7 +13803,7 @@ function chatPage() {
       }
       this.agentDrawer._fallbacks = nextFallbacks;
       try {
-        await InfringAPI.patch('/api/agents/' + this.agentDrawer.id + '/config', {
+        await InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(this.agentDrawer.id) + '/config', {
           fallback_models: this.agentDrawer._fallbacks
         });
         var latestFallback = this.agentDrawer._fallbacks[this.agentDrawer._fallbacks.length - 1] || {};
@@ -13820,7 +13820,7 @@ function chatPage() {
       if (!this.agentDrawer || !this.agentDrawer.id || !Array.isArray(this.agentDrawer._fallbacks)) return;
       var removed = this.agentDrawer._fallbacks.splice(idx, 1);
       try {
-        await InfringAPI.patch('/api/agents/' + this.agentDrawer.id + '/config', {
+        await InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(this.agentDrawer.id) + '/config', {
           fallback_models: this.agentDrawer._fallbacks
         });
         InfringToast.success('Fallback removed');

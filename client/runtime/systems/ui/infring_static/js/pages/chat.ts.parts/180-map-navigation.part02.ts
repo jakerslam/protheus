@@ -278,7 +278,7 @@
     async setDrawerMode(mode) {
       if (!this.agentDrawer || !this.agentDrawer.id) return;
       try {
-        await InfringAPI.put('/api/agents/' + this.agentDrawer.id + '/mode', { mode: mode });
+        await InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(this.agentDrawer.id) + '/mode', { mode: mode });
         InfringToast.success('Mode set to ' + mode);
         await this.syncDrawerAgentAfterChange();
       } catch(e) {

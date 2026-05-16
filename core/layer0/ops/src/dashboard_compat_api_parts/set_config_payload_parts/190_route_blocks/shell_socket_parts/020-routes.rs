@@ -502,6 +502,21 @@ fn handle_shell_socket_routes(
         let legacy = handle_agent_scope_routes(root, "PUT", &legacy_path, &legacy_path, body, headers, snapshot, requester_agent)?;
         return Some(shell_socket_ack_from_legacy("set_model", legacy));
     }
+    if method == "POST" && parts.len() == 3 && parts[0] == "agents" && parts[2] == "config" {
+        let legacy_path = format!("/api/agents/{}/config", clean_agent_id(&parts[1]));
+        let legacy = handle_agent_scope_routes(root, "PATCH", &legacy_path, &legacy_path, body, headers, snapshot, requester_agent)?;
+        return Some(shell_socket_agent_mutation_projection("update_agent_config", legacy));
+    }
+    if method == "POST" && parts.len() == 3 && parts[0] == "agents" && parts[2] == "mode" {
+        let legacy_path = format!("/api/agents/{}/mode", clean_agent_id(&parts[1]));
+        let legacy = handle_agent_scope_routes(root, "PUT", &legacy_path, &legacy_path, body, headers, snapshot, requester_agent)?;
+        return Some(shell_socket_agent_mutation_projection("update_agent_mode", legacy));
+    }
+    if method == "POST" && parts.len() == 3 && parts[0] == "agents" && parts[2] == "tools" {
+        let legacy_path = format!("/api/agents/{}/tools", clean_agent_id(&parts[1]));
+        let legacy = handle_agent_scope_routes(root, "PUT", &legacy_path, &legacy_path, body, headers, snapshot, requester_agent)?;
+        return Some(shell_socket_agent_mutation_projection("update_agent_tools", legacy));
+    }
     if method == "POST" && parts.len() == 3 && parts[0] == "agents" && parts[2] == "git-tree" {
         let legacy_path = format!("/api/agents/{}/git-tree/switch", clean_agent_id(&parts[1]));
         let legacy = handle_agent_scope_routes(root, "POST", &legacy_path, &legacy_path, body, headers, snapshot, requester_agent)?;

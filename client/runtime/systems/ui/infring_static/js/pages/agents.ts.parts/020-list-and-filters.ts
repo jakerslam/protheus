@@ -406,7 +406,7 @@
 
     async setMode(agent, mode) {
       try {
-        await InfringAPI.put('/api/agents/' + agent.id + '/mode', { mode: mode });
+        await InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(agent.id) + '/mode', { mode: mode });
         agent.mode = mode;
         InfringToast.success('Mode set to ' + mode);
         await Alpine.store('app').refreshAgents();

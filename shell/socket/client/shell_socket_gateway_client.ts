@@ -26,6 +26,9 @@ export type ShellSocketCapabilityId =
   | 'poll_provider_oauth'
   | 'set_config'
   | 'set_model'
+  | 'update_agent_config'
+  | 'update_agent_mode'
+  | 'update_agent_tools'
   | 'set_git_tree'
   | 'fresh_session'
   | 'compact_session'
@@ -76,6 +79,9 @@ export const SHELL_SOCKET_ROUTES: ReadonlyArray<ShellSocketRouteDefinition> = Ob
   { capabilityId: 'poll_provider_oauth', method: 'POST', path: '/api/shell-socket/providers/{provider_id}/oauth/poll', pathParams: ['provider_id'] },
   { capabilityId: 'set_config', method: 'POST', path: '/api/shell-socket/config/set' },
   { capabilityId: 'set_model', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/model', pathParams: ['agent_id'] },
+  { capabilityId: 'update_agent_config', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/config', pathParams: ['agent_id'] },
+  { capabilityId: 'update_agent_mode', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/mode', pathParams: ['agent_id'] },
+  { capabilityId: 'update_agent_tools', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/tools', pathParams: ['agent_id'] },
   { capabilityId: 'set_git_tree', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/git-tree', pathParams: ['agent_id'] },
   { capabilityId: 'fresh_session', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/fresh-session', pathParams: ['agent_id'] },
   { capabilityId: 'compact_session', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/compact-session', pathParams: ['agent_id'] },
@@ -265,6 +271,18 @@ export class ShellSocketGatewayClient {
     return this.request<T>('set_model', { query: { agent_id: agentId }, body: modelSelection });
   }
 
+  updateAgentConfig<T = unknown>(agentId: string, config: unknown): Promise<T> {
+    return this.request<T>('update_agent_config', { query: { agent_id: agentId }, body: config });
+  }
+
+  updateAgentMode<T = unknown>(agentId: string, mode: unknown): Promise<T> {
+    return this.request<T>('update_agent_mode', { query: { agent_id: agentId }, body: mode });
+  }
+
+  updateAgentTools<T = unknown>(agentId: string, tools: unknown): Promise<T> {
+    return this.request<T>('update_agent_tools', { query: { agent_id: agentId }, body: tools });
+  }
+
   setGitTree<T = unknown>(agentId: string, treeSelection: unknown): Promise<T> {
     return this.request<T>('set_git_tree', { query: { agent_id: agentId }, body: treeSelection });
   }
@@ -293,7 +311,7 @@ export function shellSocketClientSelfTest(): Record<string, unknown> {
     fetchImpl: async () => ({ ok: true, status: 200, text: async () => '{}' }),
   });
   return {
-    ok: routeIds.length === uniqueRouteIds.size && routeIds.length === 28,
+    ok: routeIds.length === uniqueRouteIds.size && routeIds.length === 31,
     type: 'shell_socket_gateway_client_self_test',
     route_count: routeIds.length,
     unique_route_count: uniqueRouteIds.size,

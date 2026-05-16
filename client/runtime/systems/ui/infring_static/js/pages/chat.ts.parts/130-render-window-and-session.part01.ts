@@ -356,7 +356,7 @@
         if (this.freshInitAvatarUrl) {
           configPayload.avatar_url = String(this.freshInitAvatarUrl || '').trim();
         }
-        await InfringAPI.patch('/api/agents/' + agentId + '/config', {
+        await InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(agentId) + '/config', {
           ...configPayload
         });
         var appliedAgentName = requestedName || String(this.currentAgent.name || this.currentAgent.id || agentId).trim() || 'agent';

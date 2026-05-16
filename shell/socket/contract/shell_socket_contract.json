@@ -374,6 +374,26 @@
       "requires_detail_refs": true
     },
     {
+      "name": "AgentMutationProjection",
+      "description": "Bounded acknowledgement for agent config/mode/tool-filter mutations; canonical agent state remains outside shell plugs.",
+      "allowed_top_level_fields": [
+        "ok",
+        "agent_id",
+        "mode",
+        "provider",
+        "model",
+        "runtime_model",
+        "rename_notice",
+        "tool_filters",
+        "error",
+        "receipt_ref",
+        "correlation_id"
+      ],
+      "max_response_bytes": 16384,
+      "requires_cursor": false,
+      "requires_detail_refs": true
+    },
+    {
       "name": "IngressAck",
       "description": "Bounded acknowledgement or receipt for a shell-submitted request.",
       "allowed_top_level_fields": [
@@ -1058,6 +1078,82 @@
         "provider_secret",
         "model_policy_truth",
         "fallback_decision_truth"
+      ]
+    },
+    {
+      "id": "update_agent_config",
+      "purpose": "Request an agent configuration mutation through Gateway without returning full agent profile authority to shell plugs.",
+      "route_class": "request_ingress",
+      "request_shape": "AgentConfigMutationRequest",
+      "response_shape": "AgentMutationProjection",
+      "default_projection": "AgentMutationProjection",
+      "cursor_required": false,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "owner_of_truth": "kernel_agent_registry",
+      "shell_may_hold": [
+        "agent_id",
+        "rename_notice",
+        "receipt_ref"
+      ],
+      "shell_must_not_hold": [
+        "full_agent_profile",
+        "policy_truth",
+        "authorization_truth",
+        "raw_contract_state"
+      ]
+    },
+    {
+      "id": "update_agent_mode",
+      "purpose": "Request an agent mode mutation through Gateway without shell ownership of mode policy.",
+      "route_class": "request_ingress",
+      "request_shape": "AgentModeMutationRequest",
+      "response_shape": "AgentMutationProjection",
+      "default_projection": "AgentMutationProjection",
+      "cursor_required": false,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "owner_of_truth": "kernel_agent_registry",
+      "shell_may_hold": [
+        "agent_id",
+        "mode",
+        "receipt_ref"
+      ],
+      "shell_must_not_hold": [
+        "mode_policy_truth",
+        "full_agent_profile",
+        "authorization_truth"
+      ]
+    },
+    {
+      "id": "update_agent_tools",
+      "purpose": "Request bounded agent tool-filter mutation through Gateway; execution policy remains authoritative outside shell plugs.",
+      "route_class": "request_ingress",
+      "request_shape": "AgentToolFilterMutationRequest",
+      "response_shape": "AgentMutationProjection",
+      "default_projection": "AgentMutationProjection",
+      "cursor_required": false,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "owner_of_truth": "kernel_agent_registry",
+      "shell_may_hold": [
+        "agent_id",
+        "tool_filters",
+        "receipt_ref"
+      ],
+      "shell_must_not_hold": [
+        "execution_policy_truth",
+        "authorization_truth",
+        "full_tool_registry"
       ]
     },
     {

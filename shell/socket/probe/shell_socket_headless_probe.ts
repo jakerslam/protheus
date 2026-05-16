@@ -356,6 +356,36 @@ function makeHeadlessGatewayFetch(calls: CallRecord[], includeControlledViolatio
     } else if (method === 'POST' && /^\/api\/shell-socket\/agents\/[^/]+\/model$/.test(pathName)) {
       capabilityId = 'set_model';
       payload = makeIngressAck('model');
+    } else if (method === 'POST' && /^\/api\/shell-socket\/agents\/[^/]+\/config$/.test(pathName)) {
+      capabilityId = 'update_agent_config';
+      payload = {
+        ok: true,
+        agent_id: decodeURIComponent(pathName.split('/')[4] || 'agent-probe'),
+        rename_notice: null,
+        receipt_ref: 'receipt:agent-config:probe',
+        correlation_id: 'probe-agent-config',
+      };
+    } else if (method === 'POST' && /^\/api\/shell-socket\/agents\/[^/]+\/mode$/.test(pathName)) {
+      capabilityId = 'update_agent_mode';
+      payload = {
+        ok: true,
+        agent_id: decodeURIComponent(pathName.split('/')[4] || 'agent-probe'),
+        mode: String(body.mode || 'normal'),
+        receipt_ref: 'receipt:agent-mode:probe',
+        correlation_id: 'probe-agent-mode',
+      };
+    } else if (method === 'POST' && /^\/api\/shell-socket\/agents\/[^/]+\/tools$/.test(pathName)) {
+      capabilityId = 'update_agent_tools';
+      payload = {
+        ok: true,
+        agent_id: decodeURIComponent(pathName.split('/')[4] || 'agent-probe'),
+        tool_filters: {
+          tool_allowlist: Array.isArray(body.tool_allowlist) ? body.tool_allowlist : [],
+          tool_blocklist: Array.isArray(body.tool_blocklist) ? body.tool_blocklist : [],
+        },
+        receipt_ref: 'receipt:agent-tools:probe',
+        correlation_id: 'probe-agent-tools',
+      };
     } else if (method === 'POST' && /^\/api\/shell-socket\/agents\/[^/]+\/git-tree$/.test(pathName)) {
       capabilityId = 'set_git_tree';
       payload = makeIngressAck('git-tree');
@@ -500,6 +530,9 @@ async function runProbe(options: ProbeOptions): Promise<Record<string, unknown>>
   const providerOAuthStart = await client.startProviderOAuth<any>('github-copilot');
   const providerOAuthPoll = await client.pollProviderOAuth<any>('github-copilot', { poll_id: providerOAuthStart.poll_id });
   const modelAck = await client.setModel<any>(agentId, { model_ref: 'model:auto' });
+  const agentConfigAck = await client.updateAgentConfig<any>(agentId, { name: 'Probe Agent' });
+  const agentModeAck = await client.updateAgentMode<any>(agentId, { mode: 'normal' });
+  const agentToolsAck = await client.updateAgentTools<any>(agentId, { tool_allowlist: [], tool_blocklist: [] });
   const gitAck = await client.setGitTree<any>(agentId, { tree_ref: 'git-tree:current' });
   const freshSessionAck = await client.freshSession<any>(agentId, { reason: 'headless_probe' });
   const compactSessionAck = await client.compactSession<any>(agentId, { reason: 'headless_probe' });
@@ -540,6 +573,9 @@ async function runProbe(options: ProbeOptions): Promise<Record<string, unknown>>
       provider_oauth_start_receipt: providerOAuthStart.receipt_ref,
       provider_oauth_poll_receipt: providerOAuthPoll.receipt_ref,
       model_receipt: modelAck.receipt_ref,
+      agent_config_receipt: agentConfigAck.receipt_ref,
+      agent_mode_receipt: agentModeAck.receipt_ref,
+      agent_tools_receipt: agentToolsAck.receipt_ref,
       git_receipt: gitAck.receipt_ref,
       fresh_session_receipt: freshSessionAck.receipt_ref,
       compact_session_receipt: compactSessionAck.receipt_ref,

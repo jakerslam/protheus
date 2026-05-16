@@ -14,7 +14,7 @@
           this.agentDrawer._fallbacks = configPayload.fallback_models.slice();
         }
 
-        var configResponse = await InfringAPI.patch('/api/agents/' + agentId + '/config', configPayload);
+        var configResponse = await InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(agentId) + '/config', configPayload);
         if (configResponse && configResponse.rename_notice) {
           this.addNoticeEvent(configResponse.rename_notice);
         } else if (requestedName && requestedName !== previousName) {
@@ -85,7 +85,7 @@
       var requestedName = String((this.drawerConfigForm && this.drawerConfigForm.name) || '').trim();
       this.drawerConfigSaving = true;
       try {
-        var response = await InfringAPI.patch('/api/agents/' + this.agentDrawer.id + '/config', this.drawerConfigForm || {});
+        var response = await InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(this.agentDrawer.id) + '/config', this.drawerConfigForm || {});
         if (response && response.rename_notice) {
           this.addNoticeEvent(response.rename_notice);
         } else if (requestedName && requestedName !== previousName) {
@@ -130,7 +130,7 @@
       }
       this.drawerIdentitySaving = true;
       try {
-        var response = await InfringAPI.patch('/api/agents/' + this.agentDrawer.id + '/config', payload);
+        var response = await InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(this.agentDrawer.id) + '/config', payload);
         if (response && response.rename_notice) {
           this.addNoticeEvent(response.rename_notice);
         } else if (part === 'name' && payload.name && payload.name !== previousName) {
@@ -235,7 +235,7 @@
       }
       this.agentDrawer._fallbacks = nextFallbacks;
       try {
-        await InfringAPI.patch('/api/agents/' + this.agentDrawer.id + '/config', {
+        await InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(this.agentDrawer.id) + '/config', {
           fallback_models: this.agentDrawer._fallbacks
         });
         var latestFallback = this.agentDrawer._fallbacks[this.agentDrawer._fallbacks.length - 1] || {};
@@ -252,7 +252,7 @@
       if (!this.agentDrawer || !this.agentDrawer.id || !Array.isArray(this.agentDrawer._fallbacks)) return;
       var removed = this.agentDrawer._fallbacks.splice(idx, 1);
       try {
-        await InfringAPI.patch('/api/agents/' + this.agentDrawer.id + '/config', {
+        await InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(this.agentDrawer.id) + '/config', {
           fallback_models: this.agentDrawer._fallbacks
         });
         InfringToast.success('Fallback removed');

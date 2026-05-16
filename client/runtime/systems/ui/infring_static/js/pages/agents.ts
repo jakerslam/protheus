@@ -906,7 +906,7 @@ function agentsPage() {
 
     async setMode(agent, mode) {
       try {
-        await InfringAPI.put('/api/agents/' + agent.id + '/mode', { mode: mode });
+        await InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(agent.id) + '/mode', { mode: mode });
         agent.mode = mode;
         InfringToast.success('Mode set to ' + mode);
         await Alpine.store('app').refreshAgents();
@@ -1041,7 +1041,7 @@ function agentsPage() {
       if (!agentId) return;
       this.configSaving = true;
       try {
-        await InfringAPI.patch('/api/agents/' + agentId + '/config', this.configForm);
+        await InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(agentId) + '/config', this.configForm);
         InfringToast.success('Config updated');
         await Alpine.store('app').refreshAgents();
         await this.loadLifecycle();
@@ -1151,7 +1151,7 @@ function agentsPage() {
       if (!this.detailAgent._fallbacks) this.detailAgent._fallbacks = [];
       this.detailAgent._fallbacks.push({ provider: provider, model: model });
       try {
-        await InfringAPI.patch('/api/agents/' + this.detailAgent.id + '/config', {
+        await InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(this.detailAgent.id) + '/config', {
           fallback_models: this.detailAgent._fallbacks
         });
         InfringToast.success('Fallback added: ' + provider + '/' + model);
@@ -1167,7 +1167,7 @@ function agentsPage() {
       if (!this.detailAgent || !this.detailAgent._fallbacks) return;
       var removed = this.detailAgent._fallbacks.splice(idx, 1);
       try {
-        await InfringAPI.patch('/api/agents/' + this.detailAgent.id + '/config', {
+        await InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(this.detailAgent.id) + '/config', {
           fallback_models: this.detailAgent._fallbacks
         });
         InfringToast.success('Fallback removed');
@@ -1312,7 +1312,7 @@ function agentsPage() {
     async saveToolFilters() {
       if (!this.detailAgent) return;
       try {
-        await InfringAPI.put('/api/agents/' + this.detailAgent.id + '/tools', this.toolFilters);
+        await InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(this.detailAgent.id) + '/tools', this.toolFilters);
       } catch(e) {
         InfringToast.error('Failed to update tool filters: ' + e.message);
       }
