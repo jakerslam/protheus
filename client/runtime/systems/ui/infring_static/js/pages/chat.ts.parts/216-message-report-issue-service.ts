@@ -12,7 +12,8 @@
     reportIssueFromMeta: async function(msg, idx) {
       if (!this.messageCanReportIssueFromMeta(msg)) return;
       try {
-        var result = await InfringAPI.post('/api/agents/' + encodeURIComponent(this.currentAgent.id) + '/eval-feedback/report-issue', {
+        var result = await InfringAPI.post('/api/shell-socket/issues', {
+          agent_id: this.currentAgent.id,
           message_id: String(msg && msg.id || ''),
           message_index: idx
         });
