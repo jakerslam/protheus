@@ -494,6 +494,39 @@ function makeHeadlessGatewayFetch(calls: CallRecord[], includeControlledViolatio
         receipt_ref: 'receipt:switch-session:probe',
         correlation_id: 'probe-switch-session',
       };
+    } else if (method === 'GET' && /^\/api\/shell-socket\/agents\/[^/]+\/memory\/kv$/.test(pathName)) {
+      capabilityId = 'list_memory_kv';
+      payload = {
+        ok: true,
+        type: 'agent_memory_kv_pairs',
+        agent_id: decodeURIComponent(pathName.split('/')[4] || 'agent-probe'),
+        kv_pairs: [{ key: 'probe_key', value: 'probe_value', duality_tags: ['identity'] }],
+        receipt_ref: 'receipt:memory-kv-list:probe',
+        correlation_id: 'probe-list-memory-kv',
+      };
+    } else if (method === 'POST' && /^\/api\/shell-socket\/agents\/[^/]+\/memory\/kv\/[^/]+\/delete$/.test(pathName)) {
+      capabilityId = 'delete_memory_kv';
+      payload = {
+        ok: true,
+        type: 'agent_memory_kv_delete',
+        agent_id: decodeURIComponent(pathName.split('/')[4] || 'agent-probe'),
+        key: decodeURIComponent(pathName.split('/')[7] || 'probe_key'),
+        removed: true,
+        receipt_ref: 'receipt:memory-kv-delete:probe',
+        correlation_id: 'probe-delete-memory-kv',
+      };
+    } else if (method === 'POST' && /^\/api\/shell-socket\/agents\/[^/]+\/memory\/kv\/[^/]+$/.test(pathName)) {
+      capabilityId = 'set_memory_kv';
+      payload = {
+        ok: true,
+        type: 'agent_memory_kv_set',
+        agent_id: decodeURIComponent(pathName.split('/')[4] || 'agent-probe'),
+        key: decodeURIComponent(pathName.split('/')[7] || 'probe_key'),
+        value: body.value,
+        duality_tags: ['identity'],
+        receipt_ref: 'receipt:memory-kv-set:probe',
+        correlation_id: 'probe-set-memory-kv',
+      };
     } else if (method === 'POST' && /^\/api\/shell-socket\/agents\/[^/]+\/suggestions$/.test(pathName)) {
       capabilityId = 'request_agent_suggestions';
       payload = {
@@ -1012,6 +1045,9 @@ async function runProbe(options: ProbeOptions): Promise<Record<string, unknown>>
   const agentStopAck = await client.stopAgent<any>(agentId, { reason: 'headless_probe' });
   const createSessionAck = await client.createSession<any>(agentId, { label: 'Probe Session' });
   const switchSessionAck = await client.switchSession<any>(agentId, sessionId);
+  const memoryKvList = await client.listMemoryKv<any>(agentId);
+  const memoryKvSet = await client.setMemoryKv<any>(agentId, 'probe_key', { value: 'probe_value' });
+  const memoryKvDelete = await client.deleteMemoryKv<any>(agentId, 'probe_key');
   const suggestionsAck = await client.requestAgentSuggestions<any>(agentId, { user_hint: 'probe' });
   const fileArtifact = await client.readAgentFileArtifact<any>(agentId, { path: 'probe.txt' });
   const folderArtifact = await client.exportAgentFolderArtifact<any>(agentId, { path: 'probe-folder' });
@@ -1122,6 +1158,9 @@ async function runProbe(options: ProbeOptions): Promise<Record<string, unknown>>
       agent_stop_receipt: agentStopAck.receipt_ref,
       create_session_receipt: createSessionAck.receipt_ref,
       switch_session_receipt: switchSessionAck.receipt_ref,
+      memory_kv_count: Array.isArray(memoryKvList.kv_pairs) ? memoryKvList.kv_pairs.length : 0,
+      memory_kv_set_receipt: memoryKvSet.receipt_ref,
+      memory_kv_delete_receipt: memoryKvDelete.receipt_ref,
       suggestions_receipt: suggestionsAck.receipt_ref,
       file_artifact_receipt: fileArtifact.receipt_ref,
       folder_artifact_receipt: folderArtifact.receipt_ref,

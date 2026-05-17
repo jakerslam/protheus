@@ -782,6 +782,48 @@ fn handle_shell_socket_routes(
         let legacy = handle_agent_scope_routes(root, "POST", &legacy_path, &legacy_path, body, headers, snapshot, requester_agent)?;
         return Some(shell_socket_ack_from_legacy("compact_session", legacy));
     }
+    if parts.len() >= 4 && parts[0] == "agents" && parts[2] == "memory" && parts[3] == "kv" {
+        let agent_id = resolve_agent_id_alias(root, &clean_agent_id(&parts[1]));
+        if !requester_agent.is_empty()
+            && requester_agent != agent_id
+            && !actor_can_manage_target(root, snapshot, &requester_agent, &agent_id)
+        {
+            return Some(CompatApiResponse {
+                status: 403,
+                payload: json!({
+                    "ok": false,
+                    "error": "agent_manage_forbidden",
+                    "actor_agent_id": requester_agent,
+                    "target_agent_id": agent_id,
+                    "correlation_id": "shell_socket.memory_kv_forbidden"
+                }),
+            });
+        }
+        if method == "GET" && parts.len() == 4 {
+            let mut payload = crate::dashboard_agent_state::memory_kv_pairs(root, &agent_id);
+            let receipt_ref = shell_socket_receipt_ref("list_memory_kv", &payload);
+            if let Some(object) = payload.as_object_mut() {
+                object.insert("receipt_ref".to_string(), json!(receipt_ref));
+                object.insert(
+                    "correlation_id".to_string(),
+                    json!("shell_socket.list_memory_kv"),
+                );
+            }
+            return Some(CompatApiResponse { status: 200, payload });
+        }
+        if method == "POST" && parts.len() >= 5 {
+            let key = decode_path_segment(&parts[4..].join("/"));
+            if parts.last().map(|part| part == "delete").unwrap_or(false) && parts.len() >= 6 {
+                let key = decode_path_segment(&parts[4..parts.len() - 1].join("/"));
+                let payload = crate::dashboard_agent_state::memory_kv_delete(root, &agent_id, &key);
+                return Some(shell_socket_memory_kv_projection("delete_memory_kv", payload));
+            }
+            let request = serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
+            let value = request.get("value").cloned().unwrap_or(Value::Null);
+            let payload = crate::dashboard_agent_state::memory_kv_set(root, &agent_id, &key, &value);
+            return Some(shell_socket_memory_kv_projection("set_memory_kv", payload));
+        }
+    }
     if method == "POST"
         && parts.len() == 4
         && parts[0] == "agents"

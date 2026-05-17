@@ -102,7 +102,7 @@ function sessionsPage() {
       this.memLoading = true;
       this.memLoadError = '';
       try {
-        var data = await InfringAPI.get('/api/memory/agents/' + this.memAgentId + '/kv');
+        var data = await InfringAPI.get('/api/shell-socket/agents/' + encodeURIComponent(this.memAgentId) + '/memory/kv');
         this.kvPairs = data.kv_pairs || [];
       } catch(e) {
         this.kvPairs = [];
@@ -120,7 +120,7 @@ function sessionsPage() {
       }
       var value = sessionsParseKvValue(this.newValue);
       try {
-        await InfringAPI.put('/api/memory/agents/' + this.memAgentId + '/kv/' + encodeURIComponent(key), { value: value });
+        await InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(this.memAgentId) + '/memory/kv/' + encodeURIComponent(key), { value: value });
         this.showAdd = false;
         InfringToast.success('Key "' + key + '" saved');
         this.newKey = '';
@@ -135,7 +135,7 @@ function sessionsPage() {
       var self = this;
       InfringToast.confirm('Delete Key', 'Delete key "' + key + '"? This cannot be undone.', async function() {
         try {
-          await InfringAPI.del('/api/memory/agents/' + self.memAgentId + '/kv/' + encodeURIComponent(key));
+          await InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(self.memAgentId) + '/memory/kv/' + encodeURIComponent(key) + '/delete', {});
           InfringToast.success('Key "' + key + '" deleted');
           await self.loadKv();
         } catch(e) {
@@ -163,7 +163,7 @@ function sessionsPage() {
       }
       var value = sessionsParseKvValue(this.editingValue);
       try {
-        await InfringAPI.put('/api/memory/agents/' + this.memAgentId + '/kv/' + encodeURIComponent(key), { value: value });
+        await InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(this.memAgentId) + '/memory/kv/' + encodeURIComponent(key), { value: value });
         InfringToast.success('Key "' + key + '" updated');
         this.editingKey = null;
         this.editingValue = '';

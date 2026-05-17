@@ -443,6 +443,26 @@
       "requires_detail_refs": true
     },
     {
+      "name": "MemoryKvProjection",
+      "description": "Bounded memory KV display/mutation projection; canonical memory truth and semantic indexing stay outside shell plugs.",
+      "allowed_top_level_fields": [
+        "ok",
+        "type",
+        "agent_id",
+        "key",
+        "value",
+        "kv_pairs",
+        "duality_tags",
+        "removed",
+        "error",
+        "receipt_ref",
+        "correlation_id"
+      ],
+      "max_response_bytes": 65536,
+      "requires_cursor": false,
+      "requires_detail_refs": true
+    },
+    {
       "name": "SuggestionProjection",
       "description": "Bounded prompt suggestion projection for display; shell plugs receive short labels and optional detail refs only.",
       "allowed_top_level_fields": [
@@ -1685,6 +1705,81 @@
         "session_routing_authority",
         "session_store_truth",
         "conversation_tree"
+      ]
+    },
+    {
+      "id": "list_memory_kv",
+      "purpose": "Request a bounded agent memory KV projection through Gateway without shell-owned memory-store authority.",
+      "route_class": "bounded_search_query",
+      "request_shape": "MemoryKvListRequest",
+      "response_shape": "MemoryKvProjection",
+      "default_projection": "MemoryKvProjection",
+      "cursor_required": false,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "owner_of_truth": "kernel_memory_store",
+      "shell_may_hold": [
+        "agent_id",
+        "kv_pairs"
+      ],
+      "shell_must_not_hold": [
+        "memory_store_truth",
+        "semantic_index_truth",
+        "raw_memory_graph"
+      ]
+    },
+    {
+      "id": "set_memory_kv",
+      "purpose": "Submit an agent memory KV set request through Gateway without shell-owned memory mutation authority.",
+      "route_class": "request_ingress",
+      "request_shape": "MemoryKvSetRequest",
+      "response_shape": "MemoryKvProjection",
+      "default_projection": "MemoryKvProjection",
+      "cursor_required": false,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "owner_of_truth": "kernel_memory_store",
+      "shell_may_hold": [
+        "agent_id",
+        "key",
+        "receipt_ref"
+      ],
+      "shell_must_not_hold": [
+        "memory_mutation_authority",
+        "semantic_index_truth",
+        "raw_memory_graph"
+      ]
+    },
+    {
+      "id": "delete_memory_kv",
+      "purpose": "Submit an agent memory KV delete request through Gateway without shell-owned memory mutation authority.",
+      "route_class": "request_ingress",
+      "request_shape": "MemoryKvDeleteRequest",
+      "response_shape": "MemoryKvProjection",
+      "default_projection": "MemoryKvProjection",
+      "cursor_required": false,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "owner_of_truth": "kernel_memory_store",
+      "shell_may_hold": [
+        "agent_id",
+        "key",
+        "removed",
+        "receipt_ref"
+      ],
+      "shell_must_not_hold": [
+        "memory_mutation_authority",
+        "semantic_index_truth",
+        "raw_memory_graph"
       ]
     },
     {

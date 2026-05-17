@@ -212,6 +212,22 @@ fn shell_socket_upsert_eye(root: &Path, request: &Value) -> CompatApiResponse {
     }
 }
 
+fn shell_socket_memory_kv_projection(capability: &str, mut payload: Value) -> CompatApiResponse {
+    let ok = payload.get("ok").and_then(Value::as_bool).unwrap_or(false);
+    let receipt_ref = shell_socket_receipt_ref(capability, &payload);
+    if let Some(object) = payload.as_object_mut() {
+        object.insert("receipt_ref".to_string(), json!(receipt_ref));
+        object.insert(
+            "correlation_id".to_string(),
+            json!(format!("shell_socket.{capability}")),
+        );
+    }
+    CompatApiResponse {
+        status: if ok { 200 } else { 400 },
+        payload,
+    }
+}
+
 fn shell_socket_session_ref(agent_id: &str, session_id: &str) -> String {
     format!("{}::{}", clean_agent_id(agent_id), clean_text(session_id, 120))
 }
