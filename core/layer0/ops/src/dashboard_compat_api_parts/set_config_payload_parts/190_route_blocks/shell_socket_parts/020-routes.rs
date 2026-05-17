@@ -566,6 +566,16 @@ fn handle_shell_socket_routes(
         let legacy = handle_agent_scope_routes(root, "POST", &legacy_path, &legacy_path, body, headers, snapshot, requester_agent)?;
         return Some(shell_socket_suggestion_projection("request_agent_suggestions", legacy));
     }
+    if method == "POST" && parts.len() == 5 && parts[0] == "agents" && parts[2] == "artifacts" && parts[3] == "file" && parts[4] == "read" {
+        let legacy_path = format!("/api/agents/{}/file/read", clean_agent_id(&parts[1]));
+        let legacy = handle_agent_scope_routes(root, "POST", &legacy_path, &legacy_path, body, headers, snapshot, requester_agent)?;
+        return Some(shell_socket_artifact_projection("read_agent_file_artifact", legacy));
+    }
+    if method == "POST" && parts.len() == 5 && parts[0] == "agents" && parts[2] == "artifacts" && parts[3] == "folder" && parts[4] == "export" {
+        let legacy_path = format!("/api/agents/{}/folder/export", clean_agent_id(&parts[1]));
+        let legacy = handle_agent_scope_routes(root, "POST", &legacy_path, &legacy_path, body, headers, snapshot, requester_agent)?;
+        return Some(shell_socket_artifact_projection("export_agent_folder_artifact", legacy));
+    }
     if method == "POST" && parts.len() == 3 && parts[0] == "agents" && parts[2] == "git-tree" {
         let legacy_path = format!("/api/agents/{}/git-tree/switch", clean_agent_id(&parts[1]));
         let legacy = handle_agent_scope_routes(root, "POST", &legacy_path, &legacy_path, body, headers, snapshot, requester_agent)?;

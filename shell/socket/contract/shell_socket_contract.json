@@ -453,6 +453,23 @@
       "requires_detail_refs": true
     },
     {
+      "name": "ArtifactProjection",
+      "description": "Bounded artifact display projection for file/folder outputs; path policy and payload limits remain Gateway/authority-owned.",
+      "allowed_top_level_fields": [
+        "ok",
+        "file",
+        "folder",
+        "archive",
+        "routing",
+        "error",
+        "receipt_ref",
+        "correlation_id"
+      ],
+      "max_response_bytes": 262144,
+      "requires_cursor": false,
+      "requires_detail_refs": true
+    },
+    {
       "name": "IngressAck",
       "description": "Bounded acknowledgement or receipt for a shell-submitted request.",
       "allowed_top_level_fields": [
@@ -1441,6 +1458,60 @@
         "suggestion_generation_policy",
         "raw_context_pack",
         "full_conversation_tree"
+      ]
+    },
+    {
+      "id": "read_agent_file_artifact",
+      "purpose": "Request a bounded file artifact projection through Gateway without direct shell access to agent filesystem routes.",
+      "route_class": "detail_fetch",
+      "request_shape": "AgentFileArtifactReadRequest",
+      "response_shape": "ArtifactProjection",
+      "default_projection": "ArtifactProjection",
+      "cursor_required": false,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "owner_of_truth": "kernel_workspace_artifact_authority",
+      "shell_may_hold": [
+        "path",
+        "content_preview",
+        "bytes",
+        "truncated",
+        "receipt_ref"
+      ],
+      "shell_must_not_hold": [
+        "filesystem_authority",
+        "path_policy_truth",
+        "unbounded_file_content"
+      ]
+    },
+    {
+      "id": "export_agent_folder_artifact",
+      "purpose": "Request a bounded folder artifact projection through Gateway without direct shell access to workspace export routes.",
+      "route_class": "detail_fetch",
+      "request_shape": "AgentFolderArtifactExportRequest",
+      "response_shape": "ArtifactProjection",
+      "default_projection": "ArtifactProjection",
+      "cursor_required": false,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "owner_of_truth": "kernel_workspace_artifact_authority",
+      "shell_may_hold": [
+        "path",
+        "tree_preview",
+        "archive_ref",
+        "entries",
+        "receipt_ref"
+      ],
+      "shell_must_not_hold": [
+        "filesystem_authority",
+        "path_policy_truth",
+        "unbounded_folder_tree"
       ]
     },
     {

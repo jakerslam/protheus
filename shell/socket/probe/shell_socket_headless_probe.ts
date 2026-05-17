@@ -474,6 +474,39 @@ function makeHeadlessGatewayFetch(calls: CallRecord[], includeControlledViolatio
         receipt_ref: 'receipt:suggestions:probe',
         correlation_id: 'probe-suggestions',
       };
+    } else if (method === 'POST' && /^\/api\/shell-socket\/agents\/[^/]+\/artifacts\/file\/read$/.test(pathName)) {
+      capabilityId = 'read_agent_file_artifact';
+      payload = {
+        ok: true,
+        file: {
+          ok: true,
+          path: 'probe.txt',
+          content: 'probe file content',
+          bytes: 18,
+          truncated: false,
+        },
+        receipt_ref: 'receipt:file-artifact:probe',
+        correlation_id: 'probe-file-artifact',
+      };
+    } else if (method === 'POST' && /^\/api\/shell-socket\/agents\/[^/]+\/artifacts\/folder\/export$/.test(pathName)) {
+      capabilityId = 'export_agent_folder_artifact';
+      payload = {
+        ok: true,
+        folder: {
+          ok: true,
+          path: 'probe-folder',
+          entries: 1,
+          tree: [{ path: 'probe-folder/probe.txt', kind: 'file' }],
+          truncated: false,
+        },
+        archive: {
+          ok: true,
+          file_name: 'probe-folder.zip',
+          detail_ref: 'artifact:folder:probe',
+        },
+        receipt_ref: 'receipt:folder-artifact:probe',
+        correlation_id: 'probe-folder-artifact',
+      };
     } else if (method === 'POST' && /^\/api\/shell-socket\/agents\/[^/]+\/git-tree$/.test(pathName)) {
       capabilityId = 'set_git_tree';
       payload = makeIngressAck('git-tree');
@@ -630,6 +663,8 @@ async function runProbe(options: ProbeOptions): Promise<Record<string, unknown>>
   const createSessionAck = await client.createSession<any>(agentId, { label: 'Probe Session' });
   const switchSessionAck = await client.switchSession<any>(agentId, sessionId);
   const suggestionsAck = await client.requestAgentSuggestions<any>(agentId, { user_hint: 'probe' });
+  const fileArtifact = await client.readAgentFileArtifact<any>(agentId, { path: 'probe.txt' });
+  const folderArtifact = await client.exportAgentFolderArtifact<any>(agentId, { path: 'probe-folder' });
   const gitAck = await client.setGitTree<any>(agentId, { tree_ref: 'git-tree:current' });
   const freshSessionAck = await client.freshSession<any>(agentId, { reason: 'headless_probe' });
   const compactSessionAck = await client.compactSession<any>(agentId, { reason: 'headless_probe' });
@@ -682,6 +717,8 @@ async function runProbe(options: ProbeOptions): Promise<Record<string, unknown>>
       create_session_receipt: createSessionAck.receipt_ref,
       switch_session_receipt: switchSessionAck.receipt_ref,
       suggestions_receipt: suggestionsAck.receipt_ref,
+      file_artifact_receipt: fileArtifact.receipt_ref,
+      folder_artifact_receipt: folderArtifact.receipt_ref,
       git_receipt: gitAck.receipt_ref,
       fresh_session_receipt: freshSessionAck.receipt_ref,
       compact_session_receipt: compactSessionAck.receipt_ref,

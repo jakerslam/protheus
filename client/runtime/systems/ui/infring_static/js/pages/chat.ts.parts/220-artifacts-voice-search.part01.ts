@@ -59,7 +59,7 @@
         if (!targetPath) continue;
         try {
           if (row.kind === 'file') {
-            var fileRes = await InfringAPI.post('/api/agents/' + this.currentAgent.id + '/file/read', {
+            var fileRes = await InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(this.currentAgent.id) + '/artifacts/file/read', {
               path: targetPath
             });
             var fileMeta = fileRes && fileRes.file ? fileRes.file : null;
@@ -80,7 +80,7 @@
               });
             }
           } else if (row.kind === 'folder') {
-            var folderRes = await InfringAPI.post('/api/agents/' + this.currentAgent.id + '/folder/export', {
+            var folderRes = await InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(this.currentAgent.id) + '/artifacts/folder/export', {
               path: targetPath
             });
             var folderMeta = folderRes && folderRes.folder ? folderRes.folder : null;

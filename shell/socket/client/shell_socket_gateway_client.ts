@@ -38,6 +38,8 @@ export type ShellSocketCapabilityId =
   | 'create_session'
   | 'switch_session'
   | 'request_agent_suggestions'
+  | 'read_agent_file_artifact'
+  | 'export_agent_folder_artifact'
   | 'set_git_tree'
   | 'fresh_session'
   | 'compact_session'
@@ -100,6 +102,8 @@ export const SHELL_SOCKET_ROUTES: ReadonlyArray<ShellSocketRouteDefinition> = Ob
   { capabilityId: 'create_session', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/sessions', pathParams: ['agent_id'] },
   { capabilityId: 'switch_session', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/sessions/{session_id}/switch', pathParams: ['agent_id', 'session_id'] },
   { capabilityId: 'request_agent_suggestions', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/suggestions', pathParams: ['agent_id'] },
+  { capabilityId: 'read_agent_file_artifact', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/artifacts/file/read', pathParams: ['agent_id'] },
+  { capabilityId: 'export_agent_folder_artifact', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/artifacts/folder/export', pathParams: ['agent_id'] },
   { capabilityId: 'set_git_tree', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/git-tree', pathParams: ['agent_id'] },
   { capabilityId: 'fresh_session', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/fresh-session', pathParams: ['agent_id'] },
   { capabilityId: 'compact_session', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/compact-session', pathParams: ['agent_id'] },
@@ -337,6 +341,14 @@ export class ShellSocketGatewayClient {
     return this.request<T>('request_agent_suggestions', { query: { agent_id: agentId }, body: request });
   }
 
+  readAgentFileArtifact<T = unknown>(agentId: string, request: unknown): Promise<T> {
+    return this.request<T>('read_agent_file_artifact', { query: { agent_id: agentId }, body: request });
+  }
+
+  exportAgentFolderArtifact<T = unknown>(agentId: string, request: unknown): Promise<T> {
+    return this.request<T>('export_agent_folder_artifact', { query: { agent_id: agentId }, body: request });
+  }
+
   setGitTree<T = unknown>(agentId: string, treeSelection: unknown): Promise<T> {
     return this.request<T>('set_git_tree', { query: { agent_id: agentId }, body: treeSelection });
   }
@@ -365,7 +377,7 @@ export function shellSocketClientSelfTest(): Record<string, unknown> {
     fetchImpl: async () => ({ ok: true, status: 200, text: async () => '{}' }),
   });
   return {
-    ok: routeIds.length === uniqueRouteIds.size && routeIds.length === 40,
+    ok: routeIds.length === uniqueRouteIds.size && routeIds.length === 42,
     type: 'shell_socket_gateway_client_self_test',
     route_count: routeIds.length,
     unique_route_count: uniqueRouteIds.size,
