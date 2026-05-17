@@ -1923,18 +1923,40 @@ fn scan_access_blocker_text(
     refs: &mut Vec<String>,
 ) {
     let normalized = normalize_for_compare(raw);
-    let strong_body_markers = [
+    let explicit_challenge_markers = [
         ("captcha", "captcha_challenge"),
         ("recaptcha", "captcha_challenge"),
         ("hcaptcha", "captcha_challenge"),
-        ("cloudflare", "cloudflare_challenge"),
         ("cf-chl", "cloudflare_challenge"),
         ("cf-ray", "cloudflare_challenge"),
         ("checking your browser", "cloudflare_challenge"),
         ("verify you are human", "human_verification"),
         ("human verification", "human_verification"),
+        (
+            "please complete the following challenge",
+            "human_verification",
+        ),
+        (
+            "unfortunately bots use duckduckgo too",
+            "human_verification",
+        ),
+        (
+            "select all squares containing a duck",
+            "human_verification",
+        ),
         ("unusual traffic", "bot_detection"),
         ("automated queries", "bot_detection"),
+    ];
+    let mut explicit_challenge_detected = false;
+    for (needle, signal) in explicit_challenge_markers {
+        if normalized.contains(needle) {
+            explicit_challenge_detected = true;
+            push_access_signal(signal, path, signals, refs);
+        }
+    }
+
+    let contextual_bot_markers = [
+        ("cloudflare", "cloudflare_challenge"),
         ("bot detection", "bot_detection"),
         ("anti-bot", "bot_detection"),
         ("anti bot", "bot_detection"),
@@ -1947,9 +1969,11 @@ fn scan_access_blocker_text(
         ("distil networks", "waf_or_bot_wall"),
         ("ddos-guard", "waf_or_bot_wall"),
     ];
-    for (needle, signal) in strong_body_markers {
-        if normalized.contains(needle) {
-            push_access_signal(signal, path, signals, refs);
+    if access_status_path(path) || explicit_challenge_detected {
+        for (needle, signal) in contextual_bot_markers {
+            if normalized.contains(needle) {
+                push_access_signal(signal, path, signals, refs);
+            }
         }
     }
 
@@ -2044,4 +2068,56 @@ fn push_status_signal(code: u64, path: &str, signals: &mut Vec<String>, refs: &m
 fn push_access_signal(signal: &str, path: &str, signals: &mut Vec<String>, refs: &mut Vec<String>) {
     signals.push(signal.to_string());
     refs.push(path.to_string());
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn access_blocker_ignores_topic_mentions_in_evidence_snippets() {
+        let payload = json!({
+            "tools": [{
+                "result": "Browser-agent security sources discuss Cloudflare challenge flows, WAF designs, and bot-detection countermeasures.",
+                "evidence_pack": [{
+                    "snippet": "Cloudflare bot detection and WAF controls are common topics in browser-agent security writeups."
+                }]
+            }]
+        });
+        let retrieval_quality = json!({
+            "status": "usable",
+            "usable_evidence": true
+        });
+        let blocker = web_access_blocker_diagnostics(&payload, &retrieval_quality);
+        assert_eq!(
+            blocker.get("detected").and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            blocker
+                .pointer("/classes/anti_bot_challenge")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+    }
+
+    #[test]
+    fn access_blocker_detects_real_challenge_copy_in_result_body() {
+        let payload = json!({
+            "tools": [{
+                "result": "Unfortunately, bots use DuckDuckGo too. Please complete the following challenge to verify you are human. Cloudflare protection is active."
+            }]
+        });
+        let blocker = web_access_blocker_diagnostics(&payload, &json!({}));
+        assert_eq!(
+            blocker
+                .pointer("/classes/anti_bot_challenge")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            blocker.get("kind").and_then(Value::as_str),
+            Some("anti_bot_challenge")
+        );
+    }
 }
