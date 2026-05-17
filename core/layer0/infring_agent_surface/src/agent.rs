@@ -331,11 +331,27 @@ impl AgentContract {
         let mut context_only_turn_count = 0u64;
         let loop_started = Instant::now();
         let wall_timeout = native_tool_wall_timeout(&self.metadata);
+        if native_tool_bootstrap_context_before_first_provider(&self.metadata)
+            && native_tool_requires_successful_mutation(&self.metadata)
+            && native_tool_prompt_has_multiple_requirements(&self.initial_prompt)
+        {
+            let bootstrap_receipts =
+                native_tool_bootstrap_context_receipts(&dispatcher, &self.initial_prompt);
+            if !bootstrap_receipts.is_empty() {
+                let observation = native_tool_observation_prompt(&bootstrap_receipts);
+                all_receipts.extend(bootstrap_receipts);
+                prompt = format!(
+                    "{}\n\nRuntime bootstrap context was collected before the first model call for this multi-requirement local coding task.\n\nNative tool observations:\n{}\n\nContinue from this already-read context. Return only JSON tool_calls next. Do not repeat discovery unless a required file is missing from the observations. Batch file_write/file_patch calls for the required implementation, tests, and docs. If validation or test status is requested, run command_run after the write batch.",
+                    self.initial_prompt,
+                    observation
+                );
+            }
+        }
 
         for turn_idx in 0..max_turns {
             if let Some(timeout) = wall_timeout {
                 if loop_started.elapsed() >= timeout {
-                    if !all_receipts.is_empty()
+                    if native_tool_has_successful_mutation(&all_receipts)
                         && native_tool_partial_progress_on_timeout(&self.metadata)
                     {
                         return native_tool_recovery_or_partial_progress(
@@ -371,8 +387,8 @@ impl AgentContract {
             let response = match provider.complete(&request) {
                 Ok(response) => response,
                 Err(error)
-                    if error.code == ProviderErrorCode::Timeout
-                        && !all_receipts.is_empty()
+                    if native_tool_provider_error_is_timeout(&error)
+                        && native_tool_has_successful_mutation(&all_receipts)
                         && native_tool_partial_progress_on_timeout(&self.metadata) =>
                 {
                     return native_tool_recovery_or_partial_progress(
@@ -387,6 +403,27 @@ impl AgentContract {
                         provider_call_count,
                         all_receipts,
                     );
+                }
+                Err(error)
+                    if native_tool_provider_error_is_timeout(&error)
+                        && all_receipts.is_empty()
+                        && native_tool_requires_successful_mutation(&self.metadata)
+                        && native_tool_prompt_has_multiple_requirements(&self.initial_prompt) =>
+                {
+                    if let Some(bootstrap_receipt) =
+                        native_tool_bootstrap_discovery_receipt(&dispatcher, &self.initial_prompt)
+                    {
+                        let observation =
+                            native_tool_observation_prompt(&[bootstrap_receipt.clone()]);
+                        all_receipts.push(bootstrap_receipt);
+                        prompt = format!(
+                            "{}\n\nRuntime bootstrap discovery was performed because the initial provider call timed out before native tools were called for this multi-requirement local coding task.\n\nNative tool observations:\n{}\n\nContinue from these observations. Return only JSON tool_calls next. Read the relevant existing files, then batch file_write/file_patch calls for the required implementation, tests, and docs. If validation or test status is requested, run command_run before finalizing.",
+                            self.initial_prompt,
+                            observation
+                        );
+                        continue;
+                    }
+                    return Err(error);
                 }
                 Err(error) => return Err(error),
             };
@@ -425,7 +462,10 @@ impl AgentContract {
                 break;
             }
             let mut turn_receipts = Vec::new();
-            for call in calls.into_iter().take(8) {
+            for call in calls
+                .into_iter()
+                .take(native_tool_max_calls_per_turn(&self.metadata))
+            {
                 let receipt = dispatcher.dispatch(call);
                 turn_receipts.push(receipt.clone());
                 all_receipts.push(receipt);
@@ -495,7 +535,10 @@ impl AgentContract {
                 .map(|receipt| receipt.call_id.clone())
                 .collect::<std::collections::BTreeSet<_>>();
             let mut terminal_receipts = Vec::new();
-            for call in pending_terminal_calls.into_iter().take(8) {
+            for call in pending_terminal_calls
+                .into_iter()
+                .take(native_tool_max_calls_per_turn(&self.metadata))
+            {
                 if existing_call_ids.contains(&call.id) {
                     continue;
                 }
@@ -567,7 +610,21 @@ impl AgentContract {
             &response.output,
             &all_receipts,
         );
-        if terminal_output_has_tool_calls
+        if (terminal_output_has_tool_calls
+            || native_tool_needs_public_reasoning_finalization(&self.metadata, &response.output)
+            || completion_evidence_finalization)
+            && native_tool_synthesize_final_after_successful_validation(&self.metadata)
+            && native_tool_has_successful_mutation(&all_receipts)
+            && native_tool_has_successful_validation_command(&all_receipts)
+            && native_tool_prompt_evidence_gaps(&self.initial_prompt, &all_receipts).is_empty()
+        {
+            response = native_tool_synthetic_completion_evidence_response(
+                &response,
+                &self.initial_prompt,
+                &all_receipts,
+                "successful_validation_receipt_runtime_synthesized_final",
+            );
+        } else if terminal_output_has_tool_calls
             || native_tool_needs_public_reasoning_finalization(&self.metadata, &response.output)
             || completion_evidence_finalization
         {
@@ -672,7 +729,7 @@ impl AgentContract {
                 &response,
                 &self.initial_prompt,
                 &all_receipts,
-                "terminal_tool_calls_after_evidence_repair",
+                "terminal_native_requests_after_evidence_repair",
             );
         }
         let unresolved_final_reasons = native_tool_completion_evidence_repair_reasons(
@@ -722,6 +779,10 @@ fn native_tool_empty_retry_limit(metadata: &Value) -> u64 {
         .clamp(0, 3)
 }
 
+fn native_tool_provider_error_is_timeout(error: &ProviderError) -> bool {
+    error.code == ProviderErrorCode::Timeout || error.message.contains("ollama_run_timeout")
+}
+
 fn native_tool_requires_successful_mutation(metadata: &Value) -> bool {
     metadata
         .get("native_success_criteria")
@@ -739,6 +800,16 @@ fn native_tool_max_context_only_turns(metadata: &Value) -> u64 {
         .and_then(Value::as_u64)
         .unwrap_or(2)
         .clamp(1, 6)
+}
+
+fn native_tool_max_calls_per_turn(metadata: &Value) -> usize {
+    metadata
+        .get("native_success_criteria")
+        .or_else(|| metadata.pointer("/workflow/native_success_criteria"))
+        .and_then(|value| value.get("max_tool_calls_per_turn"))
+        .and_then(Value::as_u64)
+        .unwrap_or(8)
+        .clamp(1, 16) as usize
 }
 
 fn native_tool_has_successful_mutation(receipts: &[NativeToolReceipt]) -> bool {
@@ -836,6 +907,9 @@ fn native_tool_context_only_turn(receipts: &[NativeToolReceipt]) -> bool {
                 saw_successful_context |= receipt.status == "ok";
             }
             "file_write" | "file_patch" => return false,
+            "command_run" => {
+                saw_successful_context |= receipt.status == "ok";
+            }
             _ => return false,
         }
     }
@@ -1043,7 +1117,7 @@ fn native_tool_initial_prompt(original_prompt: &str, metadata: &Value) -> String
     if !force_read_first {
         if requires_native_tool_use {
             return format!(
-                "{original_prompt}\n\nNative coding tool-use rule: choose the shortest safe native file-tool path for the task. If the request is an isolated greenfield/create-file task with an explicit target path and behavior, return only JSON tool_calls with file_write now; discovery is optional, not mandatory. If the request modifies, debugs, refactors, or extends an existing or unclear project, use file_list/file_stat and then read relevant existing files before writing. For multi-requirement tasks, derive a concise task_requirement_checklist from the numbered/bulleted/user-stated requirements and keep working until each item has receipt-backed evidence, or return a structured partial/blocker naming uncovered items. If adding or updating tests, tests must be faithful to the user prompt and observed project behavior: do not invent unrequested semantics, prefer behavior and parsed-structure assertions over brittle whitespace/format assertions, and isolate setup stdout/stderr from the action being asserted. If tests, validation, or test status are requested, use command_run after edits to run the relevant local validation command, inspect failures, and patch before finalizing. Do not provide a final answer for mutation work until native file_write or file_patch observations confirm the change, or return a structured blocker if mutation cannot proceed.{evidence_target_brief}"
+                "{original_prompt}\n\nNative coding tool-use rule: choose the shortest safe native file-tool path for the task. If the request is an isolated greenfield/create-file task with an explicit target path and behavior, return only JSON tool_calls with file_write now; discovery is optional, not mandatory. If the request modifies, debugs, refactors, or extends an existing or unclear project, use file_list/file_stat and then read relevant existing files before writing. For implementation tasks, do not run command_run before the first mutation batch; validation is useful only after source/tests/docs have been written or patched. For larger multi-file tasks with explicit target files, avoid one-file-at-a-time drift: after reading context, batch related file_write/file_patch calls in the same tool response up to the available per-turn tool limit, prioritizing a complete vertical slice across source, tests, and docs. For multi-requirement tasks, derive a concise task_requirement_checklist from the numbered/bulleted/user-stated requirements and keep working until each item has receipt-backed evidence, or return a structured partial/blocker naming uncovered items. If adding or updating tests, tests must be faithful to the user prompt and observed project behavior: do not invent unrequested semantics, prefer behavior and parsed-structure assertions over brittle whitespace/format assertions, and isolate setup stdout/stderr from the action being asserted. If tests, validation, or test status are requested, use command_run after edits to run the relevant local validation command, inspect failures, and patch before finalizing. Do not provide a final answer for mutation work until native file_write or file_patch observations confirm the change, or return a structured blocker if mutation cannot proceed.{evidence_target_brief}"
             );
         }
         return original_prompt.to_string();
@@ -1263,7 +1337,10 @@ fn native_tool_recovery_or_partial_progress(
             return Ok((response, receipts, provider_call_count, "ok".to_string()));
         }
         let mut turn_receipts = Vec::new();
-        for call in calls.into_iter().take(8) {
+        for call in calls
+            .into_iter()
+            .take(native_tool_max_calls_per_turn(metadata))
+        {
             let receipt = dispatcher.dispatch(call);
             turn_receipts.push(receipt.clone());
             receipts.push(receipt);
@@ -1561,7 +1638,10 @@ fn native_tool_completion_evidence_repair_loop(
             continue;
         }
         let mut turn_receipts = Vec::new();
-        for call in calls.into_iter().take(8) {
+        for call in calls
+            .into_iter()
+            .take(native_tool_max_calls_per_turn(metadata))
+        {
             let receipt = dispatcher.dispatch(call);
             turn_receipts.push(receipt.clone());
             receipts.push(receipt);
@@ -1633,6 +1713,24 @@ fn native_tool_completion_evidence_timeout_synthesis_enabled(metadata: &Value) -
         .and_then(|value| value.get("synthesize_completion_evidence_on_finalization_timeout"))
         .and_then(Value::as_bool)
         .unwrap_or(true)
+}
+
+fn native_tool_synthesize_final_after_successful_validation(metadata: &Value) -> bool {
+    metadata
+        .get("native_success_criteria")
+        .or_else(|| metadata.pointer("/workflow/native_success_criteria"))
+        .and_then(|value| value.get("synthesize_final_after_successful_validation"))
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+}
+
+fn native_tool_bootstrap_context_before_first_provider(metadata: &Value) -> bool {
+    metadata
+        .get("native_success_criteria")
+        .or_else(|| metadata.pointer("/workflow/native_success_criteria"))
+        .and_then(|value| value.get("bootstrap_context_before_first_provider"))
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
 }
 
 fn native_tool_prompt_has_multiple_requirements(original_prompt: &str) -> bool {
@@ -1733,6 +1831,56 @@ fn native_tool_bootstrap_discovery_receipt(
     } else {
         None
     }
+}
+
+fn native_tool_bootstrap_context_receipts(
+    dispatcher: &NativeToolDispatcher,
+    original_prompt: &str,
+) -> Vec<NativeToolReceipt> {
+    let Some(project_root) = native_tool_prompt_project_root(original_prompt) else {
+        return Vec::new();
+    };
+    let mut receipts = Vec::new();
+    let list_receipt = dispatcher.dispatch(crate::native_tools::NativeToolCall {
+        id: "runtime_bootstrap_file_list".to_string(),
+        name: "file_list".to_string(),
+        args: json!({
+            "path": project_root,
+            "recursive": true,
+            "max_depth": 3,
+            "max_entries": 200
+        }),
+    });
+    receipts.push(list_receipt);
+    let root = std::path::PathBuf::from(&project_root);
+    let mut paths = native_tool_unique_code_path_mentions(original_prompt)
+        .into_iter()
+        .filter_map(|path| {
+            let candidate = if path.starts_with('/') {
+                std::path::PathBuf::from(path)
+            } else {
+                root.join(path.trim_start_matches("./"))
+            };
+            if candidate.is_file() {
+                Some(candidate.display().to_string())
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>();
+    paths.sort();
+    paths.dedup();
+    if !paths.is_empty() {
+        receipts.push(dispatcher.dispatch(crate::native_tools::NativeToolCall {
+            id: "runtime_bootstrap_file_read_many".to_string(),
+            name: "file_read_many".to_string(),
+            args: json!({ "paths": paths }),
+        }));
+    }
+    receipts
+        .into_iter()
+        .filter(|receipt| receipt.status == "ok")
+        .collect()
 }
 
 fn native_tool_auto_validation_receipt(
