@@ -1334,12 +1334,19 @@ fn response_violates_tool_backed_final_verifier(
     response_text: &str,
     response_tools: &[Value],
 ) -> bool {
+    tool_backed_final_verifier_violation_reason(response_text, response_tools).is_some()
+}
+
+fn tool_backed_final_verifier_violation_reason(
+    response_text: &str,
+    response_tools: &[Value],
+) -> Option<String> {
     if response_tools.is_empty() {
-        return false;
+        return None;
     }
     let cleaned = clean_chat_text(response_text, 32_000);
     if cleaned.is_empty() {
-        return false;
+        return None;
     }
     let first = first_sentence(&cleaned, 420).to_ascii_lowercase();
     let full = cleaned.to_ascii_lowercase();
@@ -1356,7 +1363,139 @@ fn response_violates_tool_backed_final_verifier(
             "/diagnostic_markers/final_response_verifier/missing_evidence_claim_phrases",
             &full,
         );
-    claims_missing_evidence || (status_first && !bounded_answer_first)
+    if claims_missing_evidence {
+        return Some("final_response_verifier_contract:claims_missing_recorded_evidence".to_string());
+    }
+    let missing_citation_signal = response_tools_have_recorded_evidence_refs(response_tools)
+        && !response_has_evidence_tags(&cleaned)
+        && !response_has_public_source_signal(&cleaned);
+    if missing_citation_signal {
+        return Some("final_response_verifier_contract:missing_citation_or_source_signal".to_string());
+    }
+    if status_first && !bounded_answer_first {
+        return Some("final_response_verifier_contract:status_before_answer".to_string());
+    }
+    let missing_lanes = response_missing_required_entity_lanes(&cleaned, response_tools);
+    if !missing_lanes.is_empty() {
+        return Some(format!(
+            "final_response_verifier_contract:missing_coverage_lanes={}",
+            missing_lanes.join(", ")
+        ));
+    }
+    None
+}
+
+fn response_has_public_source_signal(response_text: &str) -> bool {
+    let normalized = clean_text(response_text, 8_000).to_ascii_lowercase();
+    [
+        "http://",
+        "https://",
+        "source:",
+        "sources:",
+        "citation",
+        "citations",
+        "according to",
+        "recorded source",
+        "recorded evidence",
+        "retrieved evidence",
+        "source supports",
+        "evidence supports",
+        "source-backed",
+        "the docs",
+        "official docs",
+        "release notes",
+        "changelog",
+        "paper",
+        "study",
+    ]
+    .iter()
+    .any(|marker| normalized.contains(marker))
+}
+
+fn response_missing_required_entity_lanes(
+    response_text: &str,
+    response_tools: &[Value],
+) -> Vec<String> {
+    let normalized_response = normalize_coverage_lane_text(response_text);
+    if normalized_response.is_empty() {
+        return Vec::new();
+    }
+    let mut missing = Vec::<String>::new();
+    for lane in synthesis_coverage_lanes_for_tools(response_tools, 24) {
+        let kind = clean_text(lane.get("kind").and_then(Value::as_str).unwrap_or(""), 80)
+            .to_ascii_lowercase();
+        if kind != "entity" {
+            continue;
+        }
+        let requested = clean_text(
+            lane.get("requested_text").and_then(Value::as_str).unwrap_or(""),
+            120,
+        );
+        if requested.is_empty()
+            || missing.iter().any(|row| row.eq_ignore_ascii_case(&requested))
+        {
+            continue;
+        }
+        if !normalized_response_covers_coverage_lane(&normalized_response, &requested) {
+            missing.push(requested);
+        }
+    }
+    missing.into_iter().take(8).collect()
+}
+
+fn normalized_response_covers_coverage_lane(normalized_response: &str, lane: &str) -> bool {
+    let normalized_lane = normalize_coverage_lane_text(lane);
+    if normalized_lane.is_empty() {
+        return false;
+    }
+    if normalized_response.contains(&normalized_lane)
+        || normalized_response.contains(&simple_coverage_plural_variant(&normalized_lane))
+        || normalized_response.contains(&simple_coverage_singular_variant(&normalized_lane))
+    {
+        return true;
+    }
+    let tokens = normalized_lane
+        .split_whitespace()
+        .filter(|token| token.len() > 2)
+        .collect::<Vec<_>>();
+    !tokens.is_empty()
+        && tokens
+            .iter()
+            .all(|token| coverage_token_or_simple_variant_present(normalized_response, token))
+}
+
+fn coverage_token_or_simple_variant_present(normalized_response: &str, token: &str) -> bool {
+    normalized_response.contains(token)
+        || normalized_response.contains(&simple_coverage_plural_variant(token))
+        || normalized_response.contains(&simple_coverage_singular_variant(token))
+}
+
+fn simple_coverage_plural_variant(value: &str) -> String {
+    if value.ends_with('s') {
+        value.to_string()
+    } else {
+        format!("{value}s")
+    }
+}
+
+fn simple_coverage_singular_variant(value: &str) -> String {
+    value.strip_suffix('s').unwrap_or(value).to_string()
+}
+
+fn normalize_coverage_lane_text(value: &str) -> String {
+    clean_text(value, 4_000)
+        .chars()
+        .map(|ch| {
+            if ch.is_ascii_alphanumeric() {
+                ch.to_ascii_lowercase()
+            } else {
+                ' '
+            }
+        })
+        .collect::<String>()
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 fn workflow_final_synthesis_retry_prompt_context(
@@ -1368,7 +1507,7 @@ fn workflow_final_synthesis_retry_prompt_context(
     }
     clean_text(
         &format!(
-            "Internal final-response verifier retry. The previous candidate failed `{}`. Previous excerpt: {}. Produce the user-facing answer from the same recorded evidence and user goal. Lead with the best bounded answer the evidence supports, then state limits or gaps; if the previous candidate opened by reporting tool/search/retrieval status, make that status supporting context after the answer instead. Do not mention this verifier, workflow gates, tool traces, or a required output format.",
+            "Internal final-response verifier retry. The previous candidate failed `{}`. Previous excerpt: {}. Produce the user-facing answer from the same recorded evidence and user goal. Lead with the best bounded answer the evidence supports, then state limits or gaps. If the failure names missing coverage lanes, cover each named lane or explicitly mark its evidence as weak or missing. If the failure names missing citation/source signal, preserve compact source grounding for claims supported by recorded evidence, using whatever natural wording fits the answer. If the previous candidate opened by reporting tool/search/retrieval status, make that status supporting context after the answer instead. Do not mention this verifier, workflow gates, tool traces, or a required output format.",
             clean_text(last_reject_reason, 120),
             clean_text(last_invalid_excerpt, 240)
         ),
@@ -1982,8 +2121,11 @@ fn run_turn_workflow_final_response(
                         &retried_text,
                         response_tools,
                     );
+                let final_verifier_contract_violation_reason =
+                    tool_backed_final_verifier_violation_reason(&retried_text, response_tools)
+                        .unwrap_or_default();
                 let final_verifier_contract_violation =
-                    response_violates_tool_backed_final_verifier(&retried_text, response_tools);
+                    !final_verifier_contract_violation_reason.is_empty();
                 let missing_turn_tool_context_reply = missing_turn_tool_context_recovery
                     && !workflow_missing_turn_tool_context_response_contract_satisfied(
                         &retried_text,
@@ -2074,7 +2216,13 @@ fn run_turn_workflow_final_response(
                     if !reject_counter.is_empty() {
                         bump_workflow_quality_counter(&mut workflow, reject_counter);
                     }
-                    last_reject_reason = reject_reason.to_string();
+                    last_reject_reason = if reject_reason == "final_response_verifier_contract"
+                        && !final_verifier_contract_violation_reason.is_empty()
+                    {
+                        final_verifier_contract_violation_reason.clone()
+                    } else {
+                        reject_reason.to_string()
+                    };
                     last_invalid_excerpt = first_sentence(&retried_text, 240);
                     workflow["final_llm_response"]["runtime_interference_disabled"] =
                         Value::Bool(true);
@@ -2992,15 +3140,86 @@ mod workflow_fallback_tests {
     }
 
     #[test]
+    fn final_verifier_rejects_missing_named_coverage_lanes() {
+        let tools = vec![json!({
+            "name": "batch_query",
+            "status": "ok",
+            "result": "Retrieved evidence across the comparison request.",
+            "query_metadata": {
+                "required_coverage": {
+                    "entities": ["Infring", "LangGraph", "CrewAI", "AutoGen", "OpenHands"]
+                }
+            },
+            "evidence_refs": [{
+                "title": "Framework comparison",
+                "locator": "https://example.test/frameworks"
+            }]
+        })];
+
+        assert!(response_violates_tool_backed_final_verifier(
+            "Bottom line: Infring, LangGraph, and CrewAI have enough evidence for a provisional comparison, but the ranking remains bounded.",
+            &tools,
+        ));
+        assert!(!response_violates_tool_backed_final_verifier(
+            "Bottom line: Infring, LangGraph, and CrewAI have enough evidence for a provisional comparison. AutoGen and OpenHands remain weakly covered in this retrieval turn, so treat their tradeoffs as explicit coverage gaps rather than source-backed conclusions.",
+            &tools,
+        ));
+    }
+
+    #[test]
+    fn final_verifier_rejects_missing_source_signal_when_evidence_exists() {
+        let tools = vec![json!({
+            "name": "batch_query",
+            "status": "ok",
+            "result": "Retrieved source-backed evidence for the requested comparison.",
+            "evidence_refs": [{
+                "title": "Framework comparison source",
+                "locator": "https://example.test/frameworks",
+                "snippet": "Substantive citable evidence for the answer."
+            }]
+        })];
+
+        assert_eq!(
+            tool_backed_final_verifier_violation_reason(
+                "Bottom line: Alpha is better for production while Beta is better for prototypes.",
+                &tools,
+            ),
+            Some("final_response_verifier_contract:missing_citation_or_source_signal".to_string())
+        );
+        assert_eq!(
+            tool_backed_final_verifier_violation_reason(
+                "Bottom line: according to the retrieved project docs, Alpha is better for production while Beta is better for prototypes.",
+                &tools,
+            ),
+            None
+        );
+    }
+
+    #[test]
+    fn final_synthesis_retry_guidance_names_missing_coverage_lane_behavior() {
+        let prompt = workflow_final_synthesis_retry_prompt_context(
+            "final_response_verifier_contract:missing_coverage_lanes=AutoGen, OpenHands",
+            "Bottom line: Infring, LangGraph, and CrewAI are covered.",
+        );
+        let lowered = prompt.to_ascii_lowercase();
+
+        assert!(lowered.contains("missing coverage lanes"));
+        assert!(lowered.contains("cover each named lane"));
+        assert!(lowered.contains("weak or missing"));
+        assert!(lowered.contains("required output format"));
+    }
+
+    #[test]
     fn final_synthesis_retry_guidance_is_internal_and_format_free() {
         let prompt = workflow_final_synthesis_retry_prompt_context(
-            "final_response_verifier_contract",
+            "final_response_verifier_contract:missing_citation_or_source_signal",
             "The web search results are too thin.",
         );
         let lowered = prompt.to_ascii_lowercase();
 
         assert!(lowered.contains("internal final-response verifier retry"));
         assert!(lowered.contains("lead with the best bounded answer"));
+        assert!(lowered.contains("source grounding"));
         assert!(lowered.contains("do not mention this verifier"));
         assert!(lowered.contains("required output format"));
     }

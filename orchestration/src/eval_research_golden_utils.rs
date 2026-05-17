@@ -453,17 +453,43 @@ fn recover_timed_out_response_from_state(
         return None;
     }
     let deadline = Instant::now() + Duration::from_secs(recovery_budget_seconds);
+    let mut latest_recovered = None;
     loop {
         if let Some(recovered) =
             recovered_payload_from_state(dashboard_state_root, agent_id, baseline_snapshot)
         {
-            return Some(recovered);
+            if recovered_payload_has_structured_turn_artifacts(&recovered) {
+                return Some(recovered);
+            }
+            latest_recovered = Some(recovered);
         }
         if Instant::now() >= deadline {
-            return None;
+            return latest_recovered;
         }
         sleep(Duration::from_millis(1500));
     }
+}
+
+fn recovered_payload_has_structured_turn_artifacts(payload: &Value) -> bool {
+    payload.get("pending_tool_request").is_some()
+        || payload.get("response_workflow").is_some()
+        || payload.get("response_finalization").is_some()
+        || payload.get("process_summary").is_some()
+        || payload.get("turn_transaction").is_some()
+        || payload
+            .get("tools")
+            .and_then(Value::as_array)
+            .map(|rows| rows.iter().any(tool_row_has_substantive_artifact))
+            .unwrap_or(false)
+}
+
+fn tool_row_has_substantive_artifact(row: &Value) -> bool {
+    row.get("input").is_some()
+        || row.get("result").is_some()
+        || row.get("provider_results").is_some()
+        || row.get("search_results").is_some()
+        || row.get("evidence_refs").is_some()
+        || row.get("tool_result_quality").is_some()
 }
 
 fn recovered_payload_from_state(
@@ -499,7 +525,9 @@ fn recovered_payload_from_state(
                 .is_empty()
         })
         .map(|(_, row)| row.clone())?;
-    assistant_row_to_payload(&assistant_row)
+    let mut payload = assistant_row_to_payload(&assistant_row)?;
+    hydrate_recovered_payload_from_session_artifacts(dashboard_state_root, agent_id, &mut payload);
+    Some(payload)
 }
 
 fn assistant_row_to_payload(row: &Value) -> Option<Value> {
@@ -562,6 +590,131 @@ fn assistant_row_to_payload(row: &Value) -> Option<Value> {
         payload["runtime_model"] = Value::String(clean_text(runtime_model, 240));
     }
     Some(payload)
+}
+
+fn hydrate_recovered_payload_from_session_artifacts(
+    dashboard_state_root: &Path,
+    agent_id: &str,
+    payload: &mut Value,
+) {
+    let Some(tool_rows) = payload.get("tools").and_then(Value::as_array).cloned() else {
+        return;
+    };
+    let mut hydrated_tools = Vec::<Value>::new();
+    let mut loaded_any = false;
+    for row in tool_rows {
+        if let Some(artifact) = row
+            .get("detail_ref")
+            .and_then(Value::as_str)
+            .and_then(|detail_ref| {
+                load_session_artifact_detail_ref(dashboard_state_root, agent_id, detail_ref)
+            })
+        {
+            loaded_any = true;
+            hydrated_tools.push(artifact);
+        } else {
+            hydrated_tools.push(row);
+        }
+    }
+    if !loaded_any {
+        return;
+    }
+    payload["tools"] = Value::Array(hydrated_tools.clone());
+    payload["recovered_session_artifacts_hydrated"] = Value::Bool(true);
+
+    if payload.get("pending_tool_request").is_none() {
+        if let Some(pending_request) = pending_request_from_hydrated_tools(&hydrated_tools) {
+            payload["pending_tool_request"] = pending_request;
+        }
+    }
+
+    if payload.get("response_finalization").is_none() {
+        payload["response_finalization"] = json!({
+            "outcome": "recovered_from_session_artifacts",
+            "tool_completion": {
+                "tool_attempts": hydrated_tools
+            }
+        });
+    }
+}
+
+fn load_session_artifact_detail_ref(
+    dashboard_state_root: &Path,
+    fallback_agent_id: &str,
+    detail_ref: &str,
+) -> Option<Value> {
+    let mut parts = detail_ref.split(':');
+    if parts.next()? != "session_artifact" {
+        return None;
+    }
+    let raw_agent_id = parts.next().unwrap_or(fallback_agent_id);
+    let raw_kind = parts.next()?;
+    let raw_hash = parts.next()?;
+    if parts.next().is_some() {
+        return None;
+    }
+    let agent_id = safe_artifact_segment(raw_agent_id)?;
+    let kind = safe_artifact_segment(raw_kind)?;
+    let hash = safe_artifact_segment(raw_hash)?;
+    let path = dashboard_state_root
+        .join("session_artifacts")
+        .join(agent_id)
+        .join(format!("{kind}-{hash}.json"));
+    let value = read_json_path(&path);
+    value.as_object()?;
+    Some(value)
+}
+
+fn safe_artifact_segment(raw: &str) -> Option<String> {
+    let cleaned = raw.trim();
+    if cleaned.is_empty()
+        || !cleaned
+            .chars()
+            .all(|ch| ch.is_ascii_alphanumeric() || ch == '-' || ch == '_')
+    {
+        return None;
+    }
+    Some(cleaned.to_string())
+}
+
+fn pending_request_from_hydrated_tools(tools: &[Value]) -> Option<Value> {
+    let tool = tools
+        .iter()
+        .find(|row| row.get("input").is_some() || row.get("name").is_some())?;
+    let tool_name = clean_text(
+        tool.get("name")
+            .or_else(|| tool.get("tool"))
+            .and_then(Value::as_str)
+            .unwrap_or("tool"),
+        120,
+    );
+    let input = parse_tool_input_value(tool.get("input"))?;
+    Some(json!({
+        "status": "executed",
+        "source": "timeout_recovery_session_artifact",
+        "tool_name": tool_name,
+        "tool_key": tool_name,
+        "selected_tool_key": tool_name,
+        "selected_tool_family": recovered_tool_family(&tool_name),
+        "input": input
+    }))
+}
+
+fn parse_tool_input_value(input: Option<&Value>) -> Option<Value> {
+    match input? {
+        Value::String(raw) => serde_json::from_str::<Value>(raw)
+            .ok()
+            .or_else(|| Some(json!({ "raw": clean_text(raw, 8_000) }))),
+        Value::Object(_) => input.cloned(),
+        _ => None,
+    }
+}
+
+fn recovered_tool_family(tool_name: &str) -> &'static str {
+    match tool_name {
+        "batch_query" | "web_search" | "web_fetch" => "web_research",
+        _ => "unknown",
+    }
 }
 
 fn read_json_path(path: &Path) -> Value {
@@ -944,6 +1097,25 @@ mod eval_research_golden_utils_tests {
     }
 
     #[test]
+    fn timeout_recovery_waits_for_structured_turn_artifacts_when_available() {
+        let text_only = assistant_row_to_payload(&json!({
+            "role": "assistant",
+            "text": "Recovered answer"
+        }))
+        .expect("text-only payload");
+        assert!(!recovered_payload_has_structured_turn_artifacts(&text_only));
+
+        let with_tools = assistant_row_to_payload(&json!({
+            "role": "assistant",
+            "text": "Recovered answer",
+            "tools": [{"name": "batch_query", "status": "done", "input": {"query": "q"}}],
+            "turn_transaction": {"id": "turn-1"}
+        }))
+        .expect("structured payload");
+        assert!(recovered_payload_has_structured_turn_artifacts(&with_tools));
+    }
+
+    #[test]
     fn recovered_payload_uses_first_new_assistant_turn_after_baseline() {
         let root = temp_path("session-recovery");
         let sessions_dir = root.join(AGENT_SESSIONS_SUBDIR);
@@ -987,6 +1159,83 @@ mod eval_research_golden_utils_tests {
             payload.get("model").and_then(Value::as_str),
             Some("kimi-k2.6:cloud")
         );
+    }
+
+    #[test]
+    fn recovered_payload_hydrates_session_artifact_tool_details() {
+        let root = temp_path("session-artifact-recovery");
+        let sessions_dir = root.join(AGENT_SESSIONS_SUBDIR);
+        let artifacts_dir = root.join("session_artifacts").join("agent-recovery");
+        fs::create_dir_all(&sessions_dir).expect("sessions dir");
+        fs::create_dir_all(&artifacts_dir).expect("artifacts dir");
+        let agent_id = "agent-recovery";
+        fs::write(
+            artifacts_dir.join("tool_0-abc123.json"),
+            serde_json::to_string_pretty(&json!({
+                "name": "batch_query",
+                "status": "done",
+                "input": "{\"query\":\"Infring LangGraph comparison\",\"aperture\":\"medium\",\"source\":\"web\",\"keywords\":[\"Infring\",\"LangGraph\"],\"required_coverage\":{\"entities\":[\"Infring\",\"LangGraph\"]}}",
+                "provider_results": [{"title": "Result", "snippet": "Useful snippet"}],
+                "evidence_refs": [{"locator": "https://example.com"}],
+                "tool_result_quality": {"status": "usable", "claim_hint_count": 1}
+            }))
+            .expect("artifact json"),
+        )
+        .expect("artifact write");
+        let session = json!({
+            "agent_id": agent_id,
+            "active_session_id": "default",
+            "sessions": [{
+                "session_id": "default",
+                "label": "Session",
+                "created_at": "2026-05-08T00:00:00Z",
+                "updated_at": "2026-05-08T00:00:00Z",
+                "messages": [
+                    {"role": "user", "text": "old question"},
+                    {"role": "assistant", "text": "old answer"},
+                    {"role": "user", "text": "new question"},
+                    {
+                        "role": "assistant",
+                        "text": "new answer",
+                        "tools": [{
+                            "name": "batch_query",
+                            "status": "done",
+                            "detail_ref": "session_artifact:agent-recovery:tool_0:abc123"
+                        }]
+                    }
+                ]
+            }],
+            "memory_kv": {}
+        });
+        fs::write(
+            sessions_dir.join(format!("{}.json", agent_id)),
+            serde_json::to_string_pretty(&session).expect("session json"),
+        )
+        .expect("session write");
+        let baseline = SessionSnapshot {
+            total_messages: 2,
+            assistant_messages: 1,
+        };
+        let payload = recovered_payload_from_state(&root, agent_id, &baseline).expect("recovered");
+        assert_eq!(
+            payload
+                .pointer("/pending_tool_request/input/query")
+                .and_then(Value::as_str),
+            Some("Infring LangGraph comparison")
+        );
+        assert_eq!(
+            payload
+                .pointer("/tools/0/tool_result_quality/status")
+                .and_then(Value::as_str),
+            Some("usable")
+        );
+        assert_eq!(
+            payload
+                .get("recovered_session_artifacts_hydrated")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert!(recovered_payload_has_structured_turn_artifacts(&payload));
     }
 
     #[test]

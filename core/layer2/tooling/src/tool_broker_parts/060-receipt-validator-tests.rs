@@ -225,8 +225,8 @@ mod receipt_validator_tests {
                 ToolCallRequest {
                     trace_id: "trace-captcha".to_string(),
                     task_id: "task-captcha".to_string(),
-                    tool_name: "web_search".to_string(),
-                    args: json!({"query":"duckduckgo challenge"}),
+                    tool_name: "web_fetch".to_string(),
+                    args: json!({"url":"https://example.test/challenge"}),
                     lineage: vec![],
                     caller: BrokerCaller::Client,
                     policy_revision: None,
@@ -263,6 +263,143 @@ mod receipt_validator_tests {
             .quality_reasons
             .contains(&"blocked_error".to_string()));
         assert_eq!(out.execution_receipt.evidence_count, 0);
+    }
+
+    #[test]
+    fn discovery_access_wall_is_quality_signal_not_execution_error() {
+        let mut broker = ToolBroker::default();
+        let out = broker
+            .execute_and_normalize(
+                ToolCallRequest {
+                    trace_id: "trace-discovery-captcha".to_string(),
+                    task_id: "task-discovery-captcha".to_string(),
+                    tool_name: "web_search".to_string(),
+                    args: json!({"query":"duckduckgo challenge"}),
+                    lineage: vec![],
+                    caller: BrokerCaller::Client,
+                    policy_revision: None,
+                    tool_version: None,
+                    freshness_window_ms: None,
+                    force_no_dedupe: false,
+                },
+                |_| {
+                    Ok(json!({
+                        "results": [{
+                            "title": "challenge",
+                            "summary": "Please confirm this search was made by a human CAPTCHA"
+                        }]
+                    }))
+                },
+            )
+            .expect("discovery access walls should remain inspectable");
+        assert_eq!(out.normalized_result.status, NormalizedToolStatus::Ok);
+        assert_eq!(
+            out.execution_receipt.status,
+            ToolExecutionReceiptStatus::Success
+        );
+        assert!(out.execution_receipt.error_code.is_none());
+        assert!(out
+            .normalized_result
+            .quality_lanes
+            .contains(&"blocked".to_string()));
+    }
+
+    #[test]
+    fn declarative_blocker_taxonomy_does_not_create_structured_tool_error() {
+        let mut broker = ToolBroker::default();
+        let out = broker
+            .execute_and_normalize(
+                ToolCallRequest {
+                    trace_id: "trace-taxonomy".to_string(),
+                    task_id: "task-taxonomy".to_string(),
+                    tool_name: "batch_query".to_string(),
+                    args: json!({"query":"compare two tools"}),
+                    lineage: vec![],
+                    caller: BrokerCaller::Client,
+                    policy_revision: None,
+                    tool_version: None,
+                    freshness_window_ms: None,
+                    force_no_dedupe: false,
+                },
+                |_| {
+                    Ok(json!({
+                        "status": "low_signal",
+                        "summary": "From web retrieval: the retained source row includes enough substantive context to be a partial evidence item for synthesis.",
+                        "evidence_refs": [{
+                            "title": "Source row",
+                            "locator": "https://example.test/source",
+                            "snippet": "Substantive source text with enough detail to support a bounded comparison claim in the final synthesis."
+                        }],
+                        "tool_result_quality": {
+                            "blocker_taxonomy": {
+                                "classes": [{
+                                    "class": "anti_bot_challenge",
+                                    "present": false,
+                                    "evidence_impact": "raw blocker page is not evidence",
+                                    "recommended_next_capability": "browser_materialize_page_when_policy_allows"
+                                }]
+                            }
+                        }
+                    }))
+                },
+            )
+            .expect("taxonomy labels are not live blockers");
+        assert_eq!(out.normalized_result.status, NormalizedToolStatus::Ok);
+        assert_eq!(
+            out.execution_receipt.status,
+            ToolExecutionReceiptStatus::Success
+        );
+        assert!(out.raw_payload.is_object());
+        assert!(out.execution_receipt.error_code.is_none());
+    }
+
+    #[test]
+    fn mixed_retrieval_payload_with_blocker_row_keeps_usable_evidence() {
+        let mut broker = ToolBroker::default();
+        let out = broker
+            .execute_and_normalize(
+                ToolCallRequest {
+                    trace_id: "trace-mixed-blocker".to_string(),
+                    task_id: "task-mixed-blocker".to_string(),
+                    tool_name: "batch_query".to_string(),
+                    args: json!({"query":"compare two tools"}),
+                    lineage: vec![],
+                    caller: BrokerCaller::Client,
+                    policy_revision: None,
+                    tool_version: None,
+                    freshness_window_ms: None,
+                    force_no_dedupe: false,
+                },
+                |_| {
+                    Ok(json!({
+                        "status": "partial",
+                        "results": [
+                            {
+                                "title": "challenge row",
+                                "summary": "Please confirm this search was made by a human CAPTCHA"
+                            },
+                            {
+                                "title": "Useful source row",
+                                "locator": "https://example.test/source",
+                                "snippet": "This substantive source row describes concrete tradeoffs, implementation maturity, and integration details with enough context to support synthesis."
+                            }
+                        ],
+                        "evidence_refs": [{
+                            "title": "Useful source row",
+                            "locator": "https://example.test/source",
+                            "snippet": "This substantive source row describes concrete tradeoffs, implementation maturity, and integration details with enough context to support synthesis."
+                        }]
+                    }))
+                },
+            )
+            .expect("mixed retrieval should preserve usable non-blocker evidence");
+        assert_eq!(out.normalized_result.status, NormalizedToolStatus::Ok);
+        assert_eq!(
+            out.execution_receipt.status,
+            ToolExecutionReceiptStatus::Success
+        );
+        assert!(out.raw_payload.is_object());
+        assert!(out.execution_receipt.error_code.is_none());
     }
 
     #[test]

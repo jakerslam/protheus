@@ -123,7 +123,10 @@ fn validate_tool_payload_for_synthesis(
         return Err(payload_error("empty_payload", "tool_returned_null_payload"));
     }
     let text = payload_text(payload).to_ascii_lowercase();
-    if anti_bot_or_access_wall(&text) {
+    if access_wall_is_terminal_payload(tool_name)
+        && anti_bot_or_access_wall(&text)
+        && non_blocker_evidence_count(payload) == 0
+    {
         return Err(payload_error(
             "anti_bot_challenge",
             "payload_contains_access_or_human_challenge",
@@ -175,6 +178,46 @@ fn anti_bot_or_access_wall(text: &str) -> bool {
     ]
     .iter()
     .any(|needle| text.contains(needle))
+}
+
+fn access_wall_is_terminal_payload(tool_name: &str) -> bool {
+    !matches!(tool_name, "batch_query" | "web_search")
+}
+
+fn non_blocker_evidence_count(payload: &Value) -> usize {
+    match payload {
+        Value::Array(rows) => rows.iter().map(non_blocker_evidence_count).sum(),
+        Value::Object(map) => {
+            let content = payload_text(payload);
+            let lowered = content.to_ascii_lowercase();
+            let has_evidence_shape = [
+                "title",
+                "summary",
+                "snippet",
+                "content",
+                "text",
+                "excerpt",
+                "locator",
+                "url",
+                "source",
+            ]
+            .iter()
+            .any(|key| map.contains_key(*key));
+            if has_evidence_shape
+                && content.trim().chars().count() >= 80
+                && !anti_bot_or_access_wall(&lowered)
+            {
+                return 1;
+            }
+            map.values().map(non_blocker_evidence_count).sum()
+        }
+        Value::String(row) => {
+            let cleaned = clean_text(row, 4_000);
+            let lowered = cleaned.to_ascii_lowercase();
+            usize::from(cleaned.chars().count() >= 120 && !anti_bot_or_access_wall(&lowered))
+        }
+        _ => 0,
+    }
 }
 
 fn file_payload_error(text: &str) -> bool {

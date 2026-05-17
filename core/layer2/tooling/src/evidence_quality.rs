@@ -279,12 +279,43 @@ pub fn payload_text(payload: &Value) -> String {
         Value::String(row) => row.clone(),
         Value::Array(rows) => rows.iter().map(payload_text).collect::<Vec<_>>().join("\n"),
         Value::Object(map) => map
-            .values()
-            .map(payload_text)
+            .iter()
+            .filter(|(key, _)| !payload_text_declarative_key(key))
+            .map(|(_, value)| payload_text(value))
             .collect::<Vec<_>>()
             .join("\n"),
         _ => String::new(),
     }
+}
+
+fn payload_text_declarative_key(key: &str) -> bool {
+    let normalized = key.replace(['_', '-'], " ").to_ascii_lowercase();
+    [
+        "blocker taxonomy",
+        "browser materialization",
+        "retrieval decision",
+        "retry",
+        "query refinement signals",
+        "query strategy hints",
+        "synthesis contract",
+        "query contract",
+        "query metadata",
+        "evidence handoff",
+        "profile compilation",
+        "readiness lifecycle",
+        "url safety",
+        "non goals",
+        "guardrails",
+        "recommended next capability",
+        "evidence impact",
+        "decision authority",
+        "chat visibility",
+        "raw payload chat visible",
+        "class",
+        "version",
+    ]
+    .iter()
+    .any(|needle| normalized == *needle || normalized.ends_with(&format!(" {needle}")))
 }
 
 fn collect_status_codes(payload: &Value, status_fields: &[String]) -> Vec<u16> {
@@ -373,6 +404,38 @@ mod tests {
         assert!(quality.reasons.contains(&"blocked_status".to_string()));
         assert!(quality.reasons.contains(&"retryable_status".to_string()));
         assert_eq!(quality.evidence_count, 1);
+    }
+
+    #[test]
+    fn classifier_ignores_declarative_blocker_taxonomy_labels() {
+        let quality = classify_tool_result_quality(
+            "batch_query",
+            &json!({
+                "status": "low_signal",
+                "summary": "From web retrieval: CrewAI documentation describes agent workflow orchestration with enough surrounding source context to remain a substantive retrieval row for synthesis.",
+                "evidence_refs": [{
+                    "title": "CrewAI docs",
+                    "locator": "https://example.test/crewai",
+                    "snippet": "CrewAI documentation describes multi-agent workflow orchestration with human review and deployment context for source-backed comparison."
+                }],
+                "tool_result_quality": {
+                    "blocker_taxonomy": {
+                        "classes": [
+                            {
+                                "class": "anti_bot_challenge",
+                                "present": false,
+                                "evidence_impact": "raw blocker page is not evidence",
+                                "recommended_next_capability": "browser_materialize_page_when_policy_allows"
+                            }
+                        ]
+                    }
+                }
+            }),
+            &[],
+        );
+        assert!(!quality.lanes.contains(&"blocked".to_string()));
+        assert!(!quality.reasons.contains(&"blocked_text".to_string()));
+        assert!(quality.evidence_count > 0);
     }
 
     #[test]

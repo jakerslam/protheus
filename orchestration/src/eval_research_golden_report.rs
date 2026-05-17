@@ -165,6 +165,45 @@ pub(super) fn markdown_report(report: &Value) -> String {
         )
     ));
     out.push_str(&format!(
+        "- answer_quality: citation_signal={}/{} ({:.3}) query_satisfaction={}/{} ({:.3}) ignored_citable_evidence={}\n",
+        u64_at(split, &["answer_quality", "citation_signal_cases"], 0),
+        u64_at(split, &["answer_quality", "citation_ready_cases"], 0),
+        f64_at(split, &["answer_quality", "citation_signal_rate"], 0.0),
+        u64_at(split, &["answer_quality", "query_satisfaction_cases"], 0),
+        u64_at(summary, &["cases"], 0),
+        f64_at(split, &["answer_quality", "query_satisfaction_rate"], 0.0),
+        u64_at(
+            split,
+            &[
+                "answer_quality",
+                "synthesis_ignored_citable_evidence_cases"
+            ],
+            0
+        )
+    ));
+    let excellent_quality = split.get("excellent_quality").unwrap_or(&Value::Null);
+    out.push_str(&format!(
+        "- excellent_quality: excellent={}/{} ({:.3}) top_blocker={}\n",
+        u64_at(excellent_quality, &["excellent_cases"], 0),
+        u64_at(excellent_quality, &["total_cases"], 0),
+        f64_at(excellent_quality, &["excellent_rate"], 0.0),
+        str_at(excellent_quality, &["top_blocker"], "none")
+    ));
+    if let Some(rows) = excellent_quality
+        .get("subgate_pass_rates")
+        .and_then(Value::as_array)
+    {
+        for row in rows {
+            out.push_str(&format!(
+                "  - {}: {}/{} ({:.3})\n",
+                str_at(row, &["gate"], "unknown"),
+                u64_at(row, &["passed"], 0),
+                u64_at(row, &["total"], 0),
+                f64_at(row, &["pass_rate"], 0.0)
+            ));
+        }
+    }
+    out.push_str(&format!(
         "- end_to_end_golden: mode={} success_rate={:.3} soft_failure_cases={}\n",
         str_at(split, &["end_to_end_golden", "mode"], "unknown"),
         f64_at(split, &["end_to_end_golden", "research_success_rate"], 0.0),

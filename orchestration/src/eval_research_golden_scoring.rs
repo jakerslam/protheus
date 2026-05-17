@@ -16,6 +16,10 @@ pub(super) struct CaseGrade {
     pub(super) unsupported_claim: bool,
     pub(super) retrieval_quality: Value,
     pub(super) excellent_blockers: Vec<String>,
+    pub(super) excellent_diagnostics: Value,
+    pub(super) coverage_entities: Vec<String>,
+    pub(super) citation_behavior: Value,
+    pub(super) query_satisfaction: Value,
 }
 
 pub(super) fn grade_case(
@@ -26,7 +30,10 @@ pub(super) fn grade_case(
 ) -> CaseGrade {
     let response_text = assistant_text(payload);
     let normalized = normalize_for_compare(&response_text);
+    let prompt = str_at(case, &["prompt"], "");
+    let normalized_prompt = normalize_for_compare(&prompt);
     let required_entities = string_array_at(case, &["required_entities"]);
+    let coverage_entities = user_stated_required_entities(&normalized_prompt, &required_entities);
     let gates = gate_results(case, payload);
     let raw_tool_leak = raw_tool_payload_leak(&response_text);
     let internal_leak = internal_workflow_leak(&response_text);
@@ -35,28 +42,49 @@ pub(super) fn grade_case(
     let unsupported_claim = unsupported_claim_signal(case, &response_text);
     let retrieval_quality = retrieval_provider_quality(payload);
     let source_signal = has_source_signal(&response_text, &retrieval_quality);
+    let citation_behavior = citation_behavior(payload, &response_text, &retrieval_quality);
+    let citation_signal = citation_behavior
+        .get("citation_signal")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
     let limitation_signal = has_limitation_signal(&normalized);
     let final_answer_present = !empty_response && response_text.split_whitespace().count() >= 20;
-    let entity_coverage = entity_coverage(&normalized, &required_entities);
+    let entity_coverage = entity_coverage(&normalized, &coverage_entities);
+    let query_satisfaction = query_satisfaction(
+        &normalized_prompt,
+        &normalized,
+        &coverage_entities,
+        entity_coverage,
+        final_answer_present,
+        source_signal,
+        citation_signal,
+        limitation_signal,
+    );
+    let query_satisfaction_score = query_satisfaction
+        .get("score")
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
 
     let workflow_score = gates.values().filter(|ok| **ok).count() as u64 * 5;
-    let evidence_score = (if source_signal { 7 } else { 0 })
-        + (if !raw_tool_leak { 6 } else { 0 })
-        + (if limitation_signal { 6 } else { 0 })
-        + (if !unsupported_claim { 6 } else { 0 });
-    let synthesis_score = (if final_answer_present { 8 } else { 0 })
-        + ((entity_coverage * 9.0).round() as u64)
+    let evidence_score = (if source_signal { 6 } else { 0 })
+        + (if citation_signal { 6 } else { 0 })
+        + (if !raw_tool_leak { 5 } else { 0 })
+        + (if limitation_signal { 4 } else { 0 })
+        + (if !unsupported_claim { 4 } else { 0 });
+    let synthesis_score = (if final_answer_present { 6 } else { 0 })
+        + ((entity_coverage * 7.0).round() as u64)
         + (if has_tradeoff_or_structure(&normalized) {
-            8
+            6
         } else {
             0
         })
         + (if has_recommendation_signal(&normalized) {
-            5
+            4
         } else {
             0
         })
-        + (if limitation_signal { 5 } else { 0 });
+        + (if limitation_signal { 2 } else { 0 })
+        + query_satisfaction_score.min(10);
     let projection_score = (if !raw_tool_leak { 5 } else { 0 })
         + (if !internal_leak { 5 } else { 0 })
         + (if !empty_response { 5 } else { 0 })
@@ -81,8 +109,13 @@ pub(super) fn grade_case(
     if !source_signal {
         failures.push("missing_evidence_or_source_signal".to_string());
     }
-    if entity_coverage < 0.75 {
+    if !coverage_entities.is_empty() && entity_coverage < 0.75 {
         failures.push(format!("entity_coverage_low:{entity_coverage:.2}"));
+    }
+    if query_satisfaction_score < 7 {
+        failures.push(format!(
+            "query_satisfaction_low:{query_satisfaction_score}<7"
+        ));
     }
     if raw_tool_leak {
         failures.push("raw_tool_payload_leaked".to_string());
@@ -101,7 +134,21 @@ pub(super) fn grade_case(
     }
     failures.sort();
     failures.dedup();
-    let excellent_blockers = excellent_blockers(&retrieval_quality, source_signal);
+    let excellent_diagnostics = excellent_diagnostics(ExcellentDiagnosticInput {
+        retrieval_quality: &retrieval_quality,
+        citation_behavior: &citation_behavior,
+        query_satisfaction: &query_satisfaction,
+        source_signal,
+        final_answer_present,
+        limitation_signal,
+        raw_tool_leak,
+        internal_leak,
+        unsupported_claim,
+        score,
+        excellent_score,
+        failures: &failures,
+    });
+    let excellent_blockers = string_array_at(&excellent_diagnostics, &["blockers"]);
     CaseGrade {
         score,
         pass: score >= pass_score && failures.is_empty(),
@@ -116,6 +163,10 @@ pub(super) fn grade_case(
         unsupported_claim,
         retrieval_quality,
         excellent_blockers,
+        excellent_diagnostics,
+        coverage_entities,
+        citation_behavior,
+        query_satisfaction,
     }
 }
 
@@ -348,6 +399,189 @@ fn has_source_signal(response_text: &str, retrieval_quality: &Value) -> bool {
     .any(|needle| normalized.contains(*needle))
 }
 
+fn citation_behavior(payload: &Value, response_text: &str, retrieval_quality: &Value) -> Value {
+    let citation_count = response_citation_count(payload);
+    let evidence_count = retrieval_quality
+        .get("evidence_count")
+        .and_then(Value::as_u64)
+        .unwrap_or_else(|| provider_evidence_count(payload));
+    let usable_evidence = retrieval_quality
+        .get("usable_evidence")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let response_source_signal = response_has_inline_citation_signal(response_text);
+    let citation_signal = citation_count > 0 || response_source_signal;
+    let synthesis_ignored_citable_evidence =
+        usable_evidence && evidence_count > 0 && !citation_signal;
+    json!({
+        "schema_version": 1,
+        "citation_count": citation_count,
+        "evidence_count": evidence_count,
+        "usable_evidence": usable_evidence,
+        "response_source_signal": response_source_signal,
+        "citation_signal": citation_signal,
+        "synthesis_ignored_citable_evidence": synthesis_ignored_citable_evidence,
+        "note": "Measures whether the final artifact/prose exposes compact citation or source-reference signal separately from whether retrieval found evidence."
+    })
+}
+
+fn response_citation_count(payload: &Value) -> u64 {
+    [
+        "/citations",
+        "/sources",
+        "/response_workflow/citations",
+        "/response_workflow/sources",
+        "/response_workflow/final_llm_response/citations",
+        "/response_workflow/final_llm_response/sources",
+        "/response_finalization/citations",
+        "/response_finalization/sources",
+        "/response_finalization/final_response/citations",
+        "/response_finalization/final_response/sources",
+        "/response_finalization/final_llm_response/citations",
+        "/response_finalization/final_llm_response/sources",
+    ]
+    .iter()
+    .map(|pointer| count_content_items(payload.pointer(pointer).unwrap_or(&Value::Null)))
+    .sum::<u64>()
+}
+
+fn response_has_inline_citation_signal(response_text: &str) -> bool {
+    let normalized = normalize_for_compare(response_text);
+    [
+        "http://",
+        "https://",
+        "source:",
+        "sources:",
+        "citation",
+        "citations",
+        "according to",
+        "the docs",
+        "official docs",
+        "release notes",
+        "changelog",
+        "paper",
+        "study",
+    ]
+    .iter()
+    .any(|needle| normalized.contains(*needle))
+}
+
+fn query_satisfaction(
+    normalized_prompt: &str,
+    normalized_response: &str,
+    coverage_entities: &[String],
+    entity_coverage: f64,
+    final_answer_present: bool,
+    source_signal: bool,
+    citation_signal: bool,
+    limitation_signal: bool,
+) -> Value {
+    let scope_covered = coverage_entities.is_empty() || entity_coverage >= 0.75;
+    let intent_answered = response_matches_prompt_intent(normalized_prompt, normalized_response);
+    let decision_value = has_recommendation_signal(normalized_response)
+        || response_matches_decision_prompt(normalized_prompt, normalized_response);
+    let right_granularity = response_has_right_granularity(normalized_response);
+    let evidence_aware = source_signal || citation_signal || limitation_signal;
+    let score = [
+        (final_answer_present, 2_u64),
+        (intent_answered, 2),
+        (scope_covered, 2),
+        (evidence_aware, 2),
+        (decision_value, 1),
+        (right_granularity, 1),
+    ]
+    .iter()
+    .filter_map(|(ok, points)| ok.then_some(*points))
+    .sum::<u64>();
+    json!({
+        "schema_version": 1,
+        "score": score,
+        "max_score": 10,
+        "intent_answered": intent_answered,
+        "scope_covered": scope_covered,
+        "user_stated_coverage_entities": coverage_entities,
+        "entity_coverage": entity_coverage,
+        "evidence_aware": evidence_aware,
+        "decision_value": decision_value,
+        "right_granularity": right_granularity,
+        "note": "Query satisfaction is derived from the original prompt plus available evidence behavior, not from hidden expected answers."
+    })
+}
+
+fn response_matches_prompt_intent(normalized_prompt: &str, normalized_response: &str) -> bool {
+    if normalized_response.is_empty() {
+        return false;
+    }
+    let asks_comparison = contains_any(
+        normalized_prompt,
+        &[
+            "compare",
+            "versus",
+            " vs ",
+            "tradeoff",
+            "tradeoffs",
+            "which",
+        ],
+    );
+    if asks_comparison {
+        return has_tradeoff_or_structure(normalized_response);
+    }
+    let asks_explanation = contains_any(
+        normalized_prompt,
+        &[
+            "what",
+            "why",
+            "how",
+            "explain",
+            "research",
+            "summarize",
+            "find",
+        ],
+    );
+    if asks_explanation {
+        return has_tradeoff_or_structure(normalized_response)
+            || normalized_response.contains("finding")
+            || normalized_response.contains("evidence")
+            || normalized_response.contains("because");
+    }
+    true
+}
+
+fn response_matches_decision_prompt(normalized_prompt: &str, normalized_response: &str) -> bool {
+    let wants_decision = contains_any(
+        normalized_prompt,
+        &[
+            "which",
+            "best",
+            "recommend",
+            "tradeoff",
+            "tradeoffs",
+            "practical",
+            "useful",
+            "appropriate",
+            "choose",
+            "should",
+        ],
+    );
+    !wants_decision || has_recommendation_signal(normalized_response)
+}
+
+fn response_has_right_granularity(normalized_response: &str) -> bool {
+    let word_count = normalized_response.split_whitespace().count();
+    (45..=900).contains(&word_count)
+}
+
+fn user_stated_required_entities(
+    normalized_prompt: &str,
+    required_entities: &[String],
+) -> Vec<String> {
+    required_entities
+        .iter()
+        .filter(|entity| normalized_response_covers_entity(normalized_prompt, entity))
+        .cloned()
+        .collect()
+}
+
 fn retrieval_provider_quality(payload: &Value) -> Value {
     let tool_executed = has_tool_execution(payload);
     let candidate_count = provider_candidate_count(payload);
@@ -376,6 +610,8 @@ fn retrieval_provider_quality(payload: &Value) -> Value {
             "provider_error",
             "provider error",
             "transport_error",
+            "execution_error",
+            "error",
             "timeout",
             "blocked",
             "anti_bot",
@@ -478,20 +714,153 @@ fn retrieval_provider_quality(payload: &Value) -> Value {
     })
 }
 
-fn excellent_blockers(retrieval_quality: &Value, source_signal: bool) -> Vec<String> {
-    let mut blockers = Vec::new();
-    if !source_signal {
-        blockers.push("missing_source_signal".to_string());
-    }
-    if !retrieval_quality
+struct ExcellentDiagnosticInput<'a> {
+    retrieval_quality: &'a Value,
+    citation_behavior: &'a Value,
+    query_satisfaction: &'a Value,
+    source_signal: bool,
+    final_answer_present: bool,
+    limitation_signal: bool,
+    raw_tool_leak: bool,
+    internal_leak: bool,
+    unsupported_claim: bool,
+    score: u64,
+    excellent_score: u64,
+    failures: &'a [String],
+}
+
+fn excellent_diagnostics(input: ExcellentDiagnosticInput<'_>) -> Value {
+    let retrieval_status = str_at(input.retrieval_quality, &["status"], "unknown");
+    let citable_evidence_available = input
+        .retrieval_quality
         .get("allows_excellent")
         .and_then(Value::as_bool)
-        .unwrap_or(false)
-    {
-        let status = str_at(retrieval_quality, &["status"], "unknown");
-        blockers.push(format!("retrieval_quality:{status}"));
-    }
-    blockers
+        .unwrap_or(false);
+    let citation_signal = input
+        .citation_behavior
+        .get("citation_signal")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let query_satisfaction_score = input
+        .query_satisfaction
+        .get("score")
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let decision_value = input
+        .query_satisfaction
+        .get("decision_value")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let scope_covered = input
+        .query_satisfaction
+        .get("scope_covered")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let needs_gap_statement = !scope_covered
+        || matches!(
+            retrieval_status.as_str(),
+            "low_signal"
+                | "no_results"
+                | "no_evidence"
+                | "provider_degraded"
+                | "raw_provider_absent"
+                | "conflicting_provider_state"
+        );
+    let evidence_gaps_named_when_needed = !needs_gap_statement || input.limitation_signal;
+    let mut subgates = serde_json::Map::new();
+    subgates.insert(
+        "excellent_1_query_satisfaction".to_string(),
+        json!(query_satisfaction_score >= 9),
+    );
+    subgates.insert(
+        "excellent_2_citable_evidence_available".to_string(),
+        json!(citable_evidence_available),
+    );
+    subgates.insert(
+        "excellent_3_citations_used_in_final".to_string(),
+        json!(!citable_evidence_available || citation_signal),
+    );
+    subgates.insert(
+        "excellent_4_claims_trace_to_citations".to_string(),
+        json!(
+            !citable_evidence_available
+                || (citation_signal && input.source_signal && !input.unsupported_claim)
+        ),
+    );
+    subgates.insert(
+        "excellent_5_evidence_gaps_named_when_needed".to_string(),
+        json!(evidence_gaps_named_when_needed),
+    );
+    subgates.insert(
+        "excellent_6_decision_value_present".to_string(),
+        json!(decision_value),
+    );
+    subgates.insert(
+        "excellent_7_projection_clean".to_string(),
+        json!(input.final_answer_present && !input.raw_tool_leak && !input.internal_leak),
+    );
+    subgates.insert(
+        "excellent_8_score_threshold".to_string(),
+        json!(input.score >= input.excellent_score),
+    );
+    subgates.insert(
+        "excellent_9_no_pass_failures".to_string(),
+        json!(input.failures.is_empty()),
+    );
+
+    let ordered = [
+        (
+            "excellent_1_query_satisfaction",
+            "query_satisfaction_below_excellent",
+        ),
+        (
+            "excellent_2_citable_evidence_available",
+            "retrieval_quality_not_excellent_ready",
+        ),
+        (
+            "excellent_3_citations_used_in_final",
+            "missing_final_citation_or_source_signal",
+        ),
+        (
+            "excellent_4_claims_trace_to_citations",
+            "claims_not_traceable_to_citation_signal",
+        ),
+        (
+            "excellent_5_evidence_gaps_named_when_needed",
+            "missing_evidence_gap_statement",
+        ),
+        (
+            "excellent_6_decision_value_present",
+            "missing_decision_value",
+        ),
+        ("excellent_7_projection_clean", "projection_not_clean"),
+        ("excellent_8_score_threshold", "score_below_excellent"),
+        ("excellent_9_no_pass_failures", "pass_failures_present"),
+    ];
+    let blockers = ordered
+        .iter()
+        .filter_map(|(gate, blocker)| {
+            (!subgates
+                .get(*gate)
+                .and_then(Value::as_bool)
+                .unwrap_or(false))
+            .then(|| (*blocker).to_string())
+        })
+        .collect::<Vec<_>>();
+    let top_blocker = blockers
+        .first()
+        .cloned()
+        .unwrap_or_else(|| "none".to_string());
+    json!({
+        "schema_version": 1,
+        "subgates": Value::Object(subgates),
+        "blockers": blockers,
+        "top_blocker": top_blocker,
+        "retrieval_status": retrieval_status,
+        "score": input.score,
+        "excellent_score": input.excellent_score,
+        "note": "Excellent is diagnosed through generic quality properties, not hidden expected facts or a required visible format."
+    })
 }
 
 fn provider_candidate_count(payload: &Value) -> u64 {
@@ -698,7 +1067,7 @@ fn count_content_rich_items(value: &Value, depth: usize) -> u64 {
             if direct {
                 1
             } else {
-                map.values()
+                semantic_child_values(map)
                     .map(|row| count_content_rich_items(row, depth + 1))
                     .sum()
             }
@@ -728,8 +1097,7 @@ fn count_claim_hint_items(value: &Value, depth: usize) -> u64 {
             .map(|key| count_content_items(map.get(*key).unwrap_or(&Value::Null)))
             .sum::<u64>();
             direct
-                + map
-                    .values()
+                + semantic_child_values(map)
                     .map(|row| count_claim_hint_items(row, depth + 1))
                     .sum::<u64>()
         }
@@ -778,21 +1146,132 @@ fn count_content_items(value: &Value) -> u64 {
         Value::Null => 0,
         Value::Bool(raw) => u64::from(*raw),
         Value::Number(_) => 1,
-        Value::String(raw) => u64::from(!raw.trim().is_empty()),
-        Value::Array(rows) => rows.iter().filter(|row| value_has_content(row)).count() as u64,
-        Value::Object(map) => u64::from(!map.is_empty()),
+        Value::String(raw) => u64::from(substantive_text(raw)),
+        Value::Array(rows) => rows
+            .iter()
+            .filter(|row| value_has_substantive_content(row))
+            .count() as u64,
+        Value::Object(map) => u64::from(object_has_substantive_content(map)),
     }
 }
 
-fn value_has_content(value: &Value) -> bool {
+fn value_has_substantive_content(value: &Value) -> bool {
     match value {
         Value::Null => false,
         Value::Bool(raw) => *raw,
         Value::Number(_) => true,
-        Value::String(raw) => !raw.trim().is_empty(),
-        Value::Array(rows) => rows.iter().any(value_has_content),
-        Value::Object(map) => map.values().any(value_has_content),
+        Value::String(raw) => substantive_text(raw),
+        Value::Array(rows) => rows.iter().any(value_has_substantive_content),
+        Value::Object(map) => object_has_substantive_content(map),
     }
+}
+
+fn object_has_substantive_content(map: &serde_json::Map<String, Value>) -> bool {
+    if map.is_empty() || object_is_status_or_error_only(map) {
+        return false;
+    }
+    let direct_semantic_keys = [
+        "title",
+        "url",
+        "link",
+        "locator",
+        "source_url",
+        "source_domain",
+        "snippet",
+        "summary",
+        "content",
+        "markdown",
+        "text",
+        "body",
+        "description",
+        "abstract",
+        "claim_hints",
+        "claims",
+        "extracted_claims",
+        "claim_candidates",
+        "key_findings",
+        "findings",
+        "citations",
+        "sources",
+    ];
+    if direct_semantic_keys.iter().any(|key| {
+        map.get(*key)
+            .map(value_has_substantive_content)
+            .unwrap_or(false)
+    }) {
+        return true;
+    }
+    semantic_child_values(map).any(value_has_substantive_content)
+}
+
+fn object_is_status_or_error_only(map: &serde_json::Map<String, Value>) -> bool {
+    let has_error_marker = ["error", "failure", "failure_reason", "status"]
+        .iter()
+        .any(|key| {
+            map.get(*key)
+                .map(value_has_substantive_content)
+                .unwrap_or(false)
+        });
+    has_error_marker
+        && map.iter().all(|(key, value)| {
+            operational_or_error_key(key) || !value_has_substantive_content(value)
+        })
+}
+
+fn semantic_child_values<'a>(
+    map: &'a serde_json::Map<String, Value>,
+) -> impl Iterator<Item = &'a Value> {
+    map.iter()
+        .filter(|(key, _)| !operational_or_error_key(key))
+        .map(|(_, value)| value)
+}
+
+fn operational_or_error_key(key: &str) -> bool {
+    let normalized = normalize_for_compare(&key.replace(['_', '-'], " "));
+    [
+        "status",
+        "state",
+        "error",
+        "failure",
+        "failure reason",
+        "failure class",
+        "provider",
+        "tool",
+        "name",
+        "query",
+        "queries",
+        "input",
+        "aperture",
+        "request",
+        "request payload",
+        "metadata",
+        "query metadata policy",
+        "quality flags",
+        "quality reasons",
+        "blocker taxonomy",
+    ]
+    .iter()
+    .any(|needle| normalized == *needle || normalized.ends_with(&format!(" {needle}")))
+}
+
+fn substantive_text(raw: &str) -> bool {
+    let cleaned = raw.trim();
+    if cleaned.is_empty() {
+        return false;
+    }
+    let normalized = normalize_for_compare(cleaned);
+    ![
+        "error",
+        "failed",
+        "tool execution failed",
+        "no results",
+        "no_results",
+        "none",
+        "null",
+        "unknown",
+    ]
+    .iter()
+    .any(|marker| normalized == *marker)
 }
 
 fn tool_status_marker_text(payload: &Value) -> String {
@@ -838,9 +1317,18 @@ fn has_limitation_signal(normalized: &str) -> bool {
         "uncertain",
         "caveat",
         "sparse",
+        "weak",
+        "insufficient",
+        "gap",
+        "gaps",
+        "missing",
         "unknown",
         "not enough",
         "not clear",
+        "does not establish",
+        "doesn't establish",
+        "does not support",
+        "doesn't support",
         "as of",
         "current",
         "verify",
@@ -861,6 +1349,16 @@ fn has_tradeoff_or_structure(normalized: &str) -> bool {
         "vs",
         "strength",
         "weakness",
+        "finding",
+        "source-backed",
+        "evidence supports",
+        "evidence shows",
+        "what the evidence",
+        "risk",
+        "concern",
+        "boundary",
+        "evaluation plan",
+        "plan",
     ]
     .iter()
     .any(|needle| normalized.contains(*needle))
@@ -875,6 +1373,11 @@ fn has_recommendation_signal(normalized: &str) -> bool {
         "should",
         "default",
         "pragmatic",
+        "what you can do",
+        "next step",
+        "plan",
+        "treat",
+        "avoid",
     ]
     .iter()
     .any(|needle| normalized.contains(*needle))
@@ -894,9 +1397,50 @@ fn entity_coverage(normalized_response: &str, required_entities: &[String]) -> f
     }
     let covered = required_entities
         .iter()
-        .filter(|entity| normalized_response.contains(&normalize_for_compare(entity)))
+        .filter(|entity| normalized_response_covers_entity(normalized_response, entity))
         .count() as u64;
     ratio(covered, required_entities.len() as u64)
+}
+
+fn normalized_response_covers_entity(normalized_response: &str, entity: &str) -> bool {
+    let normalized_entity = normalize_for_compare(entity);
+    if normalized_entity.is_empty() {
+        return false;
+    }
+    if normalized_response.contains(&normalized_entity) {
+        return true;
+    }
+    if normalized_response.contains(&simple_plural_variant(&normalized_entity))
+        || normalized_response.contains(&simple_singular_variant(&normalized_entity))
+    {
+        return true;
+    }
+    let tokens = normalized_entity
+        .split_whitespace()
+        .filter(|token| token.len() > 2)
+        .collect::<Vec<_>>();
+    !tokens.is_empty()
+        && tokens
+            .iter()
+            .all(|token| token_or_simple_variant_present(normalized_response, token))
+}
+
+fn token_or_simple_variant_present(normalized_response: &str, token: &str) -> bool {
+    normalized_response.contains(token)
+        || normalized_response.contains(&simple_plural_variant(token))
+        || normalized_response.contains(&simple_singular_variant(token))
+}
+
+fn simple_plural_variant(value: &str) -> String {
+    if value.ends_with('s') {
+        value.to_string()
+    } else {
+        format!("{value}s")
+    }
+}
+
+fn simple_singular_variant(value: &str) -> String {
+    value.strip_suffix('s').unwrap_or(value).to_string()
 }
 
 fn raw_tool_payload_leak(response_text: &str) -> bool {
@@ -996,6 +1540,52 @@ mod tests {
     }
 
     #[test]
+    fn error_only_provider_rows_do_not_count_as_retrieval_evidence() {
+        let payload = json!({
+            "tools": [{
+                "name": "batch_query",
+                "status": "error",
+                "input": {
+                    "query": "Research current RAG stack options for a small team",
+                    "keywords": ["RAG", "LlamaIndex", "LangChain"]
+                },
+                "provider_results": [{
+                    "provider": "web",
+                    "query": "Research current RAG stack options for a small team",
+                    "status": "error",
+                    "error": "tool_execution_failed"
+                }],
+                "evidence_refs": [{
+                    "provider": "web",
+                    "query": "Research current RAG stack options for a small team",
+                    "status": "error",
+                    "error": "tool_execution_failed"
+                }]
+            }]
+        });
+
+        let quality = retrieval_provider_quality(&payload);
+        assert_eq!(
+            quality.get("candidate_count").and_then(Value::as_u64),
+            Some(0)
+        );
+        assert_eq!(
+            quality.get("evidence_count").and_then(Value::as_u64),
+            Some(0)
+        );
+        assert_eq!(
+            quality
+                .get("content_rich_candidate_count")
+                .and_then(Value::as_u64),
+            Some(0)
+        );
+        assert_eq!(
+            quality.get("status").and_then(Value::as_str),
+            Some("provider_degraded")
+        );
+    }
+
+    #[test]
     fn web_tooling_gate_names_are_internal_leaks() {
         assert!(internal_workflow_leak(
             "web_gate_5_extraction_quality failed, so the final answer cannot use this source."
@@ -1003,5 +1593,299 @@ mod tests {
         assert!(internal_workflow_leak(
             "The web_tooling_gates summary says two gates passed."
         ));
+    }
+
+    #[test]
+    fn scoring_shape_accepts_general_research_findings_and_plans() {
+        let security = normalize_for_compare(
+            "Here is what the evidence supports on AI browser agent security concerns. \
+             Source-backed finding: prompt injection is a published risk, with gaps around credential handling.",
+        );
+        assert!(has_tradeoff_or_structure(&security));
+        assert!(has_limitation_signal(&security));
+
+        let sparse_benchmark = normalize_for_compare(
+            "The benchmark evidence is weak and insufficient. \
+             What the evidence shows is partial, so the practical evaluation plan should compare latency, cost, and reliability directly.",
+        );
+        assert!(has_tradeoff_or_structure(&sparse_benchmark));
+        assert!(has_limitation_signal(&sparse_benchmark));
+        assert!(has_recommendation_signal(&sparse_benchmark));
+    }
+
+    #[test]
+    fn entity_coverage_accepts_phrase_variants_without_case_specific_aliases() {
+        let response = normalize_for_compare(
+            "The evidence discusses agent evaluation frameworks and framework results, \
+             but no head-to-head benchmark data was found.",
+        );
+        assert!(normalized_response_covers_entity(
+            &response,
+            "agent framework"
+        ));
+        assert_eq!(
+            entity_coverage(
+                &response,
+                &["benchmark".to_string(), "agent framework".to_string()]
+            ),
+            1.0
+        );
+    }
+
+    #[test]
+    fn hidden_fixture_entities_do_not_hard_fail_broad_discovery_prompts() {
+        let case = json!({
+            "prompt": "Research the strongest open-source coding agents right now and explain which are useful for real repositories versus demos.",
+            "expected_gate_path": {
+                "gate_1": "tool_required",
+                "gate_2": "web_research",
+                "gate_3": "web_search",
+                "gate_4_required_fields": ["query", "aperture"]
+            },
+            "required_entities": ["OpenHands", "Aider"]
+        });
+        let payload = json!({
+            "response": "The source-backed finding is that repository usefulness depends less on demo polish and more on repeatability, reviewability, and how well the agent can work against an existing codebase. For real repositories, choose tools with explicit edit loops, test feedback, and clear rollback behavior; treat demo-first agents as exploratory unless their docs show durable project workflows. Caveat: current source coverage is uneven, so verify recent releases before committing.",
+            "pending_tool_request": {
+                "status": "pending_confirmation",
+                "selected_tool_family": "web_research",
+                "selected_tool_label": "Web search",
+                "tool_name": "web_search",
+                "tool_key": "web_search",
+                "input": {
+                    "query": "open-source coding agents real repositories demos",
+                    "aperture": "web"
+                }
+            },
+            "tools": [{
+                "name": "web_search",
+                "status": "ok",
+                "candidate_count": 3,
+                "content_rich_candidate_count": 2,
+                "claim_hint_count": 2,
+                "evidence_refs": [{
+                    "title": "Coding agent project workflow docs",
+                    "locator": "https://example.test/coding-agent-docs",
+                    "snippet": "This source contains enough detail about edit loops, repository workflows, tests, review, and rollback behavior to support a practical synthesis for repository use.",
+                    "claim_hints": ["Repository usefulness depends on repeatable edit and test loops."]
+                }]
+            }]
+        });
+
+        let grade = grade_case(&case, &payload, 85, 95);
+        assert!(grade.coverage_entities.is_empty());
+        assert!(!grade
+            .failures
+            .iter()
+            .any(|failure| failure.starts_with("entity_coverage_low")));
+        assert_eq!(
+            grade
+                .query_satisfaction
+                .get("scope_covered")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert!(grade.pass, "{:?}", grade.failures);
+    }
+
+    #[test]
+    fn user_stated_entities_remain_query_scope() {
+        let case = json!({
+            "prompt": "Compare OpenHands and Aider for existing repository maintenance.",
+            "expected_gate_path": {
+                "gate_1": "tool_required",
+                "gate_2": "web_research",
+                "gate_3": "web_search",
+                "gate_4_required_fields": ["query", "aperture"]
+            },
+            "required_entities": ["OpenHands", "Aider"]
+        });
+        let payload = json!({
+            "response": "According to source evidence, OpenHands has useful repository-maintenance affordances, but the comparison is incomplete. I would verify release docs before choosing because source coverage is limited and the available evidence only supports a bounded recommendation.",
+            "pending_tool_request": {
+                "status": "pending_confirmation",
+                "selected_tool_family": "web_research",
+                "selected_tool_label": "Web search",
+                "tool_name": "web_search",
+                "tool_key": "web_search",
+                "input": {
+                    "query": "OpenHands Aider repository maintenance",
+                    "aperture": "web"
+                }
+            },
+            "tools": [{
+                "name": "web_search",
+                "status": "ok",
+                "candidate_count": 2,
+                "content_rich_candidate_count": 2,
+                "claim_hint_count": 2,
+                "evidence_refs": [{
+                    "title": "Repository maintenance source",
+                    "locator": "https://example.test/repo-maintenance",
+                    "snippet": "This source contains enough detail about repository maintenance workflows, review, test loops, and coding agent operational concerns to support synthesis.",
+                    "claim_hints": ["Existing repository work requires reviewable edit loops."]
+                }]
+            }]
+        });
+
+        let grade = grade_case(&case, &payload, 85, 95);
+        assert_eq!(grade.coverage_entities, vec!["OpenHands", "Aider"]);
+        assert!(grade
+            .failures
+            .iter()
+            .any(|failure| failure.starts_with("entity_coverage_low")));
+    }
+
+    #[test]
+    fn citation_behavior_separates_available_evidence_from_final_citation_signal() {
+        let payload = json!({
+            "response": "The answer gives a recommendation without naming supporting material.",
+            "tools": [{
+                "name": "web_search",
+                "status": "ok",
+                "candidate_count": 1,
+                "content_rich_candidate_count": 1,
+                "claim_hint_count": 1,
+                "evidence_refs": [{
+                    "title": "Usable source",
+                    "locator": "https://example.test/source",
+                    "snippet": "This source has enough content to be usable evidence for a research answer and includes concrete findings that should be cited.",
+                    "claim_hints": ["A concrete source-backed claim."]
+                }]
+            }]
+        });
+        let retrieval_quality = retrieval_provider_quality(&payload);
+        let behavior = citation_behavior(
+            &payload,
+            "The answer gives a recommendation without naming supporting material.",
+            &retrieval_quality,
+        );
+        assert_eq!(
+            behavior.get("usable_evidence").and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            behavior.get("citation_signal").and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            behavior
+                .get("synthesis_ignored_citable_evidence")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+    }
+
+    #[test]
+    fn excellent_diagnostics_call_out_missing_final_citation_signal() {
+        let case = json!({
+            "prompt": "Compare Alpha and Beta for production use.",
+            "expected_gate_path": {
+                "gate_1": "tool_required",
+                "gate_2": "web_research",
+                "gate_3": "web_search",
+                "gate_4_required_fields": ["query", "aperture"]
+            },
+            "required_entities": ["Alpha", "Beta"]
+        });
+        let payload = json!({
+            "response": "Alpha is the better default for production when reliability matters, while Beta is more useful for exploratory workflows. Alpha has stronger deployment and maintenance tradeoffs; Beta remains useful when speed of experimentation matters. The practical recommendation is to use Alpha for steady production and Beta for prototypes.",
+            "pending_tool_request": {
+                "status": "pending_confirmation",
+                "selected_tool_family": "web_research",
+                "selected_tool_label": "Web search",
+                "tool_name": "web_search",
+                "tool_key": "web_search",
+                "input": {
+                    "query": "Alpha Beta production comparison",
+                    "aperture": "web"
+                }
+            },
+            "tools": [{
+                "name": "web_search",
+                "status": "ok",
+                "candidate_count": 2,
+                "content_rich_candidate_count": 2,
+                "claim_hint_count": 2,
+                "evidence_refs": [{
+                    "title": "Alpha and Beta production comparison",
+                    "locator": "https://example.test/alpha-beta-production",
+                    "snippet": "A substantive source comparing Alpha and Beta for reliability, deployment, maintenance, and experimentation tradeoffs.",
+                    "claim_hints": ["Alpha is better suited to production reliability."]
+                }]
+            }]
+        });
+
+        let grade = grade_case(&case, &payload, 85, 95);
+        assert!(grade.pass, "{:?}", grade.failures);
+        assert!(!grade.excellent);
+        assert_eq!(
+            grade
+                .excellent_diagnostics
+                .pointer("/subgates/excellent_3_citations_used_in_final")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            grade
+                .excellent_diagnostics
+                .get("top_blocker")
+                .and_then(Value::as_str),
+            Some("missing_final_citation_or_source_signal")
+        );
+    }
+
+    #[test]
+    fn excellent_diagnostics_accept_public_source_signal_without_format_lock() {
+        let case = json!({
+            "prompt": "Compare Alpha and Beta for production use.",
+            "expected_gate_path": {
+                "gate_1": "tool_required",
+                "gate_2": "web_research",
+                "gate_3": "web_search",
+                "gate_4_required_fields": ["query", "aperture"]
+            },
+            "required_entities": ["Alpha", "Beta"]
+        });
+        let payload = json!({
+            "response": "According to the project docs and release notes, Alpha is the better production default when reliability and maintenance matter, while Beta is stronger for exploratory workflows. Alpha's deployment story is steadier; Beta is useful for fast prototypes. The practical recommendation is Alpha for production and Beta for experimentation.",
+            "pending_tool_request": {
+                "status": "pending_confirmation",
+                "selected_tool_family": "web_research",
+                "selected_tool_label": "Web search",
+                "tool_name": "web_search",
+                "tool_key": "web_search",
+                "input": {
+                    "query": "Alpha Beta production comparison",
+                    "aperture": "web"
+                }
+            },
+            "tools": [{
+                "name": "web_search",
+                "status": "ok",
+                "candidate_count": 2,
+                "content_rich_candidate_count": 2,
+                "claim_hint_count": 2,
+                "evidence_refs": [{
+                    "title": "Alpha and Beta production comparison",
+                    "locator": "https://example.test/alpha-beta-production",
+                    "snippet": "A substantive source comparing Alpha and Beta for reliability, deployment, maintenance, and experimentation tradeoffs.",
+                    "claim_hints": ["Alpha is better suited to production reliability."]
+                }]
+            }]
+        });
+
+        let grade = grade_case(&case, &payload, 85, 95);
+        assert!(grade.pass, "{:?}", grade.failures);
+        assert_eq!(
+            grade
+                .excellent_diagnostics
+                .pointer("/subgates/excellent_3_citations_used_in_final")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert!(!grade
+            .excellent_blockers
+            .contains(&"missing_final_citation_or_source_signal".to_string()));
     }
 }

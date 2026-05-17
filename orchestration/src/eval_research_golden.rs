@@ -23,6 +23,7 @@ use eval_research_golden_utils::*;
 use eval_web_retrieval_gate_diagnostics::{
     record_web_retrieval_gate_counts, web_retrieval_gate_diagnostics,
     web_retrieval_gate_metric_rows, web_retrieval_gate_rate_rows, web_retrieval_measurement_report,
+    web_tooling_measurement_eligible_case, web_tooling_measurement_exclusion_reason_case,
 };
 use infring_orchestration_v1::observation_lifecycle::{
     load_policy_or_default, persist_lifecycle_observations, policy_path_string,
@@ -106,10 +107,15 @@ pub fn run_research_golden(args: &[String]) -> i32 {
     let base_url =
         parse_flag(args, "base-url").unwrap_or_else(|| "http://127.0.0.1:4173".to_string());
     let timeout_seconds = parse_u64_flag(args, "timeout-seconds", 45).clamp(1, 600);
+    let default_timeout_recovery_seconds = if live {
+        timeout_seconds.saturating_add(135).clamp(90, 240)
+    } else {
+        timeout_seconds.saturating_add(15).clamp(15, 90)
+    };
     let timeout_recovery_seconds = parse_u64_flag(
         args,
         "timeout-recovery-seconds",
-        timeout_seconds.saturating_add(15).clamp(15, 90),
+        default_timeout_recovery_seconds,
     )
     .min(300);
     let limit = parse_u64_flag(args, "limit", u64::MAX) as usize;
@@ -244,20 +250,46 @@ pub fn run_research_golden(args: &[String]) -> i32 {
             .get(&case_id)
             .cloned()
             .unwrap_or_else(|| json!({}));
+        let post_tool_setup_prompt = live
+            .then(|| post_tool_web_tooling_setup_prompt(case))
+            .flatten();
+        let mut post_tool_setup_payload_used = false;
         let initial_payload = if live && case_setup_failures.is_empty() {
-            post_agent_message(
-                &base_url,
-                &case_agent_id,
-                &json!({ "message": prompt }),
-                timeout_seconds,
-                timeout_recovery_seconds,
-            )
+            if let Some(setup_prompt) = post_tool_setup_prompt.as_deref() {
+                post_tool_setup_payload_used = true;
+                post_agent_message(
+                    &base_url,
+                    &case_agent_id,
+                    &json!({ "message": setup_prompt }),
+                    timeout_seconds,
+                    timeout_recovery_seconds,
+                )
+            } else {
+                post_agent_message(
+                    &base_url,
+                    &case_agent_id,
+                    &json!({ "message": prompt }),
+                    timeout_seconds,
+                    timeout_recovery_seconds,
+                )
+            }
         } else {
             response_sequence_payload(&source_payload, 0).unwrap_or(source_payload.clone())
         };
         let initial_pending_tool_confirmation =
             payload_has_pending_tool_confirmation(&initial_payload);
-        let mut payload = initial_payload.clone();
+        let mut payload =
+            if post_tool_setup_payload_used && !payload_is_transport_failure(&initial_payload) {
+                post_agent_message(
+                    &base_url,
+                    &case_agent_id,
+                    &json!({ "message": prompt }),
+                    timeout_seconds,
+                    timeout_recovery_seconds,
+                )
+            } else {
+                initial_payload.clone()
+            };
         let mut confirmation_payload_used = false;
         let mut confirmation_sent = false;
         let mut confirmation_fixture_used = false;
@@ -294,10 +326,20 @@ pub fn run_research_golden(args: &[String]) -> i32 {
         let lifecycle_gate_path_complete =
             transition_first_failed_checkpoint(&transition_diagnostics).is_none();
         let grade = grade_case(case, &payload, pass_score, excellent_score);
-        let query_metadata_diagnostics = query_metadata_diagnostics(&payload);
+        let web_tooling_payload = if post_tool_setup_payload_used {
+            &initial_payload
+        } else {
+            &payload
+        };
+        let web_tooling_retrieval_quality = if post_tool_setup_payload_used {
+            grade_case(case, web_tooling_payload, pass_score, excellent_score).retrieval_quality
+        } else {
+            grade.retrieval_quality.clone()
+        };
+        let query_metadata_diagnostics = query_metadata_diagnostics(web_tooling_payload);
         let web_tool_gate_diagnostics = web_retrieval_gate_diagnostics(
-            &payload,
-            &grade.retrieval_quality,
+            web_tooling_payload,
+            &web_tooling_retrieval_quality,
             &query_metadata_diagnostics,
             &transition_diagnostics,
         );
@@ -333,12 +375,24 @@ pub fn run_research_golden(args: &[String]) -> i32 {
                 &mut transition_total_counts,
                 &mut transition_pass_counts,
             );
-            record_web_retrieval_gate_counts(
-                &web_tool_gate_diagnostics,
-                &mut web_gate_total_counts,
-                &mut web_gate_pass_counts,
-            );
+            if web_tooling_measurement_eligible_case(
+                case,
+                web_tooling_payload,
+                &web_tooling_retrieval_quality,
+            ) {
+                record_web_retrieval_gate_counts(
+                    &web_tool_gate_diagnostics,
+                    &mut web_gate_total_counts,
+                    &mut web_gate_pass_counts,
+                );
+            }
         }
+        let web_tooling_measurement_exclusion = web_tooling_measurement_exclusion_reason_case(
+            case,
+            web_tooling_payload,
+            &web_tooling_retrieval_quality,
+        )
+        .unwrap_or("none");
         for (dimension, score) in grade.dimension_scores.iter() {
             *dimension_totals.entry(dimension.clone()).or_insert(0) += *score;
         }
@@ -387,13 +441,24 @@ pub fn run_research_golden(args: &[String]) -> i32 {
             "failures": case_failures,
             "failure_classification": failure_classification,
             "retrieval_quality": grade.retrieval_quality,
+            "citation_behavior": grade.citation_behavior,
+            "query_satisfaction": grade.query_satisfaction,
+            "user_stated_coverage_entities": grade.coverage_entities,
             "excellent_blockers": grade.excellent_blockers,
+            "excellent_diagnostics": grade.excellent_diagnostics,
             "transport_failure": transport_timeout_failure,
             "setup_failures": case_setup_failures,
             "response_preview": clean_text(&grade.response_text, 500),
             "response_diagnostics": response_diagnostics(&payload, &grade.response_text),
             "query_metadata_diagnostics": query_metadata_diagnostics,
             "web_tool_gate_diagnostics": web_tool_gate_diagnostics,
+            "web_tooling_diagnostic_source": if post_tool_setup_payload_used {
+                "post_tool_setup_turn"
+            } else {
+                "final_turn"
+            },
+            "web_tooling_retrieval_quality": web_tooling_retrieval_quality,
+            "web_tooling_measurement_exclusion": web_tooling_measurement_exclusion,
             "gate_transition_diagnostics": transition_diagnostics,
             "turn_sequence": {
                 "confirm_pending_tool": confirm_pending_tool,
@@ -401,9 +466,12 @@ pub fn run_research_golden(args: &[String]) -> i32 {
                 "confirmation_sent": confirmation_sent,
                 "confirmation_fixture_used": confirmation_fixture_used,
                 "confirmation_payload_used": confirmation_payload_used,
+                "post_tool_setup_payload_used": post_tool_setup_payload_used,
                 "cache_isolation": cache_isolation,
                 "final_payload_source": if confirmation_payload_used {
                     "confirmation_turn"
+                } else if post_tool_setup_payload_used {
+                    "post_tool_synthesis_turn"
                 } else {
                     "initial_turn"
                 },
@@ -1085,6 +1153,15 @@ fn measurement_split_report(
                         .any(|blocker| blocker.starts_with("retrieval_quality:"))
                 })
                 .unwrap_or(false)
+                || !bool_at(
+                    row,
+                    &[
+                        "excellent_diagnostics",
+                        "subgates",
+                        "excellent_2_citable_evidence_available",
+                    ],
+                    true,
+                )
         })
         .count() as u64;
     let query_metadata_eligible_cases = rows
@@ -1133,6 +1210,33 @@ fn measurement_split_report(
             )
         })
         .count() as u64;
+    let citation_ready_cases = rows
+        .iter()
+        .filter(|row| u64_at(row, &["citation_behavior", "evidence_count"], 0) > 0)
+        .count() as u64;
+    let citation_signal_cases = rows
+        .iter()
+        .filter(|row| bool_at(row, &["citation_behavior", "citation_signal"], false))
+        .count() as u64;
+    let synthesis_ignored_citable_evidence_cases = rows
+        .iter()
+        .filter(|row| {
+            bool_at(
+                row,
+                &["citation_behavior", "synthesis_ignored_citable_evidence"],
+                false,
+            )
+        })
+        .count() as u64;
+    let query_satisfaction_total = rows
+        .iter()
+        .map(|row| u64_at(row, &["query_satisfaction", "score"], 0))
+        .sum::<u64>();
+    let query_satisfaction_cases = rows
+        .iter()
+        .filter(|row| u64_at(row, &["query_satisfaction", "score"], 0) >= 7)
+        .count() as u64;
+    let excellent_quality = excellent_quality_report(rows);
     let retrieval_status = if !live {
         "not_live"
     } else if transport_failure_cases > 0 {
@@ -1192,6 +1296,17 @@ fn measurement_split_report(
             "rich_query_pack_or_narrow_marker_rate": ratio(rich_query_pack_or_marker_cases, query_metadata_eligible_cases),
             "note": "measures whether live web-retrieval requests exercised the CD-declared query metadata primitive instead of silently falling back to minimal query/source/aperture"
         },
+        "answer_quality": {
+            "citation_ready_cases": citation_ready_cases,
+            "citation_signal_cases": citation_signal_cases,
+            "citation_signal_rate": ratio(citation_signal_cases, citation_ready_cases),
+            "synthesis_ignored_citable_evidence_cases": synthesis_ignored_citable_evidence_cases,
+            "query_satisfaction_cases": query_satisfaction_cases,
+            "query_satisfaction_rate": ratio(query_satisfaction_cases, total_cases),
+            "query_satisfaction_average": ratio(query_satisfaction_total, total_cases),
+            "note": "measures whether the final answer satisfied the original query and exposed compact citation/source signal; retrieval failures remain counted separately in live_retrieval_health"
+        },
+        "excellent_quality": excellent_quality,
         "end_to_end_golden": {
             "ok": research_success_rate >= research_success_min,
             "mode": if live { "live_noisy_single_run" } else { "recorded_replay" },
@@ -1215,6 +1330,95 @@ fn measurement_split_report(
             "transport_failures": failure_rows_for_classification(rows, "transport")
         }
     })
+}
+
+fn excellent_quality_report(rows: &[Value]) -> Value {
+    let total_cases = rows.len() as u64;
+    let excellent_cases = rows
+        .iter()
+        .filter(|row| bool_at(row, &["excellent"], false))
+        .count() as u64;
+    let mut subgate_totals: BTreeMap<String, u64> = BTreeMap::new();
+    let mut subgate_passes: BTreeMap<String, u64> = BTreeMap::new();
+    let mut blocker_counts: BTreeMap<String, u64> = BTreeMap::new();
+    let mut top_blocker_counts: BTreeMap<String, u64> = BTreeMap::new();
+    for row in rows {
+        if let Some(subgates) = row
+            .pointer("/excellent_diagnostics/subgates")
+            .and_then(Value::as_object)
+        {
+            for (gate, value) in subgates {
+                *subgate_totals.entry(gate.clone()).or_insert(0) += 1;
+                if value.as_bool().unwrap_or(false) {
+                    *subgate_passes.entry(gate.clone()).or_insert(0) += 1;
+                }
+            }
+        }
+        if let Some(blockers) = row
+            .pointer("/excellent_diagnostics/blockers")
+            .and_then(Value::as_array)
+        {
+            for blocker in blockers.iter().filter_map(Value::as_str) {
+                let blocker = clean_text(blocker, 120);
+                if !blocker.is_empty() {
+                    *blocker_counts.entry(blocker).or_insert(0) += 1;
+                }
+            }
+        }
+        let top_blocker = str_at(row, &["excellent_diagnostics", "top_blocker"], "");
+        if !top_blocker.is_empty() && top_blocker != "none" {
+            *top_blocker_counts.entry(top_blocker).or_insert(0) += 1;
+        }
+    }
+    let subgate_rates = subgate_totals
+        .iter()
+        .map(|(gate, total)| {
+            let passed = *subgate_passes.get(gate).unwrap_or(&0);
+            json!({
+                "gate": gate,
+                "passed": passed,
+                "total": total,
+                "pass_rate": ratio(passed, *total)
+            })
+        })
+        .collect::<Vec<_>>();
+    let blocker_rows = map_count_rows(&blocker_counts, "blocker");
+    let top_blocker_rows = map_count_rows(&top_blocker_counts, "blocker");
+    let top_blocker = top_blocker_rows
+        .first()
+        .and_then(|row| row.get("blocker"))
+        .and_then(Value::as_str)
+        .unwrap_or("none")
+        .to_string();
+    json!({
+        "schema_version": 1,
+        "excellent_cases": excellent_cases,
+        "total_cases": total_cases,
+        "excellent_rate": ratio(excellent_cases, total_cases),
+        "subgate_pass_rates": subgate_rates,
+        "blocker_counts": blocker_rows,
+        "top_blocker_counts": top_blocker_rows,
+        "top_blocker": top_blocker,
+        "note": "Excellent diagnostics isolate generic quality blockers after workflow and tooling gates pass."
+    })
+}
+
+fn map_count_rows(counts: &BTreeMap<String, u64>, key_name: &str) -> Vec<Value> {
+    let mut rows = counts
+        .iter()
+        .map(|(key, count)| {
+            let mut row = serde_json::Map::new();
+            row.insert(key_name.to_string(), Value::String(key.clone()));
+            row.insert("count".to_string(), json!(count));
+            Value::Object(row)
+        })
+        .collect::<Vec<_>>();
+    rows.sort_by(|left, right| {
+        u64_at(right, &["count"], 0)
+            .cmp(&u64_at(left, &["count"], 0))
+            .then_with(|| str_at(left, &[key_name], "").cmp(&str_at(right, &[key_name], "")))
+    });
+    rows
 }
 
 fn retrieval_quality_status_counts(rows: &[Value]) -> BTreeMap<String, u64> {
@@ -1358,6 +1562,15 @@ fn gate_transition_diagnostics_for_sequence(
             .unwrap_or(Value::Null),
         "checkpoints": checkpoints
     })
+}
+
+fn post_tool_web_tooling_setup_prompt(case: &Value) -> Option<String> {
+    if str_at(case, &["category"], "") != "post_tool_synthesis" {
+        return None;
+    }
+    str_opt(case, &["web_tooling_setup", "prompt"])
+        .map(|raw| clean_text(raw, 2_000))
+        .filter(|raw| !raw.is_empty())
 }
 
 fn checkpoint_by_name<'a>(diagnostics: &'a Value, name: &str) -> Option<&'a Value> {

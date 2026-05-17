@@ -522,6 +522,68 @@ fn research_golden_grades_low_signal_evidence_as_low_evidence_synthesis() {
 }
 
 #[test]
+fn research_golden_accepts_bounded_gap_language_for_low_signal_evidence() {
+    let root = temp_path("research_golden_low_signal_gap_language");
+    let cases = root.join("cases.json");
+    let responses = root.join("responses.json");
+    write_json_file(&cases, &dataset());
+    write_json_file(
+        &responses,
+        &json!({
+            "responses": [{
+                "case_id": "research_gold_test",
+                "response_payload": {
+                    "response": "Here is a bounded comparison based on the retrieved evidence, with clear separation between what the evidence directly supports and where inference fills gaps. LangGraph has source-backed support for durable graph orchestration and stateful agent flows. Infring is present in the task, but the retrieved snippets do not contain direct Infring production evidence, so a direct source-backed winner is not available. Practical recommendation: use LangGraph when public documentation maturity matters now, and keep Infring in the evaluation path only after direct docs or repository evidence are available.",
+                    "pending_tool_request": {
+                        "status": "executed",
+                        "tool_name": "web_search",
+                        "selected_tool_family": "Web Search / Fetch",
+                        "input": {
+                            "query": "Infring LangGraph comparison current docs",
+                            "aperture": "medium"
+                        }
+                    },
+                    "tools": [{
+                        "name": "web_search",
+                        "status": "low_signal",
+                        "raw_results": [{
+                            "title": "LangGraph durable graph docs",
+                            "snippet": "LangGraph documents graph orchestration, durable execution, and state-machine patterns for agent workflows."
+                        }],
+                        "result": "Low-signal retrieval: relevant LangGraph documentation surfaced, but direct Infring evidence was not found.",
+                        "evidence_refs": [
+                            {"title": "LangGraph durable graph docs", "locator": "https://docs.langchain.com/langgraph", "score": 0.91}
+                        ]
+                    }],
+                    "response_finalization": {
+                        "outcome": "workflow_authored+tool_completion:low_signal+synthesized",
+                        "tool_completion": {
+                            "completion_state": "low_signal",
+                            "findings_available": true
+                        }
+                    }
+                }
+            }]
+        }),
+    );
+    let code = run_research_golden(&runner_args(&root, &cases, &responses, false));
+    assert_eq!(code, 0);
+    let report = read_json(root.join("out.json").to_str().unwrap());
+    assert_eq!(
+        report
+            .pointer("/cases/0/gate_transition_diagnostics/first_failed_checkpoint")
+            .and_then(Value::as_str),
+        None
+    );
+    assert_eq!(
+        report
+            .pointer("/cases/0/gate_transition_diagnostics/synthesis_failure_class")
+            .and_then(Value::as_str),
+        Some("none")
+    );
+}
+
+#[test]
 fn research_golden_blocks_excellent_for_low_signal_fallback() {
     let root = temp_path("research_golden_low_signal_not_excellent");
     let cases = root.join("cases.json");
@@ -595,7 +657,13 @@ fn research_golden_blocks_excellent_for_low_signal_fallback() {
         .and_then(Value::as_array)
         .unwrap()
         .iter()
-        .any(|row| row.as_str() == Some("retrieval_quality:low_signal")));
+        .any(|row| row.as_str() == Some("retrieval_quality_not_excellent_ready")));
+    assert_eq!(
+        report.pointer(
+            "/cases/0/excellent_diagnostics/subgates/excellent_2_citable_evidence_available"
+        ),
+        Some(&Value::Bool(false))
+    );
     assert_eq!(
         report
             .pointer("/measurement_split/live_retrieval_health/retrieval_quality_counts/low_signal")
@@ -796,6 +864,118 @@ fn research_golden_does_not_mark_provider_empty_from_final_answer_caveat_text() 
         .unwrap()
         .to_string();
     assert_eq!(web_6, "pass");
+}
+
+#[test]
+fn research_golden_6a_lets_usable_tool_quality_override_stale_low_signal_markers() {
+    let root = temp_path("research_golden_usable_quality_overrides_stale_low_signal");
+    let cases = root.join("cases.json");
+    let responses = root.join("responses.json");
+    write_json_file(&cases, &dataset());
+    write_json_file(
+        &responses,
+        &json!({
+            "responses": [{
+                "case_id": "research_gold_test",
+                "response_payload": {
+                    "response": "Based on the retrieved source evidence, LangGraph has source-backed support for durable graph orchestration while Infring remains the local comparison target with evidence refs available in this run. Decision boundary: prefer LangGraph when public documentation and mature graph execution matter, and evaluate Infring when the workspace workflow-CD model is the core requirement. Practical recommendation: use the evidence as a directional comparison, cite the retrieved docs, and avoid over-claiming beyond the covered sources.",
+                    "pending_tool_request": {
+                        "status": "executed",
+                        "tool_name": "batch_query",
+                        "tool_key": "batch_query",
+                        "selected_tool_key": "batch_query",
+                        "selected_tool_family": "web_research",
+                        "input": {
+                            "query": "Infring LangGraph comparison current docs",
+                            "queries": [
+                                "Infring LangGraph comparison current docs",
+                                "LangGraph durable execution docs"
+                            ],
+                            "keywords": ["Infring", "LangGraph", "durable execution"],
+                            "required_coverage": ["official docs", "current source evidence"],
+                            "query_metadata_policy": {
+                                "classification": "expanded_query_pack"
+                            },
+                            "aperture": "medium",
+                            "source": "web"
+                        }
+                    },
+                    "tools": [{
+                        "name": "batch_query",
+                        "status": "done",
+                        "raw_results": [{
+                            "title": "LangGraph durable execution docs",
+                            "snippet": "LangGraph documents durable execution and graph-based agent orchestration."
+                        }],
+                        "result": "Returned usable source snippets for the main comparison.",
+                        "evidence_refs": [
+                            {"title": "LangGraph durable execution docs", "locator": "https://docs.example/langgraph", "score": 0.92},
+                            {"title": "Infring workflow policy", "locator": "workspace:docs/workflow_json_format_policy.md", "score": 0.88}
+                        ],
+                        "tool_result_quality": {
+                            "status": "usable",
+                            "usable_evidence": true,
+                            "evidence_count": 2,
+                            "content_rich_candidate_count": 2,
+                            "claim_hint_count": 2
+                        }
+                    }],
+                    "response_workflow": {
+                        "evidence_refs": ["evidence:langgraph", "evidence:infring"],
+                        "final_llm_response": {
+                            "status": "synthesized",
+                            "evidence_refs_used": ["evidence:langgraph", "evidence:infring"]
+                        }
+                    },
+                    "response_finalization": {
+                        "outcome": "workflow_authored+tool_completion:low_signal+synthesized",
+                        "tool_completion": {
+                            "completion_state": "low_signal",
+                            "reasoning": "One early provider lane had limited evidence, but the normalized tool quality was usable.",
+                            "findings_available": true,
+                            "evidence_refs_used": ["evidence:langgraph", "evidence:infring"],
+                            "tool_attempts": [{
+                                "tool_name": "batch_query",
+                                "status": "done",
+                                "raw_results": [{
+                                    "title": "LangGraph durable execution docs",
+                                    "snippet": "LangGraph documents durable execution and graph-based agent orchestration."
+                                }],
+                                "evidence_refs": ["evidence:langgraph", "evidence:infring"],
+                                "tool_result_quality": {
+                                    "status": "usable",
+                                    "usable_evidence": true,
+                                    "evidence_count": 2,
+                                    "content_rich_candidate_count": 2,
+                                    "claim_hint_count": 2
+                                }
+                            }]
+                        }
+                    }
+                }
+            }]
+        }),
+    );
+    let code = run_research_golden(&runner_args(&root, &cases, &responses, false));
+    assert_eq!(code, 0);
+    let report = read_json(root.join("out.json").to_str().unwrap());
+    let gate_6a = report
+        .pointer("/cases/0/gate_transition_diagnostics/checkpoints")
+        .and_then(Value::as_array)
+        .unwrap()
+        .iter()
+        .find(|row| {
+            row.get("checkpoint").and_then(Value::as_str)
+                == Some("6a_synthesis_uses_evidence_or_low_evidence_fallback")
+        })
+        .expect("6a checkpoint");
+    assert_eq!(gate_6a.get("status").and_then(Value::as_str), Some("pass"));
+    assert_eq!(
+        report
+            .pointer("/cases/0/gate_transition_diagnostics/synthesis_failure_class")
+            .and_then(Value::as_str),
+        Some("none")
+    );
 }
 
 #[test]

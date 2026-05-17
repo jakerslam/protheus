@@ -29,13 +29,8 @@ pub(super) fn web_retrieval_gate_diagnostics(
             &["rich_query_pack_or_narrow_marker"],
             false,
         ) || bool_at(query_metadata_diagnostics, &["metadata_present"], false);
-    let raw_candidates_present = candidate_count > 0
-        || (tool_attempted
-            && checkpoint_passed(transition_diagnostics, "5b_raw_provider_result_present"));
-    let packaged_evidence_present = evidence_count > 0
-        || (tool_attempted
-            && (checkpoint_passed(transition_diagnostics, "5c_packaged_tool_result_present")
-                || checkpoint_passed(transition_diagnostics, "5d_evidence_refs_extracted")));
+    let raw_candidates_present = candidate_count > 0;
+    let packaged_evidence_present = evidence_count > 0;
     let content_rich_candidates_present = content_rich_candidate_count > 0;
     let claim_extraction_present = claim_hint_count > 0;
     let provider_not_empty_or_degraded = !matches!(
@@ -528,6 +523,28 @@ pub(super) fn record_web_retrieval_gate_counts(
     }
 }
 
+pub(super) fn web_tooling_measurement_eligible_case(
+    case: &Value,
+    payload: &Value,
+    retrieval_quality: &Value,
+) -> bool {
+    web_tooling_measurement_exclusion_reason_case(case, payload, retrieval_quality).is_none()
+}
+
+pub(super) fn web_tooling_measurement_exclusion_reason_case(
+    case: &Value,
+    payload: &Value,
+    retrieval_quality: &Value,
+) -> Option<&'static str> {
+    if payload_is_transport_failure(payload) {
+        return Some("transport_failure");
+    }
+    if unseeded_post_tool_synthesis_case(case, payload, retrieval_quality) {
+        return Some("post_tool_context_not_seeded");
+    }
+    None
+}
+
 pub(super) fn web_retrieval_gate_rate_rows(
     total_counts: &BTreeMap<String, u64>,
     pass_counts: &BTreeMap<String, u64>,
@@ -643,7 +660,18 @@ pub(super) fn web_retrieval_measurement_report(
     let mut browser_materialization_recovery_counts = BTreeMap::<String, u64>::new();
     let measured_rows = web_tooling_measured_rows(rows);
     let measured_cases = measured_rows.len() as u64;
-    let transport_excluded_cases = rows.len() as u64 - measured_cases;
+    let transport_excluded_cases = rows
+        .iter()
+        .filter(|row| bool_at(row, &["transport_failure"], false))
+        .count() as u64;
+    let post_tool_context_excluded_cases = rows
+        .iter()
+        .filter(|row| {
+            web_tooling_measurement_exclusion_reason_row(row)
+                == Some("post_tool_context_not_seeded")
+        })
+        .count() as u64;
+    let measurement_excluded_cases = rows.len() as u64 - measured_cases;
     let mut candidate_count_total = 0_u64;
     let mut evidence_count_total = 0_u64;
     let mut content_rich_candidate_count_total = 0_u64;
@@ -804,7 +832,9 @@ pub(super) fn web_retrieval_measurement_report(
         "schema_version": 1,
         "purpose": "make web retrieval less opaque by measuring request planning, provider return, packaging, quality, and synthesis handoff separately",
         "measured_cases": measured_cases,
+        "measurement_excluded_cases": measurement_excluded_cases,
         "transport_excluded_cases": transport_excluded_cases,
+        "post_tool_context_excluded_cases": post_tool_context_excluded_cases,
         "first_failure_counts": first_failure_counts,
         "access_blocker_counts": access_blocker_counts,
         "access_blocker_class_counts": access_blocker_class_counts,
@@ -831,8 +861,33 @@ struct WebGateMetric {
 
 fn web_tooling_measured_rows(rows: &[Value]) -> Vec<&Value> {
     rows.iter()
-        .filter(|row| !bool_at(row, &["transport_failure"], false))
+        .filter(|row| web_tooling_measurement_exclusion_reason_row(row).is_none())
         .collect()
+}
+
+fn web_tooling_measurement_exclusion_reason_row(row: &Value) -> Option<&'static str> {
+    if bool_at(row, &["transport_failure"], false) {
+        return Some("transport_failure");
+    }
+    if str_at(row, &["category"], "") == "post_tool_synthesis"
+        && !bool_at(row, &["retrieval_quality", "tool_executed"], false)
+        && str_at(row, &["retrieval_quality", "status"], "") == "not_attempted"
+    {
+        return Some("post_tool_context_not_seeded");
+    }
+    None
+}
+
+fn unseeded_post_tool_synthesis_case(
+    case: &Value,
+    payload: &Value,
+    retrieval_quality: &Value,
+) -> bool {
+    str_at(case, &["category"], "") == "post_tool_synthesis"
+        && !has_tool_execution(payload)
+        && web_pending_request(payload).is_none()
+        && !bool_at(retrieval_quality, &["tool_executed"], false)
+        && str_at(retrieval_quality, &["status"], "") == "not_attempted"
 }
 
 fn web_gate(
