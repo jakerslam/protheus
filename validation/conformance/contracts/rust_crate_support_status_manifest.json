@@ -86,7 +86,7 @@
       "validation_required_before_status_upgrade": true
     },
     {
-      "path": "core/layer0/infring_agent_surface/Cargo.toml",
+      "path": "core/layer2/agent_surface/Cargo.toml",
       "domain": "kernel",
       "support_status": "experimental",
       "owner": "kernel",

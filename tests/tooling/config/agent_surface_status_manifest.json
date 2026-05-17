@@ -21,25 +21,25 @@
   "surfaces": [
     {
       "id": "infring_agent_surface_runtime_lane",
-      "path": "core/layer0/infring_agent_surface/src/runtime_lane.rs",
+      "path": "core/layer2/agent_surface/src/runtime_lane.rs",
       "support_level": "experimental_opt_in",
       "release_required": false
     },
     {
       "id": "infring_agent_surface_runtime_state",
-      "path": "core/layer0/infring_agent_surface/src/runtime_state.rs",
+      "path": "core/layer2/agent_surface/src/runtime_state.rs",
       "support_level": "experimental_opt_in",
       "release_required": false
     },
     {
       "id": "infring_agent_surface_scheduler",
-      "path": "core/layer0/infring_agent_surface/src/scheduler.rs",
+      "path": "core/layer2/agent_surface/src/scheduler.rs",
       "support_level": "experimental_opt_in",
       "release_required": false
     },
     {
       "id": "infring_agent_surface_capability_pack",
-      "path": "core/layer0/infring_agent_surface/src/capability_pack.rs",
+      "path": "core/layer2/agent_surface/src/capability_pack.rs",
       "support_level": "experimental_opt_in",
       "release_required": false
     },

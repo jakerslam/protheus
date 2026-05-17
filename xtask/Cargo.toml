@@ -9,4 +9,4 @@ publish = false
 anyhow = "1"
 serde_json = "1"
 nursery_runtime = { path = "../core/layer1/nursery_runtime" }
-infring-agent-surface = { path = "../core/layer0/infring_agent_surface" }
+infring-agent-surface = { path = "../core/layer2/agent_surface" }

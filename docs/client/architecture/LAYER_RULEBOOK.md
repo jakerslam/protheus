@@ -69,6 +69,30 @@ Orchestration code must be limited to:
 
 Orchestration must not canonize truth, persist private durable workflow state, or bypass core ingress contracts.
 
+#### 2.1.1 Coordination Primitive Placement
+Coordination placement is decided by authority, not by whether the code happens to call tools or agents.
+
+Core-owned coordination primitives are deterministic execution machinery:
+- receipt-bound state transitions;
+- leases, capabilities, and permission decisions;
+- lane queues, scheduling, and bounded runtime coordination;
+- tool execution contracts and replayable execution receipts;
+- mechanical retry or timeout budget enforcement.
+
+Layer placement inside Core:
+- Layer 0 owns only safety-plane primitives: immutable invariants, fail-closed boundary checks, root safety authority, constitution/security gates, and minimal deterministic receipt primitives.
+- Layer 1 owns deterministic policy interpretation and receipt shaping.
+- Layer 2 owns scheduling and execution coordination primitives, including lanes, queues, and bounded runtime coordination.
+- Agent runtime surfaces that coordinate providers, native tools, retry/recovery loops, receipt interpretation, capability-pack routing, runtime lanes, or synthetic execution artifacts belong in Layer 2, not Layer 0.
+
+Orchestration-owned coordination is non-canonical workflow strategy:
+- request normalization, classification, and clarification;
+- user-task decomposition and workflow selection;
+- phase sequencing, progress narration, recovery wording, and result packaging;
+- coding-project policy, checkpoint handoff semantics, public reasoning rollups, and task-specific evidence expectations.
+
+Layer 0 must not contain workflow-specific policy such as coding workflow repair prompts, checkpoint handoff schemas, public reasoning trace rollups, task-specific completion-evidence heuristics, or agent/provider coordination loops. If a Layer 0 implementation needs to enforce one of these outcomes, the workflow policy must live in Orchestration or a higher core layer as appropriate, and Layer 0 may only consume a generic contract or receipt primitive.
+
 ### 2.2 Shell Scope Contract (Developer-Only Surface, repo path `client/`)
 Shell code must be limited to:
 1. SDK/wrapper surfaces that call orchestration/core through conduit/lanes.

@@ -1,0 +1,954 @@
+// Layer ownership: Core Layer 2 (Scheduling + Execution) - agent runtime surface coordination.
+use crate::agent::{AgentBuildError, AgentBuilder, AgentExecutionContext, AgentRunResult};
+use crate::capability_pack::CapabilityPackCatalog;
+use crate::merkle_receipt::{merkle_receipt_options_from_value, merkle_receipt_payload};
+use crate::provider::{ProviderClientRegistry, ProviderError};
+use crate::rbac_memory::{
+    memory_read_allowed, memory_write_allowed, permission_for, permission_manifest_from_value,
+    permission_manifest_from_value_with_inheritance, permission_manifest_snapshot, PermissionTrit,
+};
+use crate::realtime_voice::{normalize_voice_session_request, voice_session_contract};
+use crate::runtime_state::{
+    runtime_lane_state_load, runtime_lane_state_mark_schedule_failure,
+    runtime_lane_state_mark_schedule_success, runtime_lane_state_path,
+    runtime_lane_state_record_denied_action, runtime_lane_state_record_merkle_continuity_failure,
+    runtime_lane_state_release_gate_counters, runtime_lane_state_save, RuntimeLaneDurableState,
+};
+use crate::scheduler::SchedulePlan;
+use crate::wasm_sandbox::{
+    evaluate_wasm_execution_boundary, evaluate_wasm_policy, wasm_policy_from_value,
+    wasm_policy_snapshot, WasmPolicyDecision,
+};
+use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
+use std::path::Path;
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct RuntimeLaneRequest {
+    pub name: String,
+    pub preamble: Option<String>,
+    pub initial_prompt: String,
+    pub provider: Option<String>,
+    pub model: Option<String>,
+    pub tools: Vec<String>,
+    pub capability_packs: Vec<String>,
+    pub lifespan_seconds: Option<u64>,
+    pub metadata: Value,
+    #[serde(default)]
+    pub permissions_manifest: Option<Value>,
+    #[serde(default)]
+    pub wasm_sandbox: Option<Value>,
+    #[serde(default)]
+    pub voice_session: Option<Value>,
+    #[serde(default)]
+    pub receipt_merkle: Option<Value>,
+    #[serde(default)]
+    pub previous_receipt_root: Option<String>,
+    #[serde(default)]
+    pub schedule_interval_seconds: Option<u64>,
+    #[serde(default)]
+    pub schedule_max_runs: Option<u32>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct RuntimeLaneResponse {
+    pub ok: bool,
+    pub contract: Value,
+    pub receipt: Value,
+    pub trace_summary: Value,
+    pub output: String,
+    pub error: Option<String>,
+}
+
+#[derive(Debug)]
+pub enum RuntimeLaneError {
+    Build(AgentBuildError),
+    Provider(ProviderError),
+}
+
+impl std::fmt::Display for RuntimeLaneError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Build(error) => write!(f, "build:{}", error),
+            Self::Provider(error) => write!(f, "provider:{}", error.message),
+        }
+    }
+}
+
+impl std::error::Error for RuntimeLaneError {}
+
+pub fn run_runtime_lane(
+    request: RuntimeLaneRequest,
+) -> Result<RuntimeLaneResponse, RuntimeLaneError> {
+    let providers = ProviderClientRegistry::with_builtin();
+    run_runtime_lane_with_registry(request, &providers)
+}
+
+pub fn run_runtime_lane_with_registry(
+    request: RuntimeLaneRequest,
+    providers: &ProviderClientRegistry,
+) -> Result<RuntimeLaneResponse, RuntimeLaneError> {
+    let RuntimeLaneRequest {
+        name,
+        preamble,
+        initial_prompt,
+        provider,
+        model,
+        tools,
+        capability_packs,
+        lifespan_seconds,
+        metadata,
+        permissions_manifest,
+        wasm_sandbox,
+        voice_session,
+        receipt_merkle,
+        previous_receipt_root,
+        schedule_interval_seconds,
+        schedule_max_runs,
+    } = request;
+
+    let state_path = runtime_lane_state_path(&metadata);
+    let mut durable_state = runtime_lane_state_load(&state_path);
+    let parent_permissions_manifest =
+        permission_manifest_from_value(metadata.get("parent_permissions_manifest"));
+    let permissions_template = metadata
+        .get("permissions_template")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty());
+    let permissions = permission_manifest_from_value_with_inheritance(
+        permissions_manifest.as_ref(),
+        permissions_template,
+        Some(&parent_permissions_manifest),
+    );
+    let parent_permissions_snapshot = permission_manifest_snapshot(&parent_permissions_manifest);
+    let parent_permissions_manifest_present = parent_permissions_snapshot
+        .get("grants")
+        .and_then(Value::as_object)
+        .map(|grants| !grants.is_empty())
+        .unwrap_or(false);
+    let effective_permissions_snapshot = permission_manifest_snapshot(&permissions);
+    let parent_permissions_patch_clamped = metadata
+        .get("parent_permissions_patch_clamped")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let catalog = CapabilityPackCatalog::new();
+    let required_pack_permissions = catalog.required_permissions_for_packs(&capability_packs);
+    for permission in &required_pack_permissions {
+        let state = permission_for(&permissions, permission);
+        if state != PermissionTrit::Allow {
+            let effective_state = permission_trit_code(state);
+            let parent_state =
+                permission_trit_code(permission_for(&parent_permissions_manifest, permission));
+            return Ok(runtime_lane_fail_closed_with_state(
+                "runtime_lane_pack_permission_denied",
+                json!({
+                    "permission": permission,
+                    "permission_state": effective_state,
+                    "enforcement_mode": "strict_fail_closed",
+                    "blocked_permission_key_lineage": {
+                        "permission": permission,
+                        "effective_state": effective_state,
+                        "parent_state": parent_state,
+                        "lineage_chain": [
+                            {"source": "effective_manifest", "state": effective_state},
+                            {"source": "parent_manifest", "state": parent_state}
+                        ]
+                    },
+                    "parent_permissions_manifest_present": parent_permissions_manifest_present,
+                    "parent_permissions_patch_clamped": parent_permissions_patch_clamped,
+                    "permissions_effective_snapshot": effective_permissions_snapshot.clone(),
+                    "permissions_parent_snapshot": parent_permissions_snapshot.clone(),
+                }),
+                &permissions,
+                wasm_sandbox.as_ref(),
+                voice_session.as_ref(),
+                &state_path,
+                &mut durable_state,
+            ));
+        }
+    }
+    if tools.iter().any(|tool| tool == "memory.read") && !memory_read_allowed(&permissions) {
+        let effective_state = permission_trit_code(permission_for(&permissions, "memory.read"));
+        let parent_state =
+            permission_trit_code(permission_for(&parent_permissions_manifest, "memory.read"));
+        return Ok(runtime_lane_fail_closed_with_state(
+            "runtime_lane_memory_read_denied",
+            json!({
+                "permission": "memory.read",
+                "permission_state": effective_state,
+                "enforcement_mode": "strict_fail_closed",
+                "blocked_permission_key_lineage": {
+                    "permission": "memory.read",
+                    "effective_state": effective_state,
+                    "parent_state": parent_state,
+                    "lineage_chain": [
+                        {"source": "effective_manifest", "state": effective_state},
+                        {"source": "parent_manifest", "state": parent_state}
+                    ]
+                },
+                "parent_permissions_manifest_present": parent_permissions_manifest_present,
+                "parent_permissions_patch_clamped": parent_permissions_patch_clamped,
+                "permissions_effective_snapshot": effective_permissions_snapshot.clone(),
+                "permissions_parent_snapshot": parent_permissions_snapshot.clone(),
+            }),
+            &permissions,
+            wasm_sandbox.as_ref(),
+            voice_session.as_ref(),
+            &state_path,
+            &mut durable_state,
+        ));
+    }
+    if tools.iter().any(|tool| tool == "memory.write") && !memory_write_allowed(&permissions) {
+        let effective_state = permission_trit_code(permission_for(&permissions, "memory.write"));
+        let parent_state =
+            permission_trit_code(permission_for(&parent_permissions_manifest, "memory.write"));
+        return Ok(runtime_lane_fail_closed_with_state(
+            "runtime_lane_memory_write_denied",
+            json!({
+                "permission": "memory.write",
+                "permission_state": effective_state,
+                "enforcement_mode": "strict_fail_closed",
+                "blocked_permission_key_lineage": {
+                    "permission": "memory.write",
+                    "effective_state": effective_state,
+                    "parent_state": parent_state,
+                    "lineage_chain": [
+                        {"source": "effective_manifest", "state": effective_state},
+                        {"source": "parent_manifest", "state": parent_state}
+                    ]
+                },
+                "parent_permissions_manifest_present": parent_permissions_manifest_present,
+                "parent_permissions_patch_clamped": parent_permissions_patch_clamped,
+                "permissions_effective_snapshot": effective_permissions_snapshot.clone(),
+                "permissions_parent_snapshot": parent_permissions_snapshot.clone(),
+            }),
+            &permissions,
+            wasm_sandbox.as_ref(),
+            voice_session.as_ref(),
+            &state_path,
+            &mut durable_state,
+        ));
+    }
+    if let Some((tool, permission)) = tools
+        .iter()
+        .filter_map(|tool| file_tool_permission(tool).map(|permission| (tool, permission)))
+        .find(|(_, permission)| permission_for(&permissions, permission) != PermissionTrit::Allow)
+    {
+        let effective_state = permission_trit_code(permission_for(&permissions, permission));
+        let parent_state =
+            permission_trit_code(permission_for(&parent_permissions_manifest, permission));
+        return Ok(runtime_lane_fail_closed_with_state(
+            "runtime_lane_file_tool_permission_denied",
+            json!({
+                "tool": tool,
+                "permission": permission,
+                "permission_state": effective_state,
+                "enforcement_mode": "strict_fail_closed",
+                "blocked_permission_key_lineage": {
+                    "permission": permission,
+                    "effective_state": effective_state,
+                    "parent_state": parent_state,
+                    "lineage_chain": [
+                        {"source": "effective_manifest", "state": effective_state},
+                        {"source": "parent_manifest", "state": parent_state}
+                    ]
+                },
+                "parent_permissions_manifest_present": parent_permissions_manifest_present,
+                "parent_permissions_patch_clamped": parent_permissions_patch_clamped,
+                "permissions_effective_snapshot": effective_permissions_snapshot.clone(),
+                "permissions_parent_snapshot": parent_permissions_snapshot.clone(),
+            }),
+            &permissions,
+            wasm_sandbox.as_ref(),
+            voice_session.as_ref(),
+            &state_path,
+            &mut durable_state,
+        ));
+    }
+
+    let wasm_policy = wasm_policy_from_value(wasm_sandbox.as_ref());
+    let requested_modules = runtime_requested_wasm_modules(&tools, &metadata);
+    let requests_network = runtime_requests_network(&tools, &metadata);
+    match evaluate_wasm_policy(&wasm_policy, &requested_modules, requests_network) {
+        WasmPolicyDecision::Allowed => {}
+        WasmPolicyDecision::Blocked(error_code) => {
+            return Ok(runtime_lane_fail_closed_with_state(
+                &error_code,
+                json!({
+                    "requested_modules": requested_modules,
+                    "requests_network": requests_network
+                }),
+                &permissions,
+                wasm_sandbox.as_ref(),
+                voice_session.as_ref(),
+                &state_path,
+                &mut durable_state,
+            ));
+        }
+    }
+
+    let voice_request = normalize_voice_session_request(voice_session.as_ref());
+    if voice_session.is_some() && voice_request.is_none() {
+        return Ok(runtime_lane_fail_closed_with_state(
+            "runtime_lane_voice_contract_invalid",
+            json!({"voice_session": voice_session}),
+            &permissions,
+            wasm_sandbox.as_ref(),
+            voice_session.as_ref(),
+            &state_path,
+            &mut durable_state,
+        ));
+    }
+
+    let merkle_options = merkle_receipt_options_from_value(receipt_merkle.as_ref());
+    let mut builder = AgentBuilder::new(name)
+        .initial_prompt(initial_prompt)
+        .metadata(metadata.clone());
+    if let Some(value) = preamble {
+        builder = builder.preamble(value);
+    }
+    if let Some(value) = provider {
+        builder = builder.provider(value);
+    }
+    if let Some(value) = model {
+        builder = builder.model(value);
+    }
+    if let Some(value) = lifespan_seconds {
+        builder = builder.lifespan_seconds(value);
+    }
+    if schedule_interval_seconds == Some(0) {
+        return Ok(runtime_lane_fail_closed_with_state(
+            "runtime_lane_schedule_interval_invalid",
+            json!({"schedule_interval_seconds": schedule_interval_seconds}),
+            &permissions,
+            wasm_sandbox.as_ref(),
+            voice_session.as_ref(),
+            &state_path,
+            &mut durable_state,
+        ));
+    }
+    if schedule_max_runs == Some(0) {
+        return Ok(runtime_lane_fail_closed_with_state(
+            "runtime_lane_schedule_max_runs_invalid",
+            json!({"schedule_max_runs": schedule_max_runs}),
+            &permissions,
+            wasm_sandbox.as_ref(),
+            voice_session.as_ref(),
+            &state_path,
+            &mut durable_state,
+        ));
+    }
+    if schedule_interval_seconds.is_some() || schedule_max_runs.is_some() {
+        builder = builder.schedule(SchedulePlan {
+            interval_seconds: schedule_interval_seconds.unwrap_or(300),
+            jitter_seconds: 15,
+            max_runs: schedule_max_runs,
+        });
+    }
+    for tool in tools.clone() {
+        builder = builder.tool(tool);
+    }
+    for pack in capability_packs.clone() {
+        builder = builder.capability_pack(pack);
+    }
+    let contract = builder.build().map_err(RuntimeLaneError::Build)?;
+    let contract = contract.with_default_schedule_from_packs(&catalog);
+    let resolved_tools = contract.resolved_tools(Some(&catalog));
+    let wasm_execution_fuel_used = metadata
+        .get("wasm_execution")
+        .and_then(|value| value.get("fuel_used"))
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let wasm_execution_elapsed_ms = metadata
+        .get("wasm_execution")
+        .and_then(|value| value.get("elapsed_ms"))
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    for tool in &resolved_tools {
+        if let Some(module_id) = tool.strip_prefix("wasm.") {
+            match evaluate_wasm_execution_boundary(
+                &wasm_policy,
+                module_id,
+                wasm_execution_fuel_used,
+                wasm_execution_elapsed_ms,
+                requests_network,
+            ) {
+                WasmPolicyDecision::Allowed => {}
+                WasmPolicyDecision::Blocked(error_code) => {
+                    if let Some(plan) = &contract.schedule {
+                        let pack_id = contract
+                            .capability_packs
+                            .first()
+                            .cloned()
+                            .unwrap_or_else(|| "runtime".to_string());
+                        runtime_lane_state_mark_schedule_failure(
+                            &mut durable_state,
+                            contract.name.as_str(),
+                            pack_id.as_str(),
+                            plan,
+                            error_code.as_str(),
+                        );
+                    }
+                    return Ok(runtime_lane_fail_closed_with_state(
+                        error_code.as_str(),
+                        json!({
+                            "boundary": "wasm_execution",
+                            "module_id": module_id,
+                            "fuel_used": wasm_execution_fuel_used,
+                            "elapsed_ms": wasm_execution_elapsed_ms,
+                            "requests_network": requests_network,
+                        }),
+                        &permissions,
+                        wasm_sandbox.as_ref(),
+                        voice_session.as_ref(),
+                        &state_path,
+                        &mut durable_state,
+                    ));
+                }
+            }
+        }
+    }
+    let context = AgentExecutionContext::new(providers, Some(&catalog));
+    let run: AgentRunResult = match contract.run_once(&context) {
+        Ok(result) => result,
+        Err(error) => {
+            if let Some(plan) = &contract.schedule {
+                let pack_id = contract
+                    .capability_packs
+                    .first()
+                    .cloned()
+                    .unwrap_or_else(|| "runtime".to_string());
+                runtime_lane_state_mark_schedule_failure(
+                    &mut durable_state,
+                    contract.name.as_str(),
+                    pack_id.as_str(),
+                    plan,
+                    error.code.as_str(),
+                );
+            }
+            let _ = runtime_lane_state_save(&state_path, &durable_state);
+            return Err(RuntimeLaneError::Provider(error));
+        }
+    };
+    if let Some((error_code, details)) =
+        native_success_contract_violation(&metadata, &run.receipt, &run.response.output)
+    {
+        if let Some(plan) = &contract.schedule {
+            let pack_id = contract
+                .capability_packs
+                .first()
+                .cloned()
+                .unwrap_or_else(|| "runtime".to_string());
+            runtime_lane_state_mark_schedule_failure(
+                &mut durable_state,
+                contract.name.as_str(),
+                pack_id.as_str(),
+                plan,
+                error_code.as_str(),
+            );
+        }
+        return Ok(runtime_lane_fail_closed_with_state(
+            error_code.as_str(),
+            details,
+            &permissions,
+            wasm_sandbox.as_ref(),
+            voice_session.as_ref(),
+            &state_path,
+            &mut durable_state,
+        ));
+    }
+    if let Some((error_code, details)) =
+        public_reasoning_contract_violation(&metadata, &run.receipt, &run.response.output)
+    {
+        if let Some(plan) = &contract.schedule {
+            let pack_id = contract
+                .capability_packs
+                .first()
+                .cloned()
+                .unwrap_or_else(|| "runtime".to_string());
+            runtime_lane_state_mark_schedule_failure(
+                &mut durable_state,
+                contract.name.as_str(),
+                pack_id.as_str(),
+                plan,
+                error_code.as_str(),
+            );
+        }
+        return Ok(runtime_lane_fail_closed_with_state(
+            error_code.as_str(),
+            details,
+            &permissions,
+            wasm_sandbox.as_ref(),
+            voice_session.as_ref(),
+            &state_path,
+            &mut durable_state,
+        ));
+    }
+    let persisted_previous_root = durable_state
+        .merkle_roots
+        .get(contract.name.as_str())
+        .cloned();
+    if let (Some(requested), Some(persisted)) = (
+        previous_receipt_root.as_deref(),
+        persisted_previous_root.as_deref(),
+    ) {
+        if requested != persisted {
+            runtime_lane_state_record_merkle_continuity_failure(&mut durable_state);
+        }
+    }
+    let effective_previous_root = previous_receipt_root
+        .as_deref()
+        .or(persisted_previous_root.as_deref());
+    let merkle = merkle_receipt_payload(&run.receipt, effective_previous_root, &merkle_options);
+    if let Some(root) = merkle.get("root").and_then(Value::as_str) {
+        durable_state
+            .merkle_roots
+            .insert(contract.name.clone(), root.to_string());
+    }
+    if let Some(plan) = &contract.schedule {
+        let pack_id = contract
+            .capability_packs
+            .first()
+            .cloned()
+            .unwrap_or_else(|| "runtime".to_string());
+        runtime_lane_state_mark_schedule_success(
+            &mut durable_state,
+            contract.name.as_str(),
+            pack_id.as_str(),
+            plan,
+        );
+    }
+    let state_persist_error = runtime_lane_state_save(&state_path, &durable_state);
+    let voice = voice_request
+        .as_ref()
+        .map(|request| {
+            voice_session_contract(
+                request,
+                permission_for(&permissions, "voice.realtime") == PermissionTrit::Allow,
+            )
+        })
+        .unwrap_or(Value::Null);
+    let agent_status = run
+        .receipt
+        .get("status")
+        .and_then(Value::as_str)
+        .unwrap_or("ok")
+        .to_string();
+    let response_ok = agent_status == "ok";
+    let response_error = if response_ok {
+        None
+    } else {
+        Some(format!("runtime_lane_agent_status:{agent_status}"))
+    };
+    Ok(RuntimeLaneResponse {
+        ok: response_ok,
+        contract: json!({
+            "name": contract.name,
+            "provider": contract.provider,
+            "agent_status": agent_status.clone(),
+            "tool_count": contract.resolved_tools(Some(&catalog)).len(),
+            "native_tool_call_count": run
+                .receipt
+                .get("native_tool_call_count")
+                .and_then(Value::as_u64)
+                .unwrap_or(0),
+            "tools": tools,
+            "capability_packs": capability_packs,
+            "capability_profiles": catalog.autonomy_profiles_for_packs(&contract.capability_packs),
+            "required_permissions": required_pack_permissions,
+            "schedule": contract.schedule,
+            "lifespan_seconds": contract.lifespan_seconds,
+            "permissions_manifest": permission_manifest_snapshot(&permissions),
+            "wasm_sandbox": wasm_policy_snapshot(&wasm_policy),
+            "voice_session": voice,
+            "receipt_merkle": merkle,
+            "workflow": metadata
+                .get("workflow")
+                .cloned()
+                .unwrap_or(Value::Null),
+        }),
+        receipt: run.receipt,
+        trace_summary: json!({
+            "trace_id": run.trace.trace_id,
+            "event_count": run.trace.events.len(),
+            "agent_name": run.trace.agent_name,
+            "wasm_modules": requested_modules,
+            "requests_network": requests_network,
+            "release_gate_counters": runtime_lane_state_release_gate_counters(&durable_state),
+            "state_path": state_path.display().to_string(),
+            "state_persist_error": state_persist_error,
+        }),
+        output: run.response.output,
+        error: response_error,
+    })
+}
+
+fn runtime_lane_fail_closed_with_state(
+    error_code: &str,
+    details: Value,
+    permissions: &crate::rbac_memory::PermissionManifest,
+    wasm_sandbox: Option<&Value>,
+    voice_session: Option<&Value>,
+    state_path: &Path,
+    durable_state: &mut RuntimeLaneDurableState,
+) -> RuntimeLaneResponse {
+    runtime_lane_state_record_denied_action(durable_state, error_code);
+    let state_persist_error = runtime_lane_state_save(state_path, durable_state);
+    RuntimeLaneResponse {
+        ok: false,
+        contract: json!({
+            "permissions_manifest": permission_manifest_snapshot(permissions),
+            "wasm_sandbox": wasm_policy_snapshot(&wasm_policy_from_value(wasm_sandbox)),
+            "voice_session_requested": voice_session.is_some(),
+            "state_path": state_path.display().to_string(),
+        }),
+        receipt: json!({
+            "type": "runtime_lane_receipt",
+            "status": "fail_closed",
+            "error_code": error_code,
+            "details": details,
+        }),
+        trace_summary: json!({
+            "status": "fail_closed",
+            "error_code": error_code,
+            "release_gate_counters": runtime_lane_state_release_gate_counters(durable_state),
+            "state_persist_error": state_persist_error,
+        }),
+        output: String::new(),
+        error: Some(error_code.to_string()),
+    }
+}
+
+fn permission_trit_code(value: PermissionTrit) -> i8 {
+    match value {
+        PermissionTrit::Deny => -1,
+        PermissionTrit::Ask => 0,
+        PermissionTrit::Allow => 1,
+    }
+}
+
+fn file_tool_permission(tool: &str) -> Option<&'static str> {
+    match tool.trim().to_ascii_lowercase().as_str() {
+        "file_list" | "list_files" | "workspace.list" | "workspace_list" | "file_stat"
+        | "stat_file" | "file_exists" | "workspace.stat" | "workspace_stat" => {
+            Some("file.read")
+        }
+        "file_read" | "file_read_many" | "read_file" | "read_many_files" | "workspace.read"
+        | "workspace.read_many" | "workspace_read" | "workspace_read_many" => Some("file.read"),
+        "file_write" | "write_file" | "workspace.write" | "workspace_write" => {
+            Some("file.write")
+        }
+        "file_patch" | "patch_file" | "apply_patch" | "workspace.patch" | "workspace_patch" => {
+            Some("file.patch")
+        }
+        "command_run" | "run_command" | "command.run" | "shell.run" | "shell_run" => {
+            Some("command.run")
+        }
+        _ => None,
+    }
+}
+
+fn native_success_contract_violation(
+    metadata: &Value,
+    run_receipt: &Value,
+    output: &str,
+) -> Option<(String, Value)> {
+    let criteria = metadata.get("native_success_criteria")?;
+    if !criteria.is_object() {
+        return None;
+    }
+    let requires_native_tool_use = criteria
+        .get("requires_native_tool_use")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let requires_successful_mutation_receipt = criteria
+        .get("requires_successful_mutation_receipt")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let requires_successful_discovery_receipt = criteria
+        .get("requires_successful_discovery_receipt")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let min_successful_tool_receipts = criteria
+        .get("min_successful_tool_receipts")
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let min_successful_discovery_receipts = criteria
+        .get("min_successful_discovery_receipts")
+        .and_then(Value::as_u64)
+        .unwrap_or(if requires_successful_discovery_receipt {
+            1
+        } else {
+            0
+        });
+    let successful_discovery_tools = criteria
+        .get("successful_discovery_tools")
+        .and_then(Value::as_array)
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(Value::as_str)
+                .map(normalize_native_tool_name)
+                .collect::<Vec<_>>()
+        })
+        .filter(|items| !items.is_empty())
+        .unwrap_or_else(|| vec!["file_list".to_string(), "file_stat".to_string()]);
+    let successful_mutation_tools = criteria
+        .get("successful_mutation_tools")
+        .and_then(Value::as_array)
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(Value::as_str)
+                .map(normalize_native_tool_name)
+                .collect::<Vec<_>>()
+        })
+        .filter(|items| !items.is_empty())
+        .unwrap_or_else(|| vec!["file_write".to_string(), "file_patch".to_string()]);
+
+    let receipts = run_receipt
+        .get("native_tool_receipts")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let receipt_count = run_receipt
+        .get("native_tool_call_count")
+        .and_then(Value::as_u64)
+        .unwrap_or(receipts.len() as u64);
+    let successful_tool_receipt_count = receipts
+        .iter()
+        .filter(|receipt| receipt.get("status").and_then(Value::as_str) == Some("ok"))
+        .count() as u64;
+    let successful_discovery_receipt_count = receipts
+        .iter()
+        .filter(|receipt| receipt.get("status").and_then(Value::as_str) == Some("ok"))
+        .filter(|receipt| {
+            receipt
+                .get("tool_name")
+                .and_then(Value::as_str)
+                .map(normalize_native_tool_name)
+                .map(|tool| successful_discovery_tools.iter().any(|allowed| allowed == &tool))
+                .unwrap_or(false)
+        })
+        .count() as u64;
+    let successful_mutation_receipt_count = receipts
+        .iter()
+        .filter(|receipt| receipt.get("status").and_then(Value::as_str) == Some("ok"))
+        .filter(|receipt| {
+            receipt
+                .get("tool_name")
+                .and_then(Value::as_str)
+                .map(normalize_native_tool_name)
+                .map(|tool| successful_mutation_tools.iter().any(|allowed| allowed == &tool))
+                .unwrap_or(false)
+        })
+        .count() as u64;
+
+    let details = || {
+        json!({
+            "criteria": criteria,
+            "native_tool_call_count": receipt_count,
+            "successful_tool_receipt_count": successful_tool_receipt_count,
+            "successful_discovery_receipt_count": successful_discovery_receipt_count,
+            "successful_mutation_receipt_count": successful_mutation_receipt_count,
+            "native_tool_receipt_summary": native_tool_receipt_summary(&receipts),
+            "agent_output_preview": output.chars().take(1200).collect::<String>(),
+            "workflow": metadata.get("workflow").cloned().unwrap_or(Value::Null),
+            "enforcement_mode": "strict_fail_closed",
+        })
+    };
+
+    if requires_native_tool_use && receipt_count == 0 {
+        return Some((
+            "runtime_lane_required_native_tool_use_missing".to_string(),
+            details(),
+        ));
+    }
+    if min_successful_discovery_receipts > 0
+        && successful_discovery_receipt_count < min_successful_discovery_receipts
+    {
+        return Some((
+            "runtime_lane_required_native_discovery_receipt_missing".to_string(),
+            details(),
+        ));
+    }
+    if min_successful_tool_receipts > 0 && successful_tool_receipt_count < min_successful_tool_receipts
+    {
+        return Some((
+            "runtime_lane_required_native_tool_receipt_missing".to_string(),
+            details(),
+        ));
+    }
+    if requires_successful_mutation_receipt && successful_mutation_receipt_count == 0 {
+        return Some((
+            "runtime_lane_required_native_mutation_receipt_missing".to_string(),
+            details(),
+        ));
+    }
+    None
+}
+
+fn native_tool_receipt_summary(receipts: &[Value]) -> Vec<Value> {
+    receipts
+        .iter()
+        .map(|receipt| {
+            json!({
+                "call_id": receipt.get("call_id").and_then(Value::as_str).unwrap_or(""),
+                "tool_name": receipt.get("tool_name").and_then(Value::as_str).unwrap_or(""),
+                "status": receipt.get("status").and_then(Value::as_str).unwrap_or(""),
+                "error": receipt.get("error").cloned().unwrap_or(Value::Null),
+                "path": receipt
+                    .get("result")
+                    .and_then(|result| result.get("path"))
+                    .cloned()
+                    .unwrap_or(Value::Null),
+            })
+        })
+        .collect()
+}
+
+fn normalize_native_tool_name(raw: &str) -> String {
+    match raw.trim().to_ascii_lowercase().as_str() {
+        "list_files" | "workspace.list" | "workspace_list" => "file_list".to_string(),
+        "stat_file" | "file_exists" | "workspace.stat" | "workspace_stat" => {
+            "file_stat".to_string()
+        }
+        "write_file" | "workspace.write" | "workspace_write" => "file_write".to_string(),
+        "patch_file" | "apply_patch" | "workspace.patch" | "workspace_patch" => {
+            "file_patch".to_string()
+        }
+        "command_run" | "run_command" | "command.run" | "shell.run" | "shell_run" => {
+            "command_run".to_string()
+        }
+        "read_file" | "workspace.read" | "workspace_read" => "file_read".to_string(),
+        "read_many_files" | "workspace.read_many" | "workspace_read_many" => {
+            "file_read_many".to_string()
+        }
+        other => other.to_string(),
+    }
+}
+
+fn public_reasoning_contract_violation(
+    metadata: &Value,
+    run_receipt: &Value,
+    output: &str,
+) -> Option<(String, Value)> {
+    let contract = metadata.get("public_reasoning_trace_contract")?;
+    if !contract.is_object() {
+        return None;
+    }
+    let agent_status = run_receipt
+        .get("status")
+        .and_then(Value::as_str)
+        .unwrap_or("ok");
+    if agent_status != "ok" {
+        return None;
+    }
+
+    let emitted = contract
+        .get("emits")
+        .and_then(Value::as_array)
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(Value::as_str)
+                .map(str::to_string)
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    let requires_trace = emitted
+        .iter()
+        .any(|item| item == "public_reasoning_trace_v1")
+        || contract
+            .get("local_trace_required_fields")
+            .and_then(Value::as_array)
+            .is_some();
+    let requires_rollup = emitted
+        .iter()
+        .any(|item| item == "public_reasoning_rollup_v1");
+    let has_trace =
+        output.contains("public_reasoning_trace") && output.contains("public_reasoning_trace_v1");
+    let has_rollup =
+        output.contains("reasoning_rollup") && output.contains("public_reasoning_rollup_v1");
+    let still_requests_tools = output.contains("\"tool_calls\"") || output.contains("{\"tool_calls\"");
+    let redaction_policy = contract
+        .get("redaction_policy")
+        .and_then(Value::as_str)
+        .unwrap_or("no_hidden_chain_of_thought");
+    let mentions_redaction = output.contains(redaction_policy)
+        || output.contains("hidden chain-of-thought")
+        || output.contains("hidden chain of thought")
+        || output.contains("redaction");
+
+    if still_requests_tools
+        || (requires_trace && !has_trace)
+        || (requires_rollup && !has_rollup)
+        || !mentions_redaction
+    {
+        return Some((
+            "runtime_lane_public_reasoning_trace_missing".to_string(),
+            json!({
+                "criteria": {
+                    "requires_public_reasoning_trace": requires_trace,
+                    "requires_reasoning_rollup": requires_rollup,
+                    "requires_redaction_policy_ack": true,
+                    "redaction_policy": redaction_policy,
+                },
+                "observed": {
+                    "has_public_reasoning_trace": has_trace,
+                    "has_reasoning_rollup": has_rollup,
+                    "mentions_redaction_policy": mentions_redaction,
+                    "still_requests_tools": still_requests_tools,
+                },
+                "agent_status": agent_status,
+                "agent_output_preview": output.chars().take(1200).collect::<String>(),
+                "workflow": metadata.get("workflow").cloned().unwrap_or(Value::Null),
+                "enforcement_mode": "strict_fail_closed",
+            }),
+        ));
+    }
+    None
+}
+
+fn runtime_requested_wasm_modules(tools: &[String], metadata: &Value) -> Vec<String> {
+    let mut modules = Vec::<String>::new();
+    for tool in tools {
+        if let Some(module) = tool.strip_prefix("wasm.") {
+            let normalized = module.trim().to_ascii_lowercase();
+            if !normalized.is_empty() {
+                modules.push(normalized);
+            }
+        }
+    }
+    if let Some(items) = metadata.get("wasm_modules").and_then(Value::as_array) {
+        for item in items {
+            let Some(text) = item.as_str() else {
+                continue;
+            };
+            let normalized = text.trim().to_ascii_lowercase();
+            if !normalized.is_empty() {
+                modules.push(normalized);
+            }
+        }
+    }
+    modules.sort();
+    modules.dedup();
+    modules
+}
+
+fn runtime_requests_network(tools: &[String], metadata: &Value) -> bool {
+    if metadata
+        .get("wasm_requests_network")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+    {
+        return true;
+    }
+    tools.iter().any(|tool| {
+        matches!(
+            tool.as_str(),
+            "web.search" | "web.fetch" | "network.request"
+        )
+    })
+}

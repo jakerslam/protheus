@@ -11,7 +11,7 @@
   },
   "exceptions": [
     {
-      "path": "core/layer0/infring_agent_surface/src/runtime_lane.rs",
+      "path": "core/layer2/agent_surface/src/runtime_lane.rs",
       "owner": "jay",
       "reason": "legacy oversized kernel source discovered by SYS-HL-028 sweep; scheduled decomposition batch",
       "expires": "2026-06-15",

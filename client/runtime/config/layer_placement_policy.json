@@ -30,5 +30,36 @@
     "Layer ownership:",
     "App ownership:"
   ],
-  "ownership_header_scan_lines": 12
+  "ownership_header_scan_lines": 12,
+  "forbidden_concept_markers_by_prefix": [
+    {
+      "path_prefix": "core/layer0/",
+      "case_insensitive": true,
+      "markers": [
+        "coding_project_operator",
+        "local_coding_program_builder",
+        "public_reasoning_trace",
+        "reasoning_rollup",
+        "completion_evidence",
+        "task_requirement_checklist",
+        "checkpoint handoff",
+        "handoff receipt",
+        "checkpoint memory",
+        "checkpoint_002",
+        "checkpoint_003",
+        "recommended_next_checkpoint",
+        "runtime_synthesized_handoff_artifacts",
+        "expected new memory row id",
+        "deliveryattemptledger",
+        "infring_agent_surface",
+        "agent surface",
+        "provider orchestration",
+        "native tool loop",
+        "runtime lane"
+      ],
+      "allow_exact_paths": [],
+      "allow_path_prefixes": [],
+      "hint": "Layer 0 is the safety plane. Move workflow-specific coding policy, checkpoint handoff semantics, public reasoning rollups, and task-specific evidence heuristics to orchestration or a higher core execution/policy layer; Layer 0 should consume only generic contracts and receipt primitives."
+    }
+  ]
 }

@@ -44,6 +44,20 @@ function changedFiles(baseRef) {
   }
 }
 
+function changedAddedLines(baseRef, file) {
+  try {
+    const diff = shell(`git diff --unified=0 --diff-filter=ACMR ${baseRef}...HEAD -- ${JSON.stringify(file)}`);
+    if (!diff) return '';
+    return diff
+      .split('\n')
+      .filter((line) => line.startsWith('+') && !line.startsWith('+++'))
+      .map((line) => line.slice(1))
+      .join('\n');
+  } catch {
+    return '';
+  }
+}
+
 function startsWithAny(path, prefixes) {
   return prefixes.some((prefix) => path.startsWith(prefix));
 }
@@ -55,6 +69,13 @@ function hasAnyMarkerInHeader(content, markers, maxLines) {
 
 function hasAnyMarker(content, markers) {
   return markers.some((m) => content.includes(m));
+}
+
+function markerAppears(content, marker, caseInsensitive) {
+  if (caseInsensitive) {
+    return content.toLowerCase().includes(String(marker).toLowerCase());
+  }
+  return content.includes(marker);
 }
 
 function isSourceFile(path) {
@@ -104,6 +125,28 @@ function run() {
           type: 'authority_logic_in_client',
           file,
           hint: 'Authority paths in client/runtime/systems must remain thin wrappers.',
+        });
+      }
+    }
+
+    for (const rule of policy.forbidden_concept_markers_by_prefix ?? []) {
+      const pathPrefix = String(rule.path_prefix || '');
+      if (!pathPrefix || !file.startsWith(pathPrefix)) continue;
+      if ((rule.allow_exact_paths ?? []).includes(file)) continue;
+      if (startsWithAny(file, rule.allow_path_prefixes ?? [])) continue;
+      const addedContent = changedAddedLines(baseRef, file);
+      if (!addedContent) continue;
+
+      for (const marker of rule.markers ?? []) {
+        if (!markerAppears(addedContent, marker, rule.case_insensitive !== false)) continue;
+        violations.push({
+          type: 'forbidden_layer_concept_marker',
+          file,
+          marker,
+          path_prefix: pathPrefix,
+          hint:
+            rule.hint ||
+            'This concept is not allowed in this layer by the placement policy.',
         });
       }
     }
