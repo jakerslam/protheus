@@ -434,6 +434,30 @@ fn handle_shell_socket_routes(
         let legacy = handle_agent_scope_routes(root, "POST", &legacy_path, &legacy_path, body, headers, snapshot, requester_agent)?;
         return Some(shell_socket_ack_from_legacy("submit_issue", legacy));
     }
+    if method == "POST" && parts == ["auth", "login"] {
+        let legacy = dashboard_compat_api_reference_parity::handle(
+            root,
+            "POST",
+            "/api/auth/login",
+            "/api/auth/login",
+            headers,
+            body,
+            snapshot,
+        )?;
+        return Some(shell_socket_auth_projection("login_session", legacy));
+    }
+    if method == "POST" && parts == ["auth", "logout"] {
+        let legacy = dashboard_compat_api_reference_parity::handle(
+            root,
+            "POST",
+            "/api/auth/logout",
+            "/api/auth/logout",
+            headers,
+            body,
+            snapshot,
+        )?;
+        return Some(shell_socket_auth_projection("logout_session", legacy));
+    }
     if method == "POST" && parts == ["session-index", "rebuild"] {
         let payload = rebuild_indexed_session_states(
             root,

@@ -228,6 +228,50 @@ fn shell_socket_memory_kv_projection(capability: &str, mut payload: Value) -> Co
     }
 }
 
+fn shell_socket_auth_projection(capability: &str, legacy: CompatApiResponse) -> CompatApiResponse {
+    let ok = legacy
+        .payload
+        .get("ok")
+        .and_then(Value::as_bool)
+        .unwrap_or(legacy.status < 400);
+    let username = legacy
+        .payload
+        .pointer("/user/email")
+        .and_then(Value::as_str)
+        .or_else(|| legacy.payload.pointer("/user/id").and_then(Value::as_str))
+        .or_else(|| legacy.payload.get("username").and_then(Value::as_str))
+        .unwrap_or("operator");
+    let mut payload = if capability == "logout_session" {
+        json!({
+            "ok": ok,
+            "status": if ok { "ok" } else { "error" },
+            "logged_out": legacy.payload.get("logged_out").and_then(Value::as_bool).unwrap_or(ok),
+            "receipt_ref": shell_socket_receipt_ref(capability, &legacy.payload),
+            "correlation_id": format!("shell_socket.{capability}")
+        })
+    } else {
+        json!({
+            "ok": ok,
+            "status": if ok { "ok" } else { "error" },
+            "username": clean_text(username, 120),
+            "authenticated": ok,
+            "receipt_ref": shell_socket_receipt_ref(capability, &legacy.payload),
+            "correlation_id": format!("shell_socket.{capability}")
+        })
+    };
+    if !ok {
+        payload["error"] = legacy
+            .payload
+            .get("error")
+            .cloned()
+            .unwrap_or_else(|| json!("auth_request_failed"));
+    }
+    CompatApiResponse {
+        status: legacy.status,
+        payload,
+    }
+}
+
 fn shell_socket_session_ref(agent_id: &str, session_id: &str) -> String {
     format!("{}::{}", clean_agent_id(agent_id), clean_text(session_id, 120))
 }

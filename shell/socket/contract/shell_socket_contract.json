@@ -681,6 +681,23 @@
       "max_response_bytes": 8192,
       "requires_cursor": false,
       "requires_detail_refs": true
+    },
+    {
+      "name": "AuthSessionProjection",
+      "description": "Bounded auth session acknowledgement; shell plugs may update prompt state but never own credential/session authority.",
+      "allowed_top_level_fields": [
+        "ok",
+        "status",
+        "username",
+        "authenticated",
+        "logged_out",
+        "error",
+        "receipt_ref",
+        "correlation_id"
+      ],
+      "max_response_bytes": 8192,
+      "requires_cursor": false,
+      "requires_detail_refs": true
     }
   ],
   "capabilities": [
@@ -989,6 +1006,56 @@
         "authorization_truth",
         "mutation_approval_policy",
         "approval_queue_truth"
+      ]
+    },
+    {
+      "id": "login_session",
+      "purpose": "Submit browser shell session login credentials through Gateway without shell-owned auth/session authority.",
+      "route_class": "request_ingress",
+      "request_shape": "AuthLoginRequest",
+      "response_shape": "AuthSessionProjection",
+      "default_projection": "AuthSessionProjection",
+      "cursor_required": false,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "owner_of_truth": "kernel_auth_session_authority",
+      "shell_may_hold": [
+        "status",
+        "username",
+        "authenticated",
+        "receipt_ref"
+      ],
+      "shell_must_not_hold": [
+        "password",
+        "session_token",
+        "auth_policy_truth"
+      ]
+    },
+    {
+      "id": "logout_session",
+      "purpose": "Submit browser shell session logout through Gateway without shell-owned auth/session authority.",
+      "route_class": "request_ingress",
+      "request_shape": "AuthLogoutRequest",
+      "response_shape": "AuthSessionProjection",
+      "default_projection": "AuthSessionProjection",
+      "cursor_required": false,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "owner_of_truth": "kernel_auth_session_authority",
+      "shell_may_hold": [
+        "logged_out",
+        "receipt_ref"
+      ],
+      "shell_must_not_hold": [
+        "session_token",
+        "auth_policy_truth",
+        "credential_store"
       ]
     },
     {

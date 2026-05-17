@@ -225,6 +225,25 @@ function makeHeadlessGatewayFetch(calls: CallRecord[], includeControlledViolatio
     } else if (method === 'POST' && /^\/api\/shell-socket\/approvals\/[^/]+\/decision$/.test(pathName)) {
       capabilityId = 'submit_approval_decision';
       payload = makeIngressAck('approval');
+    } else if (route === 'POST /api/shell-socket/auth/login') {
+      capabilityId = 'login_session';
+      payload = {
+        ok: true,
+        status: 'ok',
+        username: String(body.username || 'operator'),
+        authenticated: true,
+        receipt_ref: 'receipt:auth-login:probe',
+        correlation_id: 'probe-auth-login',
+      };
+    } else if (route === 'POST /api/shell-socket/auth/logout') {
+      capabilityId = 'logout_session';
+      payload = {
+        ok: true,
+        status: 'ok',
+        logged_out: true,
+        receipt_ref: 'receipt:auth-logout:probe',
+        correlation_id: 'probe-auth-logout',
+      };
     } else if (route === 'GET /api/shell-socket/models') {
       capabilityId = 'list_models';
       payload = {
@@ -1018,6 +1037,8 @@ async function runProbe(options: ProbeOptions): Promise<Record<string, unknown>>
   const search = await client.search<any>({ q: 'probe', scope: sessionId, limit: 10 });
   const issueAck = await client.submitIssue<any>({ kind: 'internal-eval', detail_refs: [detailRef] });
   const approvalAck = await client.submitApprovalDecision<any>('approval-probe', { decision: 'approve' });
+  const loginAck = await client.loginSession<any>({ username: 'operator', password_ref: 'probe-password-ref' });
+  const logoutAck = await client.logoutSession<any>();
   const models = await client.listModels<any>({ limit: 10 });
   const discovery = await client.discoverModels<any>({ input: '__auto__' });
   const download = await client.downloadModel<any>({ provider: 'probe', model: 'probe/auto' });
@@ -1131,6 +1152,8 @@ async function runProbe(options: ProbeOptions): Promise<Record<string, unknown>>
       search_query_id: search.query_id,
       issue_receipt: issueAck.receipt_ref,
       approval_receipt: approvalAck.receipt_ref,
+      login_receipt: loginAck.receipt_ref,
+      logout_receipt: logoutAck.receipt_ref,
       model_catalog_receipt: models.receipt_ref,
       model_discovery_receipt: discovery.receipt_ref,
       model_download_receipt: download.receipt_ref,

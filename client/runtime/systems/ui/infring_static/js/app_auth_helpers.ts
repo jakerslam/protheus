@@ -68,7 +68,7 @@ function infringSubmitApiKey(page, key) {
 async function infringSessionLogin(page, username, password) {
   var target = page && typeof page === 'object' ? page : {};
   try {
-    var result = await InfringAPI.post('/api/auth/login', { username: username, password: password });
+    var result = await InfringAPI.post('/api/shell-socket/auth/login', { username: username, password: password });
     if (result.status === 'ok') {
       target.sessionUser = result.username;
       target.showAuthPrompt = false;
@@ -84,7 +84,7 @@ async function infringSessionLogin(page, username, password) {
 async function infringSessionLogout(page) {
   var target = page && typeof page === 'object' ? page : {};
   try {
-    await InfringAPI.post('/api/auth/logout');
+    await InfringAPI.post('/api/shell-socket/auth/logout');
   } catch(e) {}
   target.sessionUser = null;
   target.showAuthPrompt = true;
