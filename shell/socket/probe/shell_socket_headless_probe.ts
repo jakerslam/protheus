@@ -727,6 +727,65 @@ function makeHeadlessGatewayFetch(calls: CallRecord[], includeControlledViolatio
         receipt_ref: 'receipt:migration-run:probe',
         correlation_id: 'probe-migration-run',
       };
+    } else if (method === 'POST' && /^\/api\/shell-socket\/hands\/[^/]+\/install-deps$/.test(pathName)) {
+      capabilityId = 'install_hand_dependencies';
+      payload = {
+        ok: true,
+        hand_id: decodeURIComponent(pathName.split('/')[4] || 'browser'),
+        requirements: [{ key: 'probe_dep', label: 'Probe Dependency', satisfied: true }],
+        requirements_met: true,
+        results: [{ key: 'probe_dep', label: 'Probe Dependency', status: 'already_installed' }],
+        receipt_ref: 'receipt:hand-install-deps:probe',
+        correlation_id: 'probe-hand-install-deps',
+      };
+    } else if (method === 'POST' && /^\/api\/shell-socket\/hands\/[^/]+\/check-deps$/.test(pathName)) {
+      capabilityId = 'check_hand_dependencies';
+      payload = {
+        ok: true,
+        hand_id: decodeURIComponent(pathName.split('/')[4] || 'browser'),
+        requirements: [{ key: 'probe_dep', label: 'Probe Dependency', satisfied: true }],
+        requirements_met: true,
+        receipt_ref: 'receipt:hand-check-deps:probe',
+        correlation_id: 'probe-hand-check-deps',
+      };
+    } else if (method === 'POST' && /^\/api\/shell-socket\/hands\/[^/]+\/activate$/.test(pathName)) {
+      capabilityId = 'activate_hand';
+      payload = {
+        ok: true,
+        hand_id: decodeURIComponent(pathName.split('/')[4] || 'browser'),
+        instance_id: 'handinst-probe',
+        agent_id: 'agent-hand-probe',
+        agent_name: 'Probe Hand Agent',
+        receipt_ref: 'receipt:hand-activate:probe',
+        correlation_id: 'probe-hand-activate',
+      };
+    } else if (method === 'POST' && /^\/api\/shell-socket\/hands\/instances\/[^/]+\/pause$/.test(pathName)) {
+      capabilityId = 'pause_hand_instance';
+      payload = {
+        ok: true,
+        instance_id: decodeURIComponent(pathName.split('/')[5] || 'handinst-probe'),
+        status: 'Paused',
+        receipt_ref: 'receipt:hand-pause:probe',
+        correlation_id: 'probe-hand-pause',
+      };
+    } else if (method === 'POST' && /^\/api\/shell-socket\/hands\/instances\/[^/]+\/resume$/.test(pathName)) {
+      capabilityId = 'resume_hand_instance';
+      payload = {
+        ok: true,
+        instance_id: decodeURIComponent(pathName.split('/')[5] || 'handinst-probe'),
+        status: 'Active',
+        receipt_ref: 'receipt:hand-resume:probe',
+        correlation_id: 'probe-hand-resume',
+      };
+    } else if (method === 'POST' && /^\/api\/shell-socket\/hands\/instances\/[^/]+\/deactivate$/.test(pathName)) {
+      capabilityId = 'deactivate_hand_instance';
+      payload = {
+        ok: true,
+        instance_id: decodeURIComponent(pathName.split('/')[5] || 'handinst-probe'),
+        deleted: true,
+        receipt_ref: 'receipt:hand-deactivate:probe',
+        correlation_id: 'probe-hand-deactivate',
+      };
     } else if (method === 'POST' && /^\/api\/shell-socket\/agents\/[^/]+\/git-tree$/.test(pathName)) {
       capabilityId = 'set_git_tree';
       payload = makeIngressAck('git-tree');
@@ -910,6 +969,12 @@ async function runProbe(options: ProbeOptions): Promise<Record<string, unknown>>
     target_dir: '',
     dry_run: true,
   });
+  const handInstall = await client.installHandDependencies<any>('browser');
+  const handCheck = await client.checkHandDependencies<any>('browser');
+  const handActivate = await client.activateHand<any>('browser', { config: { start_url: 'https://example.com' } });
+  const handPause = await client.pauseHandInstance<any>(handActivate.instance_id || 'handinst-probe');
+  const handResume = await client.resumeHandInstance<any>(handActivate.instance_id || 'handinst-probe');
+  const handDeactivate = await client.deactivateHandInstance<any>(handActivate.instance_id || 'handinst-probe');
   const gitAck = await client.setGitTree<any>(agentId, { tree_ref: 'git-tree:current' });
   const freshSessionAck = await client.freshSession<any>(agentId, { reason: 'headless_probe' });
   const compactSessionAck = await client.compactSession<any>(agentId, { reason: 'headless_probe' });
@@ -984,6 +1049,12 @@ async function runProbe(options: ProbeOptions): Promise<Record<string, unknown>>
       migration_detect_receipt: migrationDetect.receipt_ref,
       migration_scan_receipt: migrationScan.receipt_ref,
       migration_run_receipt: migrationRun.receipt_ref,
+      hand_install_receipt: handInstall.receipt_ref,
+      hand_check_receipt: handCheck.receipt_ref,
+      hand_activate_receipt: handActivate.receipt_ref,
+      hand_pause_receipt: handPause.receipt_ref,
+      hand_resume_receipt: handResume.receipt_ref,
+      hand_deactivate_receipt: handDeactivate.receipt_ref,
       git_receipt: gitAck.receipt_ref,
       fresh_session_receipt: freshSessionAck.receipt_ref,
       compact_session_receipt: compactSessionAck.receipt_ref,

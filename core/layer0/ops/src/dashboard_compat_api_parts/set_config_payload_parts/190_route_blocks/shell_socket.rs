@@ -1208,4 +1208,52 @@ fn shell_socket_migration_projection(capability: &str, legacy: CompatApiResponse
     }
 }
 
+fn shell_socket_hand_projection(capability: &str, legacy: CompatApiResponse) -> CompatApiResponse {
+    let payload = legacy.payload;
+    let ok = legacy.status < 400 && payload.get("ok").and_then(Value::as_bool).unwrap_or(true);
+    let instance = payload.get("instance").unwrap_or(&Value::Null);
+    let mut out = Map::<String, Value>::new();
+    out.insert("ok".to_string(), json!(ok));
+    for key in [
+        "hand_id",
+        "instance_id",
+        "agent_id",
+        "agent_name",
+        "requirements",
+        "requirements_met",
+        "results",
+        "deleted",
+    ] {
+        if let Some(value) = payload.get(key) {
+            out.insert(key.to_string(), value.clone());
+        }
+    }
+    if !out.contains_key("instance_id") {
+        if let Some(value) = instance.get("instance_id") {
+            out.insert("instance_id".to_string(), value.clone());
+        }
+    }
+    if let Some(value) = instance.get("status") {
+        out.insert("status".to_string(), value.clone());
+    }
+    if let Some(value) = instance.get("agent_id") {
+        out.insert("agent_id".to_string(), value.clone());
+    }
+    if let Some(error) = payload.get("error").and_then(Value::as_str) {
+        out.insert("error".to_string(), json!(clean_text(error, 240)));
+    }
+    out.insert(
+        "receipt_ref".to_string(),
+        json!(shell_socket_receipt_ref(capability, &payload)),
+    );
+    out.insert(
+        "correlation_id".to_string(),
+        json!(format!("shell_socket.{capability}")),
+    );
+    CompatApiResponse {
+        status: if ok { 200 } else { legacy.status.max(400) },
+        payload: Value::Object(out),
+    }
+}
+
 include!("shell_socket_parts/020-routes.rs");

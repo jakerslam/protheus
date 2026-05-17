@@ -705,6 +705,42 @@ fn handle_shell_socket_routes(
         let legacy = dashboard_compat_api_settings_ops::handle(root, "POST", "/api/migrate", body)?;
         return Some(shell_socket_migration_projection("run_migration", legacy));
     }
+    if method == "POST" && parts.len() == 3 && parts[0] == "hands" && parts[2] == "install-deps" {
+        let hand_id = clean_text(&parts[1], 120);
+        let legacy_path = format!("/api/hands/{hand_id}/install-deps");
+        let legacy = dashboard_compat_api_hands::handle(root, "POST", &legacy_path, body, snapshot)?;
+        return Some(shell_socket_hand_projection("install_hand_dependencies", legacy));
+    }
+    if method == "POST" && parts.len() == 3 && parts[0] == "hands" && parts[2] == "check-deps" {
+        let hand_id = clean_text(&parts[1], 120);
+        let legacy_path = format!("/api/hands/{hand_id}/check-deps");
+        let legacy = dashboard_compat_api_hands::handle(root, "POST", &legacy_path, body, snapshot)?;
+        return Some(shell_socket_hand_projection("check_hand_dependencies", legacy));
+    }
+    if method == "POST" && parts.len() == 3 && parts[0] == "hands" && parts[2] == "activate" {
+        let hand_id = clean_text(&parts[1], 120);
+        let legacy_path = format!("/api/hands/{hand_id}/activate");
+        let legacy = dashboard_compat_api_hands::handle(root, "POST", &legacy_path, body, snapshot)?;
+        return Some(shell_socket_hand_projection("activate_hand", legacy));
+    }
+    if method == "POST" && parts.len() == 4 && parts[0] == "hands" && parts[1] == "instances" && parts[3] == "pause" {
+        let instance_id = clean_text(&parts[2], 120);
+        let legacy_path = format!("/api/hands/instances/{instance_id}/pause");
+        let legacy = dashboard_compat_api_hands::handle(root, "POST", &legacy_path, body, snapshot)?;
+        return Some(shell_socket_hand_projection("pause_hand_instance", legacy));
+    }
+    if method == "POST" && parts.len() == 4 && parts[0] == "hands" && parts[1] == "instances" && parts[3] == "resume" {
+        let instance_id = clean_text(&parts[2], 120);
+        let legacy_path = format!("/api/hands/instances/{instance_id}/resume");
+        let legacy = dashboard_compat_api_hands::handle(root, "POST", &legacy_path, body, snapshot)?;
+        return Some(shell_socket_hand_projection("resume_hand_instance", legacy));
+    }
+    if method == "POST" && parts.len() == 4 && parts[0] == "hands" && parts[1] == "instances" && parts[3] == "deactivate" {
+        let instance_id = clean_text(&parts[2], 120);
+        let legacy_path = format!("/api/hands/instances/{instance_id}");
+        let legacy = dashboard_compat_api_hands::handle(root, "DELETE", &legacy_path, body, snapshot)?;
+        return Some(shell_socket_hand_projection("deactivate_hand_instance", legacy));
+    }
     if method == "POST" && parts.len() == 3 && parts[0] == "agents" && parts[2] == "git-tree" {
         let legacy_path = format!("/api/agents/{}/git-tree/switch", clean_agent_id(&parts[1]));
         let legacy = handle_agent_scope_routes(root, "POST", &legacy_path, &legacy_path, body, headers, snapshot, requester_agent)?;

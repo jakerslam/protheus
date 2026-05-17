@@ -7,7 +7,7 @@
       if (!this.setupWizard) return;
       this.setupChecking = true;
       try {
-        var data = await InfringAPI.post('/api/hands/' + this.setupWizard.id + '/check-deps', {});
+        var data = await InfringAPI.post('/api/shell-socket/hands/' + encodeURIComponent(this.setupWizard.id) + '/check-deps', {});
         if (data.requirements && this.setupWizard.requirements) {
           for (var i = 0; i < this.setupWizard.requirements.length; i++) {
             var existing = this.setupWizard.requirements[i];
@@ -178,4 +178,3 @@
             var settingKey = this.getSettingKeyForReq(req);
             if (settingKey) {
               this.settingsValues[settingKey] = this.apiKeyInputs[req.key].trim();
-

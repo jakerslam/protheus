@@ -165,7 +165,7 @@ function handsPage() {
       };
 
       try {
-        var data = await InfringAPI.post('/api/hands/' + handId + '/install-deps', {});
+        var data = await InfringAPI.post('/api/shell-socket/hands/' + encodeURIComponent(handId) + '/install-deps', {});
         var results = data.results || [];
         this.installProgress.results = results;
         this.installProgress.current = results.length;

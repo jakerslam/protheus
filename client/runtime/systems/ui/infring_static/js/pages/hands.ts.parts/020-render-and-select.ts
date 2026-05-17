@@ -8,7 +8,7 @@
       }
       this.activatingId = handId;
       try {
-        var data = await InfringAPI.post('/api/hands/' + handId + '/activate', { config: config });
+        var data = await InfringAPI.post('/api/shell-socket/hands/' + encodeURIComponent(handId) + '/activate', { config: config });
         this.showToast('Hand "' + handId + '" activated as ' + (data.agent_name || data.instance_id));
         this.closeSetupWizard();
         await this.loadActive();
@@ -40,7 +40,7 @@
 
     async pauseHand(inst) {
       try {
-        await InfringAPI.post('/api/hands/instances/' + inst.instance_id + '/pause', {});
+        await InfringAPI.post('/api/shell-socket/hands/instances/' + encodeURIComponent(inst.instance_id) + '/pause', {});
         inst.status = 'Paused';
       } catch(e) {
         this.showToast('Pause failed: ' + (e.message || 'unknown error'));
@@ -49,7 +49,7 @@
 
     async resumeHand(inst) {
       try {
-        await InfringAPI.post('/api/hands/instances/' + inst.instance_id + '/resume', {});
+        await InfringAPI.post('/api/shell-socket/hands/instances/' + encodeURIComponent(inst.instance_id) + '/resume', {});
         inst.status = 'Active';
       } catch(e) {
         this.showToast('Resume failed: ' + (e.message || 'unknown error'));
@@ -61,7 +61,7 @@
       var handName = inst.agent_name || inst.hand_id;
       InfringToast.confirm('Deactivate Hand', 'Deactivate hand "' + handName + '"? This will kill its agent.', async function() {
         try {
-          await InfringAPI.delete('/api/hands/instances/' + inst.instance_id);
+          await InfringAPI.post('/api/shell-socket/hands/instances/' + encodeURIComponent(inst.instance_id) + '/deactivate', {});
           self.instances = self.instances.filter(function(i) { return i.instance_id !== inst.instance_id; });
           InfringToast.success('Hand deactivated.');
         } catch(e) {
@@ -149,4 +149,3 @@
       }
       this.browserViewer.loading = false;
     },
-

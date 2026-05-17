@@ -573,6 +573,28 @@
       "requires_detail_refs": true
     },
     {
+      "name": "HandMutationProjection",
+      "description": "Bounded acknowledgement/projection for hand setup and instance lifecycle actions; shell plugs receive display status only, not hand runtime authority.",
+      "allowed_top_level_fields": [
+        "ok",
+        "hand_id",
+        "instance_id",
+        "agent_id",
+        "agent_name",
+        "status",
+        "requirements",
+        "requirements_met",
+        "results",
+        "deleted",
+        "error",
+        "receipt_ref",
+        "correlation_id"
+      ],
+      "max_response_bytes": 65536,
+      "requires_cursor": false,
+      "requires_detail_refs": true
+    },
+    {
       "name": "IngressAck",
       "description": "Bounded acknowledgement or receipt for a shell-submitted request.",
       "allowed_top_level_fields": [
@@ -2138,6 +2160,157 @@
         "filesystem_authority",
         "migration_authority",
         "raw_migration_plan"
+      ]
+    },
+    {
+      "id": "install_hand_dependencies",
+      "purpose": "Request hand dependency installation through Gateway admission.",
+      "route_class": "request_ingress",
+      "request_shape": "HandDependencyInstallRequest",
+      "response_shape": "HandMutationProjection",
+      "default_projection": "HandMutationProjection",
+      "cursor_required": false,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "owner_of_truth": "kernel_hand_runtime",
+      "shell_may_hold": [
+        "hand_id",
+        "requirements",
+        "requirements_met",
+        "results",
+        "receipt_ref"
+      ],
+      "shell_must_not_hold": [
+        "hand_runtime_authority",
+        "dependency_install_authority",
+        "raw_execution_result"
+      ]
+    },
+    {
+      "id": "check_hand_dependencies",
+      "purpose": "Request hand dependency readiness check through Gateway.",
+      "route_class": "health_status",
+      "request_shape": "HandDependencyCheckRequest",
+      "response_shape": "HandMutationProjection",
+      "default_projection": "HandMutationProjection",
+      "cursor_required": false,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "owner_of_truth": "kernel_hand_runtime",
+      "shell_may_hold": [
+        "hand_id",
+        "requirements",
+        "requirements_met",
+        "receipt_ref"
+      ],
+      "shell_must_not_hold": [
+        "hand_runtime_authority",
+        "dependency_install_authority"
+      ]
+    },
+    {
+      "id": "activate_hand",
+      "purpose": "Request hand activation through Gateway admission.",
+      "route_class": "request_ingress",
+      "request_shape": "HandActivationRequest",
+      "response_shape": "HandMutationProjection",
+      "default_projection": "HandMutationProjection",
+      "cursor_required": false,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "owner_of_truth": "kernel_hand_runtime",
+      "shell_may_hold": [
+        "hand_id",
+        "instance_id",
+        "agent_id",
+        "agent_name",
+        "receipt_ref"
+      ],
+      "shell_must_not_hold": [
+        "hand_runtime_authority",
+        "agent_lifecycle_authority",
+        "raw_activation_config"
+      ]
+    },
+    {
+      "id": "pause_hand_instance",
+      "purpose": "Request hand instance pause through Gateway admission.",
+      "route_class": "request_ingress",
+      "request_shape": "HandInstancePauseRequest",
+      "response_shape": "HandMutationProjection",
+      "default_projection": "HandMutationProjection",
+      "cursor_required": false,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "owner_of_truth": "kernel_hand_runtime",
+      "shell_may_hold": [
+        "instance_id",
+        "status",
+        "receipt_ref"
+      ],
+      "shell_must_not_hold": [
+        "hand_runtime_authority",
+        "agent_lifecycle_authority"
+      ]
+    },
+    {
+      "id": "resume_hand_instance",
+      "purpose": "Request hand instance resume through Gateway admission.",
+      "route_class": "request_ingress",
+      "request_shape": "HandInstanceResumeRequest",
+      "response_shape": "HandMutationProjection",
+      "default_projection": "HandMutationProjection",
+      "cursor_required": false,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "owner_of_truth": "kernel_hand_runtime",
+      "shell_may_hold": [
+        "instance_id",
+        "status",
+        "receipt_ref"
+      ],
+      "shell_must_not_hold": [
+        "hand_runtime_authority",
+        "agent_lifecycle_authority"
+      ]
+    },
+    {
+      "id": "deactivate_hand_instance",
+      "purpose": "Request hand instance deactivation through Gateway admission.",
+      "route_class": "request_ingress",
+      "request_shape": "HandInstanceDeactivateRequest",
+      "response_shape": "HandMutationProjection",
+      "default_projection": "HandMutationProjection",
+      "cursor_required": false,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "owner_of_truth": "kernel_hand_runtime",
+      "shell_may_hold": [
+        "instance_id",
+        "deleted",
+        "receipt_ref"
+      ],
+      "shell_must_not_hold": [
+        "hand_runtime_authority",
+        "agent_lifecycle_authority"
       ]
     },
     {

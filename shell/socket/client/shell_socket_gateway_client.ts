@@ -60,6 +60,12 @@ export type ShellSocketCapabilityId =
   | 'detect_migration_source'
   | 'scan_migration_source'
   | 'run_migration'
+  | 'install_hand_dependencies'
+  | 'check_hand_dependencies'
+  | 'activate_hand'
+  | 'pause_hand_instance'
+  | 'resume_hand_instance'
+  | 'deactivate_hand_instance'
   | 'set_git_tree'
   | 'fresh_session'
   | 'compact_session'
@@ -144,6 +150,12 @@ export const SHELL_SOCKET_ROUTES: ReadonlyArray<ShellSocketRouteDefinition> = Ob
   { capabilityId: 'detect_migration_source', method: 'GET', path: '/api/shell-socket/migration/detect' },
   { capabilityId: 'scan_migration_source', method: 'POST', path: '/api/shell-socket/migration/scan' },
   { capabilityId: 'run_migration', method: 'POST', path: '/api/shell-socket/migration/run' },
+  { capabilityId: 'install_hand_dependencies', method: 'POST', path: '/api/shell-socket/hands/{hand_id}/install-deps', pathParams: ['hand_id'] },
+  { capabilityId: 'check_hand_dependencies', method: 'POST', path: '/api/shell-socket/hands/{hand_id}/check-deps', pathParams: ['hand_id'] },
+  { capabilityId: 'activate_hand', method: 'POST', path: '/api/shell-socket/hands/{hand_id}/activate', pathParams: ['hand_id'] },
+  { capabilityId: 'pause_hand_instance', method: 'POST', path: '/api/shell-socket/hands/instances/{instance_id}/pause', pathParams: ['instance_id'] },
+  { capabilityId: 'resume_hand_instance', method: 'POST', path: '/api/shell-socket/hands/instances/{instance_id}/resume', pathParams: ['instance_id'] },
+  { capabilityId: 'deactivate_hand_instance', method: 'POST', path: '/api/shell-socket/hands/instances/{instance_id}/deactivate', pathParams: ['instance_id'] },
   { capabilityId: 'set_git_tree', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/git-tree', pathParams: ['agent_id'] },
   { capabilityId: 'fresh_session', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/fresh-session', pathParams: ['agent_id'] },
   { capabilityId: 'compact_session', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/compact-session', pathParams: ['agent_id'] },
@@ -469,6 +481,30 @@ export class ShellSocketGatewayClient {
     return this.request<T>('run_migration', { body: request });
   }
 
+  installHandDependencies<T = unknown>(handId: string, request: unknown = {}): Promise<T> {
+    return this.request<T>('install_hand_dependencies', { query: { hand_id: handId }, body: request });
+  }
+
+  checkHandDependencies<T = unknown>(handId: string, request: unknown = {}): Promise<T> {
+    return this.request<T>('check_hand_dependencies', { query: { hand_id: handId }, body: request });
+  }
+
+  activateHand<T = unknown>(handId: string, request: unknown): Promise<T> {
+    return this.request<T>('activate_hand', { query: { hand_id: handId }, body: request });
+  }
+
+  pauseHandInstance<T = unknown>(instanceId: string, request: unknown = {}): Promise<T> {
+    return this.request<T>('pause_hand_instance', { query: { instance_id: instanceId }, body: request });
+  }
+
+  resumeHandInstance<T = unknown>(instanceId: string, request: unknown = {}): Promise<T> {
+    return this.request<T>('resume_hand_instance', { query: { instance_id: instanceId }, body: request });
+  }
+
+  deactivateHandInstance<T = unknown>(instanceId: string, request: unknown = {}): Promise<T> {
+    return this.request<T>('deactivate_hand_instance', { query: { instance_id: instanceId }, body: request });
+  }
+
   setGitTree<T = unknown>(agentId: string, treeSelection: unknown): Promise<T> {
     return this.request<T>('set_git_tree', { query: { agent_id: agentId }, body: treeSelection });
   }
@@ -497,7 +533,7 @@ export function shellSocketClientSelfTest(): Record<string, unknown> {
     fetchImpl: async () => ({ ok: true, status: 200, text: async () => '{}' }),
   });
   return {
-    ok: routeIds.length === uniqueRouteIds.size && routeIds.length === 62,
+    ok: routeIds.length === uniqueRouteIds.size && routeIds.length === 68,
     type: 'shell_socket_gateway_client_self_test',
     route_count: routeIds.length,
     unique_route_count: uniqueRouteIds.size,
