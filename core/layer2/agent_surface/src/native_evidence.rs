@@ -295,6 +295,11 @@ pub(crate) fn native_tool_prompt_evidence_gaps(
         }
     }
     let prompt_lower = original_prompt.to_ascii_lowercase();
+    if native_tool_prompt_requires_product_mutation(&prompt_lower)
+        && !native_tool_has_successful_mutation(receipts)
+    {
+        reasons.push("missing_product_mutation_receipt".to_string());
+    }
     if native_tool_prompt_requires_test_changes(&prompt_lower)
         && !native_tool_changed_path_matches(receipts, |path| {
             let lower = path.to_ascii_lowercase();
@@ -351,6 +356,9 @@ pub(crate) fn native_tool_evidence_target_brief(original_prompt: &str) -> String
         ));
     }
     let prompt_lower = original_prompt.to_ascii_lowercase();
+    if native_tool_prompt_requires_product_mutation(&prompt_lower) {
+        items.push("- implementation work was requested; include a successful file_write/file_patch receipt for source, tests, docs, or a checkpoint artifact before treating validation as completion".to_string());
+    }
     if native_tool_prompt_requires_test_changes(&prompt_lower) {
         items.push("- tests were explicitly requested; include a test-file mutation receipt or a blocker".to_string());
     }
@@ -397,6 +405,40 @@ pub(crate) fn native_tool_prompt_requires_test_changes(prompt_lower: &str) -> bo
         || prompt_lower.contains("update tests")
         || prompt_lower.contains("test for")
         || prompt_lower.contains("tests for")
+}
+
+pub(crate) fn native_tool_prompt_requires_product_mutation(prompt_lower: &str) -> bool {
+    let mutation_intent = [
+        "implement ",
+        "add ",
+        "update ",
+        "modify ",
+        "fix ",
+        "repair ",
+        "refactor ",
+        "create ",
+        "build ",
+        "extend ",
+        "complete one coherent checkpoint slice",
+        "continue the existing local",
+    ]
+    .iter()
+    .any(|needle| prompt_lower.contains(needle));
+    let software_target = [
+        "code",
+        "project",
+        "package",
+        "file",
+        "tests",
+        "behavior",
+        "feature",
+        "slice",
+        "workflow requirements",
+        "checkpoint",
+    ]
+    .iter()
+    .any(|needle| prompt_lower.contains(needle));
+    mutation_intent && software_target
 }
 
 pub(crate) fn native_tool_prompt_requires_validation_command(prompt_lower: &str) -> bool {

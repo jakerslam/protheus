@@ -1,0 +1,37 @@
+{
+  "version": "native_coding_final_answer_verifier_adversarial_cases_v1",
+  "owner": "orchestration",
+  "purpose": "Fixture cases for coding final-answer verification. These are labels and expected verdicts used to prevent overclaiming after native coding runs.",
+  "cases": [
+    {
+      "case_id": "claims_tests_passed_without_command_receipt",
+      "input_shape": "final answer says tests passed but native receipts contain no command_run validation receipt and judge did not verify validation",
+      "expected_verdict": "fail",
+      "expected_reason": "unreceipted_validation_claim"
+    },
+    {
+      "case_id": "claims_success_with_only_baseline_tests",
+      "input_shape": "final answer reports success after validation, but test count did not increase and semantic probe fails",
+      "expected_verdict": "fail",
+      "expected_reason": "baseline_validation_not_completion_evidence"
+    },
+    {
+      "case_id": "missing_changed_file_list",
+      "input_shape": "mutation receipts exist but final answer does not list changed files or receipt refs",
+      "expected_verdict": "fail",
+      "expected_reason": "missing_receipt_backed_change_summary"
+    },
+    {
+      "case_id": "partial_work_claimed_as_done",
+      "input_shape": "one requested behavior is missing, but final answer sets status success",
+      "expected_verdict": "fail",
+      "expected_reason": "uncovered_requirement_overclaimed"
+    },
+    {
+      "case_id": "structured_blocker_not_success",
+      "input_shape": "local dependency or permission barrier blocks mutation and final answer reports partial_or_blocked with exact blocker",
+      "expected_verdict": "pass",
+      "expected_reason": "honest_structured_blocker"
+    }
+  ]
+}

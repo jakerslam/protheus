@@ -12,6 +12,16 @@
       "seed_command": "cargo run --quiet --manifest-path orchestration/Cargo.toml --bin coding_memory_live_level10_eval_execute seed --attempts=20",
       "judge_command": "cargo run --quiet --manifest-path orchestration/Cargo.toml --bin coding_memory_live_level10_eval_execute judge --batch-root=<batch_root>",
       "live_worker_requirement": "Spawn one coding worker per generated prompt; workers must only edit their assigned temp project and receipts root.",
+      "timing_metrics": {
+        "required": true,
+        "source": "judge_json.timing plus per-attempt judge_json.attempts[].timing",
+        "fields": [
+          "batch_elapsed_ms",
+          "completion_span_ms",
+          "average_attempt_elapsed_ms",
+          "attempts[].timing.elapsed_ms_since_batch_start"
+        ]
+      },
       "latest_passing_evidence": {
         "date": "2026-05-14",
         "commit": "4f81b337b",
@@ -30,12 +40,22 @@
     },
     {
       "gate_id": "coding_memory_live_level11_strict_20",
-      "status": "batch5_passed_not_yet_promoted",
+      "status": "workflow_validated_pending_infring_native_execution",
       "harness_bin": "coding_memory_live_level11_eval_execute",
       "minimum_attempts": 20,
       "required_pass_count": 20,
       "seed_command": "cargo run --quiet --manifest-path orchestration/Cargo.toml --bin coding_memory_live_level11_eval_execute seed --attempts=20",
       "judge_command": "cargo run --quiet --manifest-path orchestration/Cargo.toml --bin coding_memory_live_level11_eval_execute judge --batch-root=<batch_root>",
+      "timing_metrics": {
+        "required": true,
+        "source": "judge_json.timing plus per-attempt judge_json.attempts[].timing",
+        "fields": [
+          "batch_elapsed_ms",
+          "completion_span_ms",
+          "average_attempt_elapsed_ms",
+          "attempts[].timing.elapsed_ms_since_batch_start"
+        ]
+      },
       "target_capabilities": [
         "structured operator error contracts",
         "operator reopen lifecycle",
@@ -46,15 +66,125 @@
         "backward-compatible recovery round trips"
       ],
       "latest_passing_evidence": {
-        "date": "2026-05-14",
-        "batch_root": "/var/folders/f9/mhsd3dwj78l8418t9vnclbn80000gn/T/coding-memory-live-level11-batch-19873-1778805644559",
+        "date": "2026-05-15",
+        "worker_runtime": "codex_subagent",
+        "capability_claim": "workflow_prompt_and_judge_validated_only_not_infring_native_agent_capability",
+        "batch_root": "/var/folders/f9/mhsd3dwj78l8418t9vnclbn80000gn/T/coding-memory-live-level11-batch-9911-1778814884387",
         "summary": {
-          "attempt_count": 5,
-          "pass_count": 5,
+          "attempt_count": 20,
+          "pass_count": 20,
           "fail_count": 0
         },
-        "judge_output": "/tmp/level11_batch5_judge_rerun.json"
+        "timing": {
+          "batch_elapsed_ms": 2323350,
+          "completion_span_ms": 1843268,
+          "average_attempt_elapsed_ms": 1282085
+        },
+        "judge_output": "/tmp/level11_rerun_after_event_ordering_judge.json"
       }
+    },
+    {
+      "gate_id": "coding_memory_live_level12_existing_codebase_strict_20",
+      "status": "draft_requires_infring_native_executor",
+      "harness_bin": "coding_memory_live_level12_eval_execute",
+      "minimum_attempts": 20,
+      "required_pass_count": 20,
+      "seed_command": "cargo run --quiet --manifest-path orchestration/Cargo.toml --bin coding_memory_live_level12_eval_execute seed --attempts=20",
+      "judge_command": "cargo run --quiet --manifest-path orchestration/Cargo.toml --bin coding_memory_live_level12_eval_execute judge --batch-root=<batch_root>",
+      "timing_metrics": {
+        "required": true,
+        "source": "judge_json.timing plus per-attempt judge_json.attempts[].timing",
+        "fields": [
+          "batch_elapsed_ms",
+          "completion_span_ms",
+          "average_attempt_elapsed_ms",
+          "attempts[].timing.elapsed_ms_since_batch_start"
+        ]
+      },
+      "target_capabilities": [
+        "safe modification of an existing multi-module codebase",
+        "preservation of existing CLI and service contracts",
+        "idempotent external bulk import",
+        "hold-aware deterministic SLA reporting",
+        "rollback-safe state export and import",
+        "state diffing",
+        "strict semantic integration probe after worker completion"
+      ],
+      "latest_passing_evidence": null
+    },
+    {
+      "gate_id": "native_coding_useful_work_eval_v1",
+      "status": "required_for_native_coding_wedge_promotion",
+      "harness_bin": "native_coding_useful_work_eval_execute",
+      "minimum_attempts": 20,
+      "required_pass_count": 19,
+      "seed_command": "cargo run --quiet --manifest-path orchestration/Cargo.toml --bin native_coding_useful_work_eval_execute seed --attempts=20",
+      "judge_command": "cargo run --quiet --manifest-path orchestration/Cargo.toml --bin native_coding_useful_work_eval_execute judge --batch-root=<batch_root>",
+      "live_worker_requirement": "Run one Infring-native coding worker per generated prompt and save stdout to <batch_root>/agent_outputs/<attempt_id>.json. Codex spawn_agent output is not capability evidence for this gate.",
+      "target_capabilities": [
+        "discover and read existing project files when modifying behavior",
+        "write or patch source and tests for the requested implementation",
+        "avoid counting baseline validation as completion",
+        "run validation after mutation",
+        "repair from validation output or emit a structured blocker",
+        "produce receipt-backed final answers without overclaiming"
+      ],
+      "timing_metrics": {
+        "required": true,
+        "source": "judge_json.timing plus per-attempt judge_json.attempts[].timing",
+        "fields": [
+          "batch_elapsed_ms",
+          "completion_span_ms",
+          "average_attempt_elapsed_ms",
+          "average_time_to_first_mutation_ms",
+          "attempts[].timing.time_to_first_mutation_ms"
+        ]
+      },
+      "no_fake_success_checks": [
+        "validation_passes_after_worker",
+        "new_regression_tests_exercised",
+        "expected_symbols_present",
+        "semantic_probe_passes",
+        "source_or_test_mutated_after_seed",
+        "native_receipts_observed",
+        "mutation_receipt_observed",
+        "final_answer_reports_changed_files",
+        "final_answer_reports_validation"
+      ],
+      "latest_passing_evidence": null,
+      "promotion_policy": [
+        "Do not count baseline tests passing without source/test mutation as success.",
+        "Do not count receipts without semantic probes as useful-work proof.",
+        "Do not count Codex worker runs as Infring-native capability proof."
+      ]
+    },
+    {
+      "gate_id": "coding_memory_infring_native_agent_execution_smoke",
+      "status": "blocked_provider_not_registered",
+      "harness_bin": "xtask infring-agent-run",
+      "minimum_attempts": 1,
+      "required_pass_count": 1,
+      "seed_command": null,
+      "judge_command": "cargo run -p xtask -- infring-agent-run --name=level12-native-smoke --provider=ollama --model=kimi-k2.5:cloud --prompt=<prompt>",
+      "target_capabilities": [
+        "create an agent through the Infring runtime lane",
+        "route the prompt to the intended provider and model",
+        "return an Infring runtime-lane receipt",
+        "avoid Codex subagent execution"
+      ],
+      "latest_failing_evidence": {
+        "date": "2026-05-15",
+        "command_output": "/tmp/infring_agent_run_ollama_smoke.json",
+        "summary": {
+          "ok": false,
+          "failure": "xtask_infring_agent_run_failed:provider:provider_not_registered:ollama"
+        }
+      },
+      "promotion_policy": [
+        "Do not count Codex spawn_agent workers as Infring-native coding capability evidence.",
+        "Do not promote coding workflow capability claims until the worker execution path uses Infring agent creation, provider routing, tool execution, and receipts.",
+        "A local-echo provider pass is not a coding capability pass."
+      ]
     }
   ]
 }

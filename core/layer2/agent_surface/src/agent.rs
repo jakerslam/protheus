@@ -648,6 +648,15 @@ impl AgentContract {
         {
             all_receipts.push(validation_receipt);
         }
+        let auto_handoff_receipts = native_tool_auto_workflow_artifact_receipts(
+            &dispatcher,
+            &self.metadata,
+            &self.initial_prompt,
+            &all_receipts,
+        );
+        if !auto_handoff_receipts.is_empty() {
+            all_receipts.extend(auto_handoff_receipts);
+        }
         let initial_repair_reasons = native_tool_artifact_repair_reasons(
             &self.metadata,
             &self.initial_prompt,

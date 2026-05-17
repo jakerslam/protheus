@@ -1,0 +1,48 @@
+{
+  "version": "native_coding_useful_work_eval_v1_fixture_index",
+  "owner": "orchestration",
+  "purpose": "Track adversarial native coding useful-work cases that prevent baseline validation or unreceipted claims from counting as software success.",
+  "harness_bin": "native_coding_useful_work_eval_execute",
+  "promotion_target": {
+    "attempts": 20,
+    "required_pass_count": 19,
+    "worker_runtime": "infring_native_agent_only"
+  },
+  "cases": [
+    {
+      "task_id": "existing_behavior_patch",
+      "anti_fake_success_target": "existing behavior modification must read local files, mutate source/tests, preserve baseline behavior, and pass a semantic probe"
+    },
+    {
+      "task_id": "multi_requirement_vertical_slice",
+      "anti_fake_success_target": "multi-requirement app work must cover each requested identifier and behavior, not just create a nearby file"
+    },
+    {
+      "task_id": "validation_repair_ready_csv_loader",
+      "anti_fake_success_target": "validation failure output should be usable as repair input; final pass requires semantic CSV behavior"
+    },
+    {
+      "task_id": "no_fake_success_existing_tests",
+      "anti_fake_success_target": "baseline tests passing with no new tests or feature behavior is an explicit failure"
+    }
+  ],
+  "required_checks": [
+    "validation_passes_after_worker",
+    "new_regression_tests_exercised",
+    "expected_symbols_present",
+    "semantic_probe_passes",
+    "source_or_test_mutated_after_seed",
+    "native_receipts_observed",
+    "mutation_receipt_observed",
+    "validation_receipt_observed_or_command_verified",
+    "final_answer_reports_changed_files",
+    "final_answer_reports_validation"
+  ],
+  "timing_fields": [
+    "batch_elapsed_ms",
+    "completion_span_ms",
+    "average_attempt_elapsed_ms",
+    "average_time_to_first_mutation_ms",
+    "attempts[].timing.time_to_first_mutation_ms"
+  ]
+}
