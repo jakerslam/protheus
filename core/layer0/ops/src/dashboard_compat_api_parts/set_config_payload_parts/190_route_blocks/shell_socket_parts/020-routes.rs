@@ -761,6 +761,10 @@ fn handle_shell_socket_routes(
         let legacy = dashboard_compat_api_comms::handle(root, "POST", "/api/comms/task", "/api/comms/task", body, snapshot)?;
         return Some(shell_socket_comms_projection("post_comms_task", legacy));
     }
+    if method == "POST" && parts == ["eyes"] {
+        let request = serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
+        return Some(shell_socket_upsert_eye(root, &request));
+    }
     if method == "POST" && parts.len() == 3 && parts[0] == "agents" && parts[2] == "git-tree" {
         let legacy_path = format!("/api/agents/{}/git-tree/switch", clean_agent_id(&parts[1]));
         let legacy = handle_agent_scope_routes(root, "POST", &legacy_path, &legacy_path, body, headers, snapshot, requester_agent)?;

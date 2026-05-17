@@ -633,6 +633,21 @@
       "requires_detail_refs": true
     },
     {
+      "name": "EyeMutationProjection",
+      "description": "Bounded acknowledgement/projection for sensory eye catalog updates; shell plugs receive display-safe eye rows only, not collector authority or secrets.",
+      "allowed_top_level_fields": [
+        "ok",
+        "created",
+        "eye",
+        "error",
+        "receipt_ref",
+        "correlation_id"
+      ],
+      "max_response_bytes": 32768,
+      "requires_cursor": false,
+      "requires_detail_refs": true
+    },
+    {
       "name": "IngressAck",
       "description": "Bounded acknowledgement or receipt for a shell-submitted request.",
       "allowed_top_level_fields": [
@@ -2476,6 +2491,31 @@
         "comms_authority",
         "raw_task_graph",
         "delivery_truth"
+      ]
+    },
+    {
+      "id": "upsert_eye",
+      "purpose": "Submit a sensory eye catalog update through Gateway admission.",
+      "route_class": "request_ingress",
+      "request_shape": "EyeUpsertRequest",
+      "response_shape": "EyeMutationProjection",
+      "default_projection": "EyeMutationProjection",
+      "cursor_required": false,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "owner_of_truth": "kernel_sensory_eyes_registry",
+      "shell_may_hold": [
+        "created",
+        "eye",
+        "receipt_ref"
+      ],
+      "shell_must_not_hold": [
+        "eyes_collector_authority",
+        "raw_api_key",
+        "collector_runtime_truth"
       ]
     },
     {

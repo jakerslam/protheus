@@ -835,6 +835,25 @@ function makeHeadlessGatewayFetch(calls: CallRecord[], includeControlledViolatio
         receipt_ref: 'receipt:comms-task:probe',
         correlation_id: 'probe-comms-task',
       };
+    } else if (route === 'POST /api/shell-socket/eyes') {
+      capabilityId = 'upsert_eye';
+      payload = {
+        ok: true,
+        created: true,
+        eye: {
+          id: 'eye-probe',
+          name: String(body.name || 'Probe Eye'),
+          status: String(body.status || 'active'),
+          endpoint_url: String(body.url || 'https://example.com/feed'),
+          endpoint_host: 'example.com',
+          api_key_present: !!body.api_key,
+          cadence_hours: Number(body.cadence_hours || 4),
+          topics: Array.isArray(body.topics) ? body.topics : [],
+          source: 'operator',
+        },
+        receipt_ref: 'receipt:eye-upsert:probe',
+        correlation_id: 'probe-eye-upsert',
+      };
     } else if (method === 'POST' && /^\/api\/shell-socket\/agents\/[^/]+\/git-tree$/.test(pathName)) {
       capabilityId = 'set_git_tree';
       payload = makeIngressAck('git-tree');
@@ -1042,6 +1061,13 @@ async function runProbe(options: ProbeOptions): Promise<Record<string, unknown>>
     description: 'Probe task description',
     assigned_to: agentId,
   });
+  const eyeUpsert = await client.upsertEye<any>({
+    name: 'Probe Eye',
+    url: 'https://example.com/feed',
+    status: 'active',
+    cadence_hours: 4,
+    topics: ['probe'],
+  });
   const gitAck = await client.setGitTree<any>(agentId, { tree_ref: 'git-tree:current' });
   const freshSessionAck = await client.freshSession<any>(agentId, { reason: 'headless_probe' });
   const compactSessionAck = await client.compactSession<any>(agentId, { reason: 'headless_probe' });
@@ -1127,6 +1153,7 @@ async function runProbe(options: ProbeOptions): Promise<Record<string, unknown>>
       skill_create_receipt: skillCreate.receipt_ref,
       comms_send_receipt: commsSend.receipt_ref,
       comms_task_receipt: commsTask.receipt_ref,
+      eye_upsert_receipt: eyeUpsert.receipt_ref,
       git_receipt: gitAck.receipt_ref,
       fresh_session_receipt: freshSessionAck.receipt_ref,
       compact_session_receipt: compactSessionAck.receipt_ref,

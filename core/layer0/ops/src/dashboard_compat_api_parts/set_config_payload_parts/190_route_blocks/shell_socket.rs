@@ -1,4 +1,9 @@
 const SHELL_SOCKET_PREFIX: &str = "/api/shell-socket";
+const SHELL_SOCKET_EYES_CATALOG_STATE_PATHS: &[&str] = &[
+    "client/runtime/local/state/ui/infring_dashboard/eyes_catalog.json",
+    "client/runtime/local/state/eyes/catalog.json",
+    "client/runtime/local/state/ui/eyes/catalog.json",
+];
 
 fn shell_socket_receipt_ref(capability: &str, seed: &Value) -> String {
     let hash = crate::deterministic_receipt_hash(&json!({
@@ -40,6 +45,171 @@ fn shell_socket_path_parts(path_only: &str) -> Vec<String> {
         .filter(|part| !part.is_empty())
         .map(decode_path_segment)
         .collect::<Vec<_>>()
+}
+
+fn shell_socket_eye_store_path(root: &Path) -> PathBuf {
+    for rel in SHELL_SOCKET_EYES_CATALOG_STATE_PATHS {
+        let path = state_path(root, rel);
+        if path.exists() {
+            return path;
+        }
+    }
+    state_path(root, SHELL_SOCKET_EYES_CATALOG_STATE_PATHS[0])
+}
+
+fn shell_socket_host_from_url(raw: &str) -> String {
+    let without_scheme = raw
+        .split_once("://")
+        .map(|(_, rest)| rest)
+        .unwrap_or(raw);
+    clean_text(
+        without_scheme
+            .split('/')
+            .next()
+            .unwrap_or("")
+            .split('?')
+            .next()
+            .unwrap_or("")
+            .split('#')
+            .next()
+            .unwrap_or(""),
+        120,
+    )
+}
+
+fn shell_socket_eye_id(seed: &Value) -> String {
+    format!(
+        "eye-{}",
+        crate::deterministic_receipt_hash(seed)
+            .chars()
+            .take(12)
+            .collect::<String>()
+    )
+}
+
+fn shell_socket_normalize_eye(row: &Value) -> Value {
+    let now = crate::now_iso();
+    let endpoint_url = clean_text(
+        row.get("endpoint_url")
+            .and_then(Value::as_str)
+            .or_else(|| row.get("url").and_then(Value::as_str))
+            .unwrap_or(""),
+        500,
+    );
+    let mut name = clean_text(row.get("name").and_then(Value::as_str).unwrap_or(""), 120);
+    if name.is_empty() && !endpoint_url.is_empty() {
+        name = shell_socket_host_from_url(&endpoint_url);
+    }
+    if name.is_empty() {
+        name = "eye".to_string();
+    }
+    let id = clean_text(
+        row.get("id")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        120,
+    );
+    let id = if id.is_empty() {
+        shell_socket_eye_id(&json!({"name": name, "endpoint_url": endpoint_url}))
+    } else {
+        id
+    };
+    let status = match clean_text(row.get("status").and_then(Value::as_str).unwrap_or("active"), 24)
+        .to_ascii_lowercase()
+        .as_str()
+    {
+        "active" | "paused" | "dormant" | "disabled" => clean_text(row.get("status").and_then(Value::as_str).unwrap_or("active"), 24).to_ascii_lowercase(),
+        _ => "active".to_string(),
+    };
+    let mut topics = Vec::<Value>::new();
+    if let Some(rows) = row.get("topics").and_then(Value::as_array) {
+        for topic in rows {
+            let cleaned = clean_text(topic.as_str().unwrap_or(""), 80);
+            if !cleaned.is_empty() {
+                topics.push(json!(cleaned));
+            }
+        }
+    }
+    let api_key = clean_text(row.get("api_key").and_then(Value::as_str).unwrap_or(""), 4096);
+    let api_key_hash = if api_key.is_empty() {
+        clean_text(row.get("api_key_hash").and_then(Value::as_str).unwrap_or(""), 160)
+    } else {
+        crate::deterministic_receipt_hash(&json!({"kind": "eye_api_key", "eye_id": id, "key": api_key}))
+    };
+    let endpoint_host_fallback = shell_socket_host_from_url(&endpoint_url);
+    json!({
+        "uid": clean_text(row.get("uid").and_then(Value::as_str).unwrap_or(&id), 160),
+        "id": id,
+        "name": name,
+        "status": status,
+        "endpoint_url": endpoint_url,
+        "endpoint_host": clean_text(
+            row.get("endpoint_host")
+                .and_then(Value::as_str)
+                .unwrap_or(&endpoint_host_fallback),
+            120
+        ),
+        "api_key_present": !api_key_hash.is_empty(),
+        "api_key_hash": api_key_hash,
+        "cadence_hours": row.get("cadence_hours").and_then(Value::as_i64).unwrap_or(4).clamp(1, 168),
+        "topics": topics,
+        "updated_at": now,
+        "source": clean_text(row.get("source").and_then(Value::as_str).unwrap_or("operator"), 40)
+    })
+}
+
+fn shell_socket_load_eyes(root: &Path) -> Vec<Value> {
+    let raw = read_json_loose(&shell_socket_eye_store_path(root)).unwrap_or_else(|| json!({"eyes": []}));
+    if let Some(rows) = raw.pointer("/catalog/eyes").and_then(Value::as_array) {
+        return rows.iter().map(shell_socket_normalize_eye).collect::<Vec<_>>();
+    }
+    if let Some(rows) = raw.get("eyes").and_then(Value::as_array) {
+        return rows.iter().map(shell_socket_normalize_eye).collect::<Vec<_>>();
+    }
+    if let Some(rows) = raw.as_array() {
+        return rows.iter().map(shell_socket_normalize_eye).collect::<Vec<_>>();
+    }
+    Vec::new()
+}
+
+fn shell_socket_save_eyes(root: &Path, eyes: &[Value]) {
+    write_json_pretty(
+        &shell_socket_eye_store_path(root),
+        &json!({
+            "type": "eyes_catalog",
+            "updated_at": crate::now_iso(),
+            "eyes": eyes
+        }),
+    );
+}
+
+fn shell_socket_upsert_eye(root: &Path, request: &Value) -> CompatApiResponse {
+    let eye = shell_socket_normalize_eye(request);
+    let eye_id = clean_text(eye.get("id").and_then(Value::as_str).unwrap_or(""), 120);
+    let eye_name = clean_text(eye.get("name").and_then(Value::as_str).unwrap_or(""), 120);
+    let mut eyes = shell_socket_load_eyes(root);
+    let mut created = true;
+    if let Some(existing) = eyes.iter_mut().find(|row| {
+        clean_text(row.get("id").and_then(Value::as_str).unwrap_or(""), 120) == eye_id
+            || clean_text(row.get("name").and_then(Value::as_str).unwrap_or(""), 120)
+                .eq_ignore_ascii_case(&eye_name)
+    }) {
+        *existing = eye.clone();
+        created = false;
+    } else {
+        eyes.push(eye.clone());
+    }
+    shell_socket_save_eyes(root, &eyes);
+    CompatApiResponse {
+        status: 200,
+        payload: json!({
+            "ok": true,
+            "created": created,
+            "eye": eye,
+            "receipt_ref": shell_socket_receipt_ref("upsert_eye", &json!({"eye_id": eye_id})),
+            "correlation_id": "shell_socket.upsert_eye"
+        }),
+    }
 }
 
 fn shell_socket_session_ref(agent_id: &str, session_id: &str) -> String {

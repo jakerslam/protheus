@@ -71,6 +71,7 @@ export type ShellSocketCapabilityId =
   | 'create_skill'
   | 'send_comms_message'
   | 'post_comms_task'
+  | 'upsert_eye'
   | 'set_git_tree'
   | 'fresh_session'
   | 'compact_session'
@@ -166,6 +167,7 @@ export const SHELL_SOCKET_ROUTES: ReadonlyArray<ShellSocketRouteDefinition> = Ob
   { capabilityId: 'create_skill', method: 'POST', path: '/api/shell-socket/skills/create' },
   { capabilityId: 'send_comms_message', method: 'POST', path: '/api/shell-socket/comms/send' },
   { capabilityId: 'post_comms_task', method: 'POST', path: '/api/shell-socket/comms/task' },
+  { capabilityId: 'upsert_eye', method: 'POST', path: '/api/shell-socket/eyes' },
   { capabilityId: 'set_git_tree', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/git-tree', pathParams: ['agent_id'] },
   { capabilityId: 'fresh_session', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/fresh-session', pathParams: ['agent_id'] },
   { capabilityId: 'compact_session', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/compact-session', pathParams: ['agent_id'] },
@@ -535,6 +537,10 @@ export class ShellSocketGatewayClient {
     return this.request<T>('post_comms_task', { body: request });
   }
 
+  upsertEye<T = unknown>(request: unknown): Promise<T> {
+    return this.request<T>('upsert_eye', { body: request });
+  }
+
   setGitTree<T = unknown>(agentId: string, treeSelection: unknown): Promise<T> {
     return this.request<T>('set_git_tree', { query: { agent_id: agentId }, body: treeSelection });
   }
@@ -563,7 +569,7 @@ export function shellSocketClientSelfTest(): Record<string, unknown> {
     fetchImpl: async () => ({ ok: true, status: 200, text: async () => '{}' }),
   });
   return {
-    ok: routeIds.length === uniqueRouteIds.size && routeIds.length === 73,
+    ok: routeIds.length === uniqueRouteIds.size && routeIds.length === 74,
     type: 'shell_socket_gateway_client_self_test',
     route_count: routeIds.length,
     unique_route_count: uniqueRouteIds.size,

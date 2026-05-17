@@ -156,7 +156,7 @@ function eyesPage() {
       }
       this.saving = true;
       try {
-        var data = await InfringAPI.post('/api/eyes', payload);
+        var data = await InfringAPI.post('/api/shell-socket/eyes', payload);
         if (!data || data.ok === false) {
           throw new Error((data && data.error) ? String(data.error) : 'Eyes update failed');
         }
