@@ -271,7 +271,7 @@ function commsPage() {
       if (!this.sendFrom || !this.sendTo || !this.sendMsg.trim()) return;
       this.sendLoading = true;
       try {
-        await InfringAPI.post('/api/comms/send', {
+        await InfringAPI.post('/api/shell-socket/comms/send', {
           from_agent_id: this.sendFrom,
           to_agent_id: this.sendTo,
           message: this.sendMsg
@@ -297,7 +297,7 @@ function commsPage() {
       try {
         var body = { title: this.taskTitle, description: this.taskDesc };
         if (this.taskAssign) body.assigned_to = this.taskAssign;
-        await InfringAPI.post('/api/comms/task', body);
+        await InfringAPI.post('/api/shell-socket/comms/task', body);
         InfringToast.success('Task posted');
         this.showTaskModal = false;
       } catch(e) {

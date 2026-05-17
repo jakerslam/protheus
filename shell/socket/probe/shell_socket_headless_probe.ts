@@ -816,6 +816,25 @@ function makeHeadlessGatewayFetch(calls: CallRecord[], includeControlledViolatio
         receipt_ref: 'receipt:skill-create:probe',
         correlation_id: 'probe-skill-create',
       };
+    } else if (route === 'POST /api/shell-socket/comms/send') {
+      capabilityId = 'send_comms_message';
+      payload = {
+        ok: true,
+        status: 'sent',
+        receipt_ref: 'receipt:comms-send:probe',
+        correlation_id: 'probe-comms-send',
+      };
+    } else if (route === 'POST /api/shell-socket/comms/task') {
+      capabilityId = 'post_comms_task';
+      payload = {
+        ok: true,
+        task_id: 'task-probe',
+        title: String(body.title || 'Probe task'),
+        assigned_to: String(body.assigned_to || 'agent-probe'),
+        status: 'queued',
+        receipt_ref: 'receipt:comms-task:probe',
+        correlation_id: 'probe-comms-task',
+      };
     } else if (method === 'POST' && /^\/api\/shell-socket\/agents\/[^/]+\/git-tree$/.test(pathName)) {
       capabilityId = 'set_git_tree';
       payload = makeIngressAck('git-tree');
@@ -1013,6 +1032,16 @@ async function runProbe(options: ProbeOptions): Promise<Record<string, unknown>>
     runtime: 'prompt_only',
     prompt_context: 'Probe prompt context',
   });
+  const commsSend = await client.sendCommsMessage<any>({
+    from_agent_id: agentId,
+    to_agent_id: 'agent-target-probe',
+    message: 'Probe comms message',
+  });
+  const commsTask = await client.postCommsTask<any>({
+    title: 'Probe task',
+    description: 'Probe task description',
+    assigned_to: agentId,
+  });
   const gitAck = await client.setGitTree<any>(agentId, { tree_ref: 'git-tree:current' });
   const freshSessionAck = await client.freshSession<any>(agentId, { reason: 'headless_probe' });
   const compactSessionAck = await client.compactSession<any>(agentId, { reason: 'headless_probe' });
@@ -1096,6 +1125,8 @@ async function runProbe(options: ProbeOptions): Promise<Record<string, unknown>>
       skill_install_receipt: skillInstall.receipt_ref,
       skill_uninstall_receipt: skillUninstall.receipt_ref,
       skill_create_receipt: skillCreate.receipt_ref,
+      comms_send_receipt: commsSend.receipt_ref,
+      comms_task_receipt: commsTask.receipt_ref,
       git_receipt: gitAck.receipt_ref,
       fresh_session_receipt: freshSessionAck.receipt_ref,
       compact_session_receipt: compactSessionAck.receipt_ref,

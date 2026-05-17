@@ -616,6 +616,23 @@
       "requires_detail_refs": true
     },
     {
+      "name": "CommsMutationProjection",
+      "description": "Bounded acknowledgement/projection for communications actions; shell plugs receive delivery/task display fields only, not comms authority.",
+      "allowed_top_level_fields": [
+        "ok",
+        "status",
+        "task_id",
+        "title",
+        "assigned_to",
+        "error",
+        "receipt_ref",
+        "correlation_id"
+      ],
+      "max_response_bytes": 16384,
+      "requires_cursor": false,
+      "requires_detail_refs": true
+    },
+    {
       "name": "IngressAck",
       "description": "Bounded acknowledgement or receipt for a shell-submitted request.",
       "allowed_top_level_fields": [
@@ -2408,6 +2425,57 @@
         "skill_registry_authority",
         "raw_skill_manifest",
         "install_authority"
+      ]
+    },
+    {
+      "id": "send_comms_message",
+      "purpose": "Submit an inter-agent communications message through Gateway admission.",
+      "route_class": "request_ingress",
+      "request_shape": "CommsMessageRequest",
+      "response_shape": "CommsMutationProjection",
+      "default_projection": "CommsMutationProjection",
+      "cursor_required": false,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "owner_of_truth": "orchestration_comms_bus",
+      "shell_may_hold": [
+        "status",
+        "receipt_ref"
+      ],
+      "shell_must_not_hold": [
+        "comms_authority",
+        "raw_message_bus",
+        "delivery_truth"
+      ]
+    },
+    {
+      "id": "post_comms_task",
+      "purpose": "Submit a communications task through Gateway admission.",
+      "route_class": "request_ingress",
+      "request_shape": "CommsTaskRequest",
+      "response_shape": "CommsMutationProjection",
+      "default_projection": "CommsMutationProjection",
+      "cursor_required": false,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "owner_of_truth": "orchestration_comms_bus",
+      "shell_may_hold": [
+        "task_id",
+        "title",
+        "assigned_to",
+        "status",
+        "receipt_ref"
+      ],
+      "shell_must_not_hold": [
+        "comms_authority",
+        "raw_task_graph",
+        "delivery_truth"
       ]
     },
     {
