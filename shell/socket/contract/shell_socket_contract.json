@@ -500,6 +500,28 @@
       "requires_detail_refs": true
     },
     {
+      "name": "SchedulerMutationProjection",
+      "description": "Bounded acknowledgement for scheduler and trigger mutations; shell plugs receive ids/status/receipts, not scheduling authority.",
+      "allowed_top_level_fields": [
+        "ok",
+        "job_id",
+        "trigger_id",
+        "name",
+        "enabled",
+        "status",
+        "deleted",
+        "ran_at",
+        "next_run",
+        "last_run",
+        "error",
+        "receipt_ref",
+        "correlation_id"
+      ],
+      "max_response_bytes": 16384,
+      "requires_cursor": false,
+      "requires_detail_refs": true
+    },
+    {
       "name": "IngressAck",
       "description": "Bounded acknowledgement or receipt for a shell-submitted request.",
       "allowed_top_level_fields": [
@@ -1722,6 +1744,160 @@
         "workflow_graph",
         "execution_observation",
         "raw_trace"
+      ]
+    },
+    {
+      "id": "create_cron_job",
+      "purpose": "Request schedule creation through Gateway admission without shell-owned scheduler authority.",
+      "route_class": "request_ingress",
+      "request_shape": "CronJobCreateRequest",
+      "response_shape": "SchedulerMutationProjection",
+      "default_projection": "SchedulerMutationProjection",
+      "cursor_required": false,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "owner_of_truth": "orchestration_scheduler_registry",
+      "shell_may_hold": [
+        "job_id",
+        "name",
+        "enabled",
+        "next_run",
+        "receipt_ref"
+      ],
+      "shell_must_not_hold": [
+        "scheduler_authority",
+        "schedule_policy_truth",
+        "queue_truth"
+      ]
+    },
+    {
+      "id": "set_cron_job_enabled",
+      "purpose": "Request schedule enable/disable through Gateway admission.",
+      "route_class": "request_ingress",
+      "request_shape": "CronJobEnableRequest",
+      "response_shape": "SchedulerMutationProjection",
+      "default_projection": "SchedulerMutationProjection",
+      "cursor_required": false,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "owner_of_truth": "orchestration_scheduler_registry",
+      "shell_may_hold": [
+        "job_id",
+        "enabled",
+        "next_run",
+        "receipt_ref"
+      ],
+      "shell_must_not_hold": [
+        "scheduler_authority",
+        "schedule_policy_truth",
+        "queue_truth"
+      ]
+    },
+    {
+      "id": "delete_cron_job",
+      "purpose": "Request schedule deletion through Gateway admission.",
+      "route_class": "request_ingress",
+      "request_shape": "CronJobDeleteRequest",
+      "response_shape": "SchedulerMutationProjection",
+      "default_projection": "SchedulerMutationProjection",
+      "cursor_required": false,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "owner_of_truth": "orchestration_scheduler_registry",
+      "shell_may_hold": [
+        "job_id",
+        "deleted",
+        "receipt_ref"
+      ],
+      "shell_must_not_hold": [
+        "scheduler_authority",
+        "schedule_policy_truth",
+        "queue_truth"
+      ]
+    },
+    {
+      "id": "run_schedule",
+      "purpose": "Request a schedule run through Gateway admission without shell-owned execution authority.",
+      "route_class": "request_ingress",
+      "request_shape": "ScheduleRunRequest",
+      "response_shape": "SchedulerMutationProjection",
+      "default_projection": "SchedulerMutationProjection",
+      "cursor_required": false,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "owner_of_truth": "orchestration_scheduler_execution",
+      "shell_may_hold": [
+        "job_id",
+        "status",
+        "ran_at",
+        "receipt_ref"
+      ],
+      "shell_must_not_hold": [
+        "scheduler_authority",
+        "execution_observation",
+        "queue_truth"
+      ]
+    },
+    {
+      "id": "set_trigger_enabled",
+      "purpose": "Request event trigger enable/disable through Gateway admission.",
+      "route_class": "request_ingress",
+      "request_shape": "TriggerEnableRequest",
+      "response_shape": "SchedulerMutationProjection",
+      "default_projection": "SchedulerMutationProjection",
+      "cursor_required": false,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "owner_of_truth": "orchestration_trigger_registry",
+      "shell_may_hold": [
+        "trigger_id",
+        "enabled",
+        "receipt_ref"
+      ],
+      "shell_must_not_hold": [
+        "trigger_authority",
+        "event_policy_truth",
+        "queue_truth"
+      ]
+    },
+    {
+      "id": "delete_trigger",
+      "purpose": "Request event trigger deletion through Gateway admission.",
+      "route_class": "request_ingress",
+      "request_shape": "TriggerDeleteRequest",
+      "response_shape": "SchedulerMutationProjection",
+      "default_projection": "SchedulerMutationProjection",
+      "cursor_required": false,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "owner_of_truth": "orchestration_trigger_registry",
+      "shell_may_hold": [
+        "trigger_id",
+        "deleted",
+        "receipt_ref"
+      ],
+      "shell_must_not_hold": [
+        "trigger_authority",
+        "event_policy_truth",
+        "queue_truth"
       ]
     },
     {

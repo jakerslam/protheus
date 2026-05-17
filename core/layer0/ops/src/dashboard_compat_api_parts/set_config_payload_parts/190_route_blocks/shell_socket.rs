@@ -1077,4 +1077,48 @@ fn shell_socket_workflow_projection(capability: &str, legacy: CompatApiResponse)
     }
 }
 
+fn shell_socket_scheduler_projection(capability: &str, legacy: CompatApiResponse) -> CompatApiResponse {
+    let payload = legacy.payload;
+    let ok = legacy.status < 400 && payload.get("ok").and_then(Value::as_bool).unwrap_or(true);
+    let job = payload.get("job").unwrap_or(&Value::Null);
+    let trigger = payload.get("trigger").unwrap_or(&Value::Null);
+    let mut out = Map::<String, Value>::new();
+    out.insert("ok".to_string(), json!(ok));
+    for key in ["job_id", "trigger_id", "status", "deleted", "ran_at"] {
+        if let Some(value) = payload.get(key) {
+            out.insert(key.to_string(), value.clone());
+        }
+    }
+    if !out.contains_key("job_id") {
+        if let Some(id) = job.get("id").and_then(Value::as_str) {
+            out.insert("job_id".to_string(), json!(clean_text(id, 120)));
+        }
+    }
+    if !out.contains_key("trigger_id") {
+        if let Some(id) = trigger.get("id").and_then(Value::as_str) {
+            out.insert("trigger_id".to_string(), json!(clean_text(id, 120)));
+        }
+    }
+    for key in ["name", "enabled", "next_run", "last_run"] {
+        if let Some(value) = job.get(key).or_else(|| trigger.get(key)) {
+            out.insert(key.to_string(), value.clone());
+        }
+    }
+    if let Some(error) = payload.get("error").and_then(Value::as_str) {
+        out.insert("error".to_string(), json!(clean_text(error, 240)));
+    }
+    out.insert(
+        "receipt_ref".to_string(),
+        json!(shell_socket_receipt_ref(capability, &payload)),
+    );
+    out.insert(
+        "correlation_id".to_string(),
+        json!(format!("shell_socket.{capability}")),
+    );
+    CompatApiResponse {
+        status: if ok { 200 } else { legacy.status.max(400) },
+        payload: Value::Object(out),
+    }
+}
+
 include!("shell_socket_parts/020-routes.rs");

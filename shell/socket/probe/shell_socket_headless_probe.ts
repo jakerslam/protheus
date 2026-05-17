@@ -581,6 +581,64 @@ function makeHeadlessGatewayFetch(calls: CallRecord[], includeControlledViolatio
         receipt_ref: 'receipt:workflow-run:probe',
         correlation_id: 'probe-workflow-run',
       };
+    } else if (route === 'POST /api/shell-socket/scheduler/jobs') {
+      capabilityId = 'create_cron_job';
+      payload = {
+        ok: true,
+        job_id: 'job-probe',
+        name: String(body.name || 'Probe Schedule'),
+        enabled: body.enabled !== false,
+        next_run: '2026-05-17T00:00:00Z',
+        receipt_ref: 'receipt:create-cron-job:probe',
+        correlation_id: 'probe-create-cron-job',
+      };
+    } else if (method === 'POST' && /^\/api\/shell-socket\/scheduler\/jobs\/[^/]+\/enable$/.test(pathName)) {
+      capabilityId = 'set_cron_job_enabled';
+      payload = {
+        ok: true,
+        job_id: decodeURIComponent(pathName.split('/')[5] || 'job-probe'),
+        enabled: body.enabled !== false,
+        next_run: '2026-05-17T00:00:00Z',
+        receipt_ref: 'receipt:set-cron-job-enabled:probe',
+        correlation_id: 'probe-set-cron-job-enabled',
+      };
+    } else if (method === 'POST' && /^\/api\/shell-socket\/scheduler\/jobs\/[^/]+\/delete$/.test(pathName)) {
+      capabilityId = 'delete_cron_job';
+      payload = {
+        ok: true,
+        job_id: decodeURIComponent(pathName.split('/')[5] || 'job-probe'),
+        deleted: true,
+        receipt_ref: 'receipt:delete-cron-job:probe',
+        correlation_id: 'probe-delete-cron-job',
+      };
+    } else if (method === 'POST' && /^\/api\/shell-socket\/scheduler\/jobs\/[^/]+\/run$/.test(pathName)) {
+      capabilityId = 'run_schedule';
+      payload = {
+        ok: true,
+        job_id: decodeURIComponent(pathName.split('/')[5] || 'job-probe'),
+        status: 'completed',
+        ran_at: '2026-05-17T00:00:00Z',
+        receipt_ref: 'receipt:run-schedule:probe',
+        correlation_id: 'probe-run-schedule',
+      };
+    } else if (method === 'POST' && /^\/api\/shell-socket\/scheduler\/triggers\/[^/]+\/enable$/.test(pathName)) {
+      capabilityId = 'set_trigger_enabled';
+      payload = {
+        ok: true,
+        trigger_id: decodeURIComponent(pathName.split('/')[5] || 'trigger-probe'),
+        enabled: body.enabled !== false,
+        receipt_ref: 'receipt:set-trigger-enabled:probe',
+        correlation_id: 'probe-set-trigger-enabled',
+      };
+    } else if (method === 'POST' && /^\/api\/shell-socket\/scheduler\/triggers\/[^/]+\/delete$/.test(pathName)) {
+      capabilityId = 'delete_trigger';
+      payload = {
+        ok: true,
+        trigger_id: decodeURIComponent(pathName.split('/')[5] || 'trigger-probe'),
+        deleted: true,
+        receipt_ref: 'receipt:delete-trigger:probe',
+        correlation_id: 'probe-delete-trigger',
+      };
     } else if (method === 'POST' && /^\/api\/shell-socket\/agents\/[^/]+\/git-tree$/.test(pathName)) {
       capabilityId = 'set_git_tree';
       payload = makeIngressAck('git-tree');
@@ -746,6 +804,12 @@ async function runProbe(options: ProbeOptions): Promise<Record<string, unknown>>
   const workflowUpdateAck = await client.updateWorkflow<any>('workflow-probe', { name: 'Probe Workflow Updated' });
   const workflowRunAck = await client.runWorkflow<any>('workflow-probe', { input: 'probe' });
   const workflowDeleteAck = await client.deleteWorkflow<any>('workflow-probe');
+  const cronCreateAck = await client.createCronJob<any>({ name: 'Probe Schedule', enabled: true });
+  const cronEnableAck = await client.setCronJobEnabled<any>('job-probe', { enabled: true });
+  const scheduleRunAck = await client.runSchedule<any>('job-probe');
+  const cronDeleteAck = await client.deleteCronJob<any>('job-probe');
+  const triggerEnableAck = await client.setTriggerEnabled<any>('trigger-probe', { enabled: true });
+  const triggerDeleteAck = await client.deleteTrigger<any>('trigger-probe');
   const gitAck = await client.setGitTree<any>(agentId, { tree_ref: 'git-tree:current' });
   const freshSessionAck = await client.freshSession<any>(agentId, { reason: 'headless_probe' });
   const compactSessionAck = await client.compactSession<any>(agentId, { reason: 'headless_probe' });
@@ -807,6 +871,12 @@ async function runProbe(options: ProbeOptions): Promise<Record<string, unknown>>
       workflow_update_receipt: workflowUpdateAck.receipt_ref,
       workflow_run_receipt: workflowRunAck.receipt_ref,
       workflow_delete_receipt: workflowDeleteAck.receipt_ref,
+      cron_create_receipt: cronCreateAck.receipt_ref,
+      cron_enable_receipt: cronEnableAck.receipt_ref,
+      schedule_run_receipt: scheduleRunAck.receipt_ref,
+      cron_delete_receipt: cronDeleteAck.receipt_ref,
+      trigger_enable_receipt: triggerEnableAck.receipt_ref,
+      trigger_delete_receipt: triggerDeleteAck.receipt_ref,
       git_receipt: gitAck.receipt_ref,
       fresh_session_receipt: freshSessionAck.receipt_ref,
       compact_session_receipt: compactSessionAck.receipt_ref,

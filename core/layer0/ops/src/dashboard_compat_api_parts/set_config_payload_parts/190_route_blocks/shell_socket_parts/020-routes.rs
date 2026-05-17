@@ -630,6 +630,41 @@ fn handle_shell_socket_routes(
         let legacy = dashboard_compat_api_sidebar_ops::handle(root, "POST", &legacy_path, body, snapshot)?;
         return Some(shell_socket_workflow_projection("run_workflow", legacy));
     }
+    if method == "POST" && parts == ["scheduler", "jobs"] {
+        let legacy_path = "/api/cron/jobs";
+        let legacy = dashboard_compat_api_sidebar_ops::handle(root, "POST", legacy_path, body, snapshot)?;
+        return Some(shell_socket_scheduler_projection("create_cron_job", legacy));
+    }
+    if method == "POST" && parts.len() == 4 && parts[0] == "scheduler" && parts[1] == "jobs" && parts[3] == "enable" {
+        let job_id = clean_text(&parts[2], 120);
+        let legacy_path = format!("/api/cron/jobs/{job_id}/enable");
+        let legacy = dashboard_compat_api_sidebar_ops::handle(root, "PUT", &legacy_path, body, snapshot)?;
+        return Some(shell_socket_scheduler_projection("set_cron_job_enabled", legacy));
+    }
+    if method == "POST" && parts.len() == 4 && parts[0] == "scheduler" && parts[1] == "jobs" && parts[3] == "delete" {
+        let job_id = clean_text(&parts[2], 120);
+        let legacy_path = format!("/api/cron/jobs/{job_id}");
+        let legacy = dashboard_compat_api_sidebar_ops::handle(root, "DELETE", &legacy_path, body, snapshot)?;
+        return Some(shell_socket_scheduler_projection("delete_cron_job", legacy));
+    }
+    if method == "POST" && parts.len() == 4 && parts[0] == "scheduler" && parts[1] == "jobs" && parts[3] == "run" {
+        let job_id = clean_text(&parts[2], 120);
+        let legacy_path = format!("/api/schedules/{job_id}/run");
+        let legacy = dashboard_compat_api_sidebar_ops::handle(root, "POST", &legacy_path, body, snapshot)?;
+        return Some(shell_socket_scheduler_projection("run_schedule", legacy));
+    }
+    if method == "POST" && parts.len() == 4 && parts[0] == "scheduler" && parts[1] == "triggers" && parts[3] == "enable" {
+        let trigger_id = clean_text(&parts[2], 120);
+        let legacy_path = format!("/api/triggers/{trigger_id}");
+        let legacy = dashboard_compat_api_sidebar_ops::handle(root, "PUT", &legacy_path, body, snapshot)?;
+        return Some(shell_socket_scheduler_projection("set_trigger_enabled", legacy));
+    }
+    if method == "POST" && parts.len() == 4 && parts[0] == "scheduler" && parts[1] == "triggers" && parts[3] == "delete" {
+        let trigger_id = clean_text(&parts[2], 120);
+        let legacy_path = format!("/api/triggers/{trigger_id}");
+        let legacy = dashboard_compat_api_sidebar_ops::handle(root, "DELETE", &legacy_path, body, snapshot)?;
+        return Some(shell_socket_scheduler_projection("delete_trigger", legacy));
+    }
     if method == "POST" && parts.len() == 3 && parts[0] == "agents" && parts[2] == "git-tree" {
         let legacy_path = format!("/api/agents/{}/git-tree/switch", clean_agent_id(&parts[1]));
         let legacy = handle_agent_scope_routes(root, "POST", &legacy_path, &legacy_path, body, headers, snapshot, requester_agent)?;

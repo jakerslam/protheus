@@ -162,7 +162,7 @@ function schedulerPage() {
           delivery: { kind: 'last_channel' },
           enabled: this.newJob.enabled
         };
-        await InfringAPI.post('/api/cron/jobs', body);
+        await InfringAPI.post('/api/shell-socket/scheduler/jobs', body);
         this.showCreateForm = false;
         this.newJob = { name: '', cron: '', agent_id: '', message: '', enabled: true };
         InfringToast.success('Schedule "' + jobName + '" created');
@@ -176,7 +176,7 @@ function schedulerPage() {
     async toggleJob(job) {
       try {
         var newState = !job.enabled;
-        await InfringAPI.put('/api/cron/jobs/' + job.id + '/enable', { enabled: newState });
+        await InfringAPI.post('/api/shell-socket/scheduler/jobs/' + encodeURIComponent(job.id) + '/enable', { enabled: newState });
         job.enabled = newState;
         InfringToast.success('Schedule ' + (newState ? 'enabled' : 'paused'));
       } catch(e) {
@@ -189,7 +189,7 @@ function schedulerPage() {
       var jobName = job.name || job.id;
       InfringToast.confirm('Delete Schedule', 'Delete "' + jobName + '"? This cannot be undone.', async function() {
         try {
-          await InfringAPI.del('/api/cron/jobs/' + job.id);
+          await InfringAPI.post('/api/shell-socket/scheduler/jobs/' + encodeURIComponent(job.id) + '/delete', {});
           self.jobs = self.jobs.filter(function(j) { return j.id !== job.id; });
           InfringToast.success('Schedule "' + jobName + '" deleted');
         } catch(e) {
@@ -201,7 +201,7 @@ function schedulerPage() {
     async runNow(job) {
       this.runningJobId = job.id;
       try {
-        var result = await InfringAPI.post('/api/schedules/' + job.id + '/run', {});
+        var result = await InfringAPI.post('/api/shell-socket/scheduler/jobs/' + encodeURIComponent(job.id) + '/run', {});
         if (result.status === 'completed') {
           InfringToast.success('Schedule "' + (job.name || 'job') + '" executed successfully');
           job.last_run = new Date().toISOString();
@@ -238,7 +238,7 @@ function schedulerPage() {
     async toggleTrigger(trigger) {
       try {
         var newState = !trigger.enabled;
-        await InfringAPI.put('/api/triggers/' + trigger.id, { enabled: newState });
+        await InfringAPI.post('/api/shell-socket/scheduler/triggers/' + encodeURIComponent(trigger.id) + '/enable', { enabled: newState });
         trigger.enabled = newState;
         InfringToast.success('Trigger ' + (newState ? 'enabled' : 'disabled'));
       } catch(e) {
@@ -250,7 +250,7 @@ function schedulerPage() {
       var self = this;
       InfringToast.confirm('Delete Trigger', 'Delete this trigger? This cannot be undone.', async function() {
         try {
-          await InfringAPI.del('/api/triggers/' + trigger.id);
+          await InfringAPI.post('/api/shell-socket/scheduler/triggers/' + encodeURIComponent(trigger.id) + '/delete', {});
           self.triggers = self.triggers.filter(function(t) { return t.id !== trigger.id; });
           InfringToast.success('Trigger deleted');
         } catch(e) {

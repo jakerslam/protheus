@@ -47,6 +47,12 @@ export type ShellSocketCapabilityId =
   | 'update_workflow'
   | 'delete_workflow'
   | 'run_workflow'
+  | 'create_cron_job'
+  | 'set_cron_job_enabled'
+  | 'delete_cron_job'
+  | 'run_schedule'
+  | 'set_trigger_enabled'
+  | 'delete_trigger'
   | 'set_git_tree'
   | 'fresh_session'
   | 'compact_session'
@@ -118,6 +124,12 @@ export const SHELL_SOCKET_ROUTES: ReadonlyArray<ShellSocketRouteDefinition> = Ob
   { capabilityId: 'update_workflow', method: 'POST', path: '/api/shell-socket/workflows/{workflow_id}/update', pathParams: ['workflow_id'] },
   { capabilityId: 'delete_workflow', method: 'POST', path: '/api/shell-socket/workflows/{workflow_id}/delete', pathParams: ['workflow_id'] },
   { capabilityId: 'run_workflow', method: 'POST', path: '/api/shell-socket/workflows/{workflow_id}/run', pathParams: ['workflow_id'] },
+  { capabilityId: 'create_cron_job', method: 'POST', path: '/api/shell-socket/scheduler/jobs' },
+  { capabilityId: 'set_cron_job_enabled', method: 'POST', path: '/api/shell-socket/scheduler/jobs/{job_id}/enable', pathParams: ['job_id'] },
+  { capabilityId: 'delete_cron_job', method: 'POST', path: '/api/shell-socket/scheduler/jobs/{job_id}/delete', pathParams: ['job_id'] },
+  { capabilityId: 'run_schedule', method: 'POST', path: '/api/shell-socket/scheduler/jobs/{job_id}/run', pathParams: ['job_id'] },
+  { capabilityId: 'set_trigger_enabled', method: 'POST', path: '/api/shell-socket/scheduler/triggers/{trigger_id}/enable', pathParams: ['trigger_id'] },
+  { capabilityId: 'delete_trigger', method: 'POST', path: '/api/shell-socket/scheduler/triggers/{trigger_id}/delete', pathParams: ['trigger_id'] },
   { capabilityId: 'set_git_tree', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/git-tree', pathParams: ['agent_id'] },
   { capabilityId: 'fresh_session', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/fresh-session', pathParams: ['agent_id'] },
   { capabilityId: 'compact_session', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/compact-session', pathParams: ['agent_id'] },
@@ -391,6 +403,30 @@ export class ShellSocketGatewayClient {
     return this.request<T>('run_workflow', { query: { workflow_id: workflowId }, body: request });
   }
 
+  createCronJob<T = unknown>(request: unknown): Promise<T> {
+    return this.request<T>('create_cron_job', { body: request });
+  }
+
+  setCronJobEnabled<T = unknown>(jobId: string, request: unknown): Promise<T> {
+    return this.request<T>('set_cron_job_enabled', { query: { job_id: jobId }, body: request });
+  }
+
+  deleteCronJob<T = unknown>(jobId: string, request: unknown = {}): Promise<T> {
+    return this.request<T>('delete_cron_job', { query: { job_id: jobId }, body: request });
+  }
+
+  runSchedule<T = unknown>(jobId: string, request: unknown = {}): Promise<T> {
+    return this.request<T>('run_schedule', { query: { job_id: jobId }, body: request });
+  }
+
+  setTriggerEnabled<T = unknown>(triggerId: string, request: unknown): Promise<T> {
+    return this.request<T>('set_trigger_enabled', { query: { trigger_id: triggerId }, body: request });
+  }
+
+  deleteTrigger<T = unknown>(triggerId: string, request: unknown = {}): Promise<T> {
+    return this.request<T>('delete_trigger', { query: { trigger_id: triggerId }, body: request });
+  }
+
   setGitTree<T = unknown>(agentId: string, treeSelection: unknown): Promise<T> {
     return this.request<T>('set_git_tree', { query: { agent_id: agentId }, body: treeSelection });
   }
@@ -419,7 +455,7 @@ export function shellSocketClientSelfTest(): Record<string, unknown> {
     fetchImpl: async () => ({ ok: true, status: 200, text: async () => '{}' }),
   });
   return {
-    ok: routeIds.length === uniqueRouteIds.size && routeIds.length === 49,
+    ok: routeIds.length === uniqueRouteIds.size && routeIds.length === 55,
     type: 'shell_socket_gateway_client_self_test',
     route_count: routeIds.length,
     unique_route_count: uniqueRouteIds.size,

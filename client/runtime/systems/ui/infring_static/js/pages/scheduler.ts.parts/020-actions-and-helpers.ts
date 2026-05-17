@@ -23,7 +23,7 @@
     async toggleTrigger(trigger) {
       try {
         var newState = !trigger.enabled;
-        await InfringAPI.put('/api/triggers/' + trigger.id, { enabled: newState });
+        await InfringAPI.post('/api/shell-socket/scheduler/triggers/' + encodeURIComponent(trigger.id) + '/enable', { enabled: newState });
         trigger.enabled = newState;
         InfringToast.success('Trigger ' + (newState ? 'enabled' : 'disabled'));
       } catch(e) {
@@ -35,7 +35,7 @@
       var self = this;
       InfringToast.confirm('Delete Trigger', 'Delete this trigger? This cannot be undone.', async function() {
         try {
-          await InfringAPI.del('/api/triggers/' + trigger.id);
+          await InfringAPI.post('/api/shell-socket/scheduler/triggers/' + encodeURIComponent(trigger.id) + '/delete', {});
           self.triggers = self.triggers.filter(function(t) { return t.id !== trigger.id; });
           InfringToast.success('Trigger deleted');
         } catch(e) {
