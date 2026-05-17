@@ -3,7 +3,7 @@
       try {
         var target = this.targetPath;
         if (!target) target = '';
-        var data = await InfringAPI.post('/api/migrate', {
+        var data = await InfringAPI.post('/api/shell-socket/migration/run', {
           source: 'infring',
           source_dir: this.sourcePath || (this.scanResult ? this.scanResult.path : ''),
           target_dir: target,

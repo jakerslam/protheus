@@ -669,7 +669,7 @@ function settingsPage() {
     async autoDetect() {
       this.detecting = true;
       try {
-        var data = await InfringAPI.get('/api/migrate/detect');
+        var data = await InfringAPI.get('/api/shell-socket/migration/detect');
         if (data.detected && data.scan) {
           this.sourcePath = data.path;
           this.scanResult = data.scan;
@@ -687,7 +687,7 @@ function settingsPage() {
       if (!this.sourcePath) return;
       this.scanning = true;
       try {
-        var data = await InfringAPI.post('/api/migrate/scan', { path: this.sourcePath });
+        var data = await InfringAPI.post('/api/shell-socket/migration/scan', { path: this.sourcePath });
         if (data.error) {
           InfringToast.error('Scan error: ' + data.error);
           this.scanning = false;
@@ -706,7 +706,7 @@ function settingsPage() {
       try {
         var target = this.targetPath;
         if (!target) target = '';
-        var data = await InfringAPI.post('/api/migrate', {
+        var data = await InfringAPI.post('/api/shell-socket/migration/run', {
           source: 'infring',
           source_dir: this.sourcePath || (this.scanResult ? this.scanResult.path : ''),
           target_dir: target,

@@ -548,6 +548,31 @@
       "requires_detail_refs": true
     },
     {
+      "name": "MigrationProjection",
+      "description": "Bounded migration detect/scan/run projection; shell plugs receive preview/result display fields, not migration authority or filesystem truth.",
+      "allowed_top_level_fields": [
+        "ok",
+        "detected",
+        "path",
+        "scan",
+        "agents",
+        "channels",
+        "skills",
+        "warnings",
+        "status",
+        "dry_run",
+        "created_agents",
+        "created_tasks",
+        "note",
+        "error",
+        "receipt_ref",
+        "correlation_id"
+      ],
+      "max_response_bytes": 65536,
+      "requires_cursor": false,
+      "requires_detail_refs": true
+    },
+    {
       "name": "IngressAck",
       "description": "Bounded acknowledgement or receipt for a shell-submitted request.",
       "allowed_top_level_fields": [
@@ -2031,6 +2056,88 @@
         "channel_authority",
         "channel_secret",
         "raw_channel_config"
+      ]
+    },
+    {
+      "id": "detect_migration_source",
+      "purpose": "Request a bounded migration source auto-detect projection through Gateway.",
+      "route_class": "health_status",
+      "request_shape": "MigrationDetectRequest",
+      "response_shape": "MigrationProjection",
+      "default_projection": "MigrationProjection",
+      "cursor_required": false,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "owner_of_truth": "kernel_migration_authority",
+      "shell_may_hold": [
+        "detected",
+        "path",
+        "scan",
+        "receipt_ref"
+      ],
+      "shell_must_not_hold": [
+        "filesystem_authority",
+        "migration_authority",
+        "raw_filesystem_tree"
+      ]
+    },
+    {
+      "id": "scan_migration_source",
+      "purpose": "Request a bounded migration preview scan through Gateway.",
+      "route_class": "bounded_search_query",
+      "request_shape": "MigrationScanRequest",
+      "response_shape": "MigrationProjection",
+      "default_projection": "MigrationProjection",
+      "cursor_required": false,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "owner_of_truth": "kernel_migration_authority",
+      "shell_may_hold": [
+        "path",
+        "agents",
+        "channels",
+        "skills",
+        "warnings",
+        "receipt_ref"
+      ],
+      "shell_must_not_hold": [
+        "filesystem_authority",
+        "migration_authority",
+        "raw_filesystem_tree"
+      ]
+    },
+    {
+      "id": "run_migration",
+      "purpose": "Request migration execution through Gateway admission with bounded result projection.",
+      "route_class": "request_ingress",
+      "request_shape": "MigrationRunRequest",
+      "response_shape": "MigrationProjection",
+      "default_projection": "MigrationProjection",
+      "cursor_required": false,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "owner_of_truth": "kernel_migration_authority",
+      "shell_may_hold": [
+        "status",
+        "dry_run",
+        "created_agents",
+        "created_tasks",
+        "note",
+        "receipt_ref"
+      ],
+      "shell_must_not_hold": [
+        "filesystem_authority",
+        "migration_authority",
+        "raw_migration_plan"
       ]
     },
     {

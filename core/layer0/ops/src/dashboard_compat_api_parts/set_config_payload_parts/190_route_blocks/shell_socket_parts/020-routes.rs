@@ -693,6 +693,18 @@ fn handle_shell_socket_routes(
         let legacy = dashboard_compat_api_channels::handle(root, "DELETE", &legacy_path, body)?;
         return Some(shell_socket_channel_projection("remove_channel_config", &channel_id, legacy));
     }
+    if method == "GET" && parts == ["migration", "detect"] {
+        let legacy = dashboard_compat_api_settings_ops::handle(root, "GET", "/api/migrate/detect", body)?;
+        return Some(shell_socket_migration_projection("detect_migration_source", legacy));
+    }
+    if method == "POST" && parts == ["migration", "scan"] {
+        let legacy = dashboard_compat_api_settings_ops::handle(root, "POST", "/api/migrate/scan", body)?;
+        return Some(shell_socket_migration_projection("scan_migration_source", legacy));
+    }
+    if method == "POST" && parts == ["migration", "run"] {
+        let legacy = dashboard_compat_api_settings_ops::handle(root, "POST", "/api/migrate", body)?;
+        return Some(shell_socket_migration_projection("run_migration", legacy));
+    }
     if method == "POST" && parts.len() == 3 && parts[0] == "agents" && parts[2] == "git-tree" {
         let legacy_path = format!("/api/agents/{}/git-tree/switch", clean_agent_id(&parts[1]));
         let legacy = handle_agent_scope_routes(root, "POST", &legacy_path, &legacy_path, body, headers, snapshot, requester_agent)?;

@@ -57,6 +57,9 @@ export type ShellSocketCapabilityId =
   | 'configure_channel'
   | 'test_channel'
   | 'remove_channel_config'
+  | 'detect_migration_source'
+  | 'scan_migration_source'
+  | 'run_migration'
   | 'set_git_tree'
   | 'fresh_session'
   | 'compact_session'
@@ -138,6 +141,9 @@ export const SHELL_SOCKET_ROUTES: ReadonlyArray<ShellSocketRouteDefinition> = Ob
   { capabilityId: 'configure_channel', method: 'POST', path: '/api/shell-socket/channels/{channel_id}/configure', pathParams: ['channel_id'] },
   { capabilityId: 'test_channel', method: 'POST', path: '/api/shell-socket/channels/{channel_id}/test', pathParams: ['channel_id'] },
   { capabilityId: 'remove_channel_config', method: 'POST', path: '/api/shell-socket/channels/{channel_id}/configure/remove', pathParams: ['channel_id'] },
+  { capabilityId: 'detect_migration_source', method: 'GET', path: '/api/shell-socket/migration/detect' },
+  { capabilityId: 'scan_migration_source', method: 'POST', path: '/api/shell-socket/migration/scan' },
+  { capabilityId: 'run_migration', method: 'POST', path: '/api/shell-socket/migration/run' },
   { capabilityId: 'set_git_tree', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/git-tree', pathParams: ['agent_id'] },
   { capabilityId: 'fresh_session', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/fresh-session', pathParams: ['agent_id'] },
   { capabilityId: 'compact_session', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/compact-session', pathParams: ['agent_id'] },
@@ -451,6 +457,18 @@ export class ShellSocketGatewayClient {
     return this.request<T>('remove_channel_config', { query: { channel_id: channelId }, body: request });
   }
 
+  detectMigrationSource<T = unknown>(): Promise<T> {
+    return this.request<T>('detect_migration_source');
+  }
+
+  scanMigrationSource<T = unknown>(request: unknown): Promise<T> {
+    return this.request<T>('scan_migration_source', { body: request });
+  }
+
+  runMigration<T = unknown>(request: unknown): Promise<T> {
+    return this.request<T>('run_migration', { body: request });
+  }
+
   setGitTree<T = unknown>(agentId: string, treeSelection: unknown): Promise<T> {
     return this.request<T>('set_git_tree', { query: { agent_id: agentId }, body: treeSelection });
   }
@@ -479,7 +497,7 @@ export function shellSocketClientSelfTest(): Record<string, unknown> {
     fetchImpl: async () => ({ ok: true, status: 200, text: async () => '{}' }),
   });
   return {
-    ok: routeIds.length === uniqueRouteIds.size && routeIds.length === 59,
+    ok: routeIds.length === uniqueRouteIds.size && routeIds.length === 62,
     type: 'shell_socket_gateway_client_self_test',
     route_count: routeIds.length,
     unique_route_count: uniqueRouteIds.size,

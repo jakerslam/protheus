@@ -688,6 +688,45 @@ function makeHeadlessGatewayFetch(calls: CallRecord[], includeControlledViolatio
         receipt_ref: 'receipt:remove-channel-config:probe',
         correlation_id: 'probe-remove-channel-config',
       };
+    } else if (route === 'GET /api/shell-socket/migration/detect') {
+      capabilityId = 'detect_migration_source';
+      payload = {
+        ok: true,
+        detected: true,
+        path: '/tmp/infring-legacy-probe',
+        scan: {
+          path: '/tmp/infring-legacy-probe',
+          agents: [{ id: 'legacy-agent-probe', name: 'Legacy Probe Agent' }],
+          channels: [{ id: 'whatsapp', configured: true }],
+          skills: [{ id: 'legacy-skill-probe', name: 'Legacy Skill Probe' }],
+        },
+        receipt_ref: 'receipt:migration-detect:probe',
+        correlation_id: 'probe-migration-detect',
+      };
+    } else if (route === 'POST /api/shell-socket/migration/scan') {
+      capabilityId = 'scan_migration_source';
+      payload = {
+        ok: true,
+        path: String(body.path || '/tmp/infring-legacy-probe'),
+        agents: [{ id: 'legacy-agent-probe', name: 'Legacy Probe Agent' }],
+        channels: [{ id: 'whatsapp', configured: true }],
+        skills: [{ id: 'legacy-skill-probe', name: 'Legacy Skill Probe' }],
+        warnings: [],
+        receipt_ref: 'receipt:migration-scan:probe',
+        correlation_id: 'probe-migration-scan',
+      };
+    } else if (route === 'POST /api/shell-socket/migration/run') {
+      capabilityId = 'run_migration';
+      payload = {
+        ok: true,
+        status: 'completed',
+        dry_run: body.dry_run !== false,
+        created_agents: 1,
+        created_tasks: 0,
+        note: 'Probe migration complete.',
+        receipt_ref: 'receipt:migration-run:probe',
+        correlation_id: 'probe-migration-run',
+      };
     } else if (method === 'POST' && /^\/api\/shell-socket\/agents\/[^/]+\/git-tree$/.test(pathName)) {
       capabilityId = 'set_git_tree';
       payload = makeIngressAck('git-tree');
@@ -863,6 +902,14 @@ async function runProbe(options: ProbeOptions): Promise<Record<string, unknown>>
   const channelConfigAck = await client.configureChannel<any>('whatsapp', { fields: { phone_number: '+15555550123' } });
   const channelTestAck = await client.testChannel<any>('whatsapp', { force_live: true });
   const channelRemoveAck = await client.removeChannelConfig<any>('whatsapp');
+  const migrationDetect = await client.detectMigrationSource<any>();
+  const migrationScan = await client.scanMigrationSource<any>({ path: migrationDetect.path || '/tmp/infring-legacy-probe' });
+  const migrationRun = await client.runMigration<any>({
+    source: 'infring',
+    source_dir: migrationScan.path || '/tmp/infring-legacy-probe',
+    target_dir: '',
+    dry_run: true,
+  });
   const gitAck = await client.setGitTree<any>(agentId, { tree_ref: 'git-tree:current' });
   const freshSessionAck = await client.freshSession<any>(agentId, { reason: 'headless_probe' });
   const compactSessionAck = await client.compactSession<any>(agentId, { reason: 'headless_probe' });
@@ -934,6 +981,9 @@ async function runProbe(options: ProbeOptions): Promise<Record<string, unknown>>
       channel_config_receipt: channelConfigAck.receipt_ref,
       channel_test_receipt: channelTestAck.receipt_ref,
       channel_remove_receipt: channelRemoveAck.receipt_ref,
+      migration_detect_receipt: migrationDetect.receipt_ref,
+      migration_scan_receipt: migrationScan.receipt_ref,
+      migration_run_receipt: migrationRun.receipt_ref,
       git_receipt: gitAck.receipt_ref,
       fresh_session_receipt: freshSessionAck.receipt_ref,
       compact_session_receipt: compactSessionAck.receipt_ref,
