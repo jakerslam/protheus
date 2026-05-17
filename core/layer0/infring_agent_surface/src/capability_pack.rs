@@ -138,7 +138,7 @@ impl StaticCapabilityPack for LocalCodingFilesCapabilityPack {
     fn spec() -> CapabilityPackSpec {
         CapabilityPackSpec {
             id: "local-coding-files".to_string(),
-            description: "Native local coding file discovery, read, write, and patch tools"
+            description: "Native local coding file discovery, read, write, patch, and validation command tools"
                 .to_string(),
             tools: vec![
                 "file_list".to_string(),
@@ -147,6 +147,7 @@ impl StaticCapabilityPack for LocalCodingFilesCapabilityPack {
                 "file_read_many".to_string(),
                 "file_write".to_string(),
                 "file_patch".to_string(),
+                "command_run".to_string(),
             ],
             default_interval_seconds: 3600,
             default_max_runs: None,
@@ -154,6 +155,7 @@ impl StaticCapabilityPack for LocalCodingFilesCapabilityPack {
                 "file.read".to_string(),
                 "file.write".to_string(),
                 "file.patch".to_string(),
+                "command.run".to_string(),
             ],
             autonomy_profile: "local_coding".to_string(),
         }

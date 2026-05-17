@@ -1,4 +1,5 @@
 mod dispatcher;
+mod command_run;
 mod file_discovery;
 mod file_patch;
 mod file_read;

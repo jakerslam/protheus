@@ -1,3 +1,4 @@
+use crate::native_tools::command_run::command_run;
 use crate::native_tools::file_discovery::{file_list, file_stat};
 use crate::native_tools::file_patch::file_patch;
 use crate::native_tools::file_read::{file_read, file_read_many};
@@ -30,6 +31,7 @@ impl NativeToolDispatcher {
                     | "file_read_many"
                     | "file_write"
                     | "file_patch"
+                    | "command_run"
             )
         })
     }
@@ -38,7 +40,7 @@ impl NativeToolDispatcher {
         let mut tools = self.allowed_tools.iter().cloned().collect::<Vec<_>>();
         tools.sort();
         format!(
-            "Native Infring file tools are available when needed. To call tools, return only JSON in this shape: {{\"tool_calls\":[{{\"id\":\"call_1\",\"name\":\"file_list|file_stat|file_read|file_read_many|file_write|file_patch\",\"args\":{{...}}}}]}}. Supported tools for this run: {}. file_list args: {{\"path\":\"/absolute/directory\",\"recursive\":false,\"max_entries\":200}}. file_stat args: {{\"path\":\"/absolute/path\"}}. file_read args: {{\"path\":\"/absolute/path\",\"start_line\":1,\"end_line\":20}}. file_write args: {{\"path\":\"/absolute/path\",\"content\":\"text\",\"overwrite\":false}}. file_patch args: {{\"path\":\"/absolute/path\",\"old\":\"exact text\",\"new\":\"replacement text\",\"allow_multiple\":false}}. Use file_list/file_stat to discover what exists before reading likely target files. After tool results, either call more tools or return final text. Do not claim a file operation succeeded unless a tool receipt says status=ok.",
+            "Native Infring local coding tools are available when needed. To call tools, return only JSON in this shape: {{\"tool_calls\":[{{\"id\":\"call_1\",\"name\":\"file_list|file_stat|file_read|file_read_many|file_write|file_patch|command_run\",\"args\":{{...}}}}]}}. Supported tools for this run: {}. file_list args: {{\"path\":\"/absolute/directory\",\"recursive\":false,\"max_entries\":200}}. file_stat args: {{\"path\":\"/absolute/path\"}}. file_read args: {{\"path\":\"/absolute/path\",\"start_line\":1,\"end_line\":20}}. file_write args: {{\"path\":\"/absolute/path\",\"content\":\"text\",\"overwrite\":false}}. file_patch args: {{\"path\":\"/absolute/path\",\"old\":\"exact text\",\"new\":\"replacement text\",\"allow_multiple\":false}}. command_run args: {{\"cwd\":\"/absolute/project\",\"cmd\":[\"python3\",\"-m\",\"pytest\",\"-q\"],\"timeout_seconds\":120,\"max_output_bytes\":12000}}. Use file_list/file_stat to discover what exists before reading likely target files. Use command_run after edits when tests, validation, or test status are requested; inspect failures and patch before finalizing. After tool results, either call more tools or return final text. Do not claim a file operation succeeded unless a tool receipt says status=ok, and do not claim validation passed unless command_run returns success=true.",
             tools.join(", ")
         )
     }
@@ -81,6 +83,7 @@ fn dispatch_allowed_tool(tool_name: &str, args: &Value) -> Result<Value, String>
         "file_read_many" => file_read_many(args),
         "file_write" => file_write(args),
         "file_patch" => file_patch(args),
+        "command_run" => command_run(args),
         _ => Err(format!("native_tool_not_implemented:{tool_name}")),
     }
 }
@@ -98,6 +101,9 @@ fn normalize_tool_name(raw: &str) -> String {
         "write_file" | "workspace.write" | "workspace_write" => "file_write".to_string(),
         "apply_patch" | "patch_file" | "workspace.patch" | "workspace_patch" => {
             "file_patch".to_string()
+        }
+        "run_command" | "command.run" | "command_run" | "shell.run" | "shell_run" => {
+            "command_run".to_string()
         }
         other => other.to_string(),
     }

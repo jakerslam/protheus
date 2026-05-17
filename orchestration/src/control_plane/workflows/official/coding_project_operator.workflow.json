@@ -55,7 +55,8 @@
     "permission_keys": [
       "file.read",
       "file.write",
-      "file.patch"
+      "file.patch",
+      "command.run"
     ],
     "tools_bound_by": "capability_pack_registry",
     "non_goals": [
@@ -122,10 +123,16 @@
       "synthesize_final_after_successful_micro_mutation": true,
       "completion_evidence_required_for_multi_requirement_tasks": true,
       "synthesize_completion_evidence_on_finalization_timeout": true,
-      "empty_tool_retry_limit": 1,
+      "validation_command_required_when_task_requests_test_status": true,
+      "auto_validation_command_detection_enabled": true,
+      "validation_failure_repair_uses_command_output": true,
+      "generated_test_design_policy": "prompt_faithful_behavior_or_parsed_structure_not_incidental_format",
+      "repair_uncovered_requirements_before_final": true,
+      "completion_evidence_repair_max_turns": 4,
+      "empty_tool_retry_limit": 2,
       "force_discovery_first_turn": false,
-      "provider_timeout_seconds": 300,
-      "native_wall_timeout_seconds": 900,
+      "provider_timeout_seconds": 600,
+      "native_wall_timeout_seconds": 1200,
       "partial_progress_on_timeout": true,
       "partial_recovery_max_turns": 3,
       "recovery_provider_timeout_seconds": 120,

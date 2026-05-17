@@ -641,6 +641,9 @@ fn file_tool_permission(tool: &str) -> Option<&'static str> {
         "file_patch" | "patch_file" | "apply_patch" | "workspace.patch" | "workspace_patch" => {
             Some("file.patch")
         }
+        "command_run" | "run_command" | "command.run" | "shell.run" | "shell_run" => {
+            Some("command.run")
+        }
         _ => None,
     }
 }
@@ -813,6 +816,9 @@ fn normalize_native_tool_name(raw: &str) -> String {
         "write_file" | "workspace.write" | "workspace_write" => "file_write".to_string(),
         "patch_file" | "apply_patch" | "workspace.patch" | "workspace_patch" => {
             "file_patch".to_string()
+        }
+        "command_run" | "run_command" | "command.run" | "shell.run" | "shell_run" => {
+            "command_run".to_string()
         }
         "read_file" | "workspace.read" | "workspace_read" => "file_read".to_string(),
         "read_many_files" | "workspace.read_many" | "workspace_read_many" => {

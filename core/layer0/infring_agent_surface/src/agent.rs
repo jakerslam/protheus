@@ -402,6 +402,25 @@ impl AgentContract {
                     last_response = Some(response);
                     continue;
                 }
+                if all_receipts.is_empty()
+                    && native_tool_requires_successful_mutation(&self.metadata)
+                    && native_tool_prompt_has_multiple_requirements(&self.initial_prompt)
+                {
+                    if let Some(bootstrap_receipt) =
+                        native_tool_bootstrap_discovery_receipt(&dispatcher, &self.initial_prompt)
+                    {
+                        let observation =
+                            native_tool_observation_prompt(&[bootstrap_receipt.clone()]);
+                        all_receipts.push(bootstrap_receipt);
+                        prompt = format!(
+                            "{}\n\nRuntime bootstrap discovery was performed because previous assistant responses did not call native tools for this multi-requirement local coding task.\n\nNative tool observations:\n{}\n\nContinue from these observations. Return only JSON tool_calls next. Read the relevant existing files, then patch/write the required implementation, tests, and docs. If validation or test status is requested, run command_run before finalizing.",
+                            self.initial_prompt,
+                            observation
+                        );
+                        last_response = Some(response);
+                        continue;
+                    }
+                }
                 last_response = Some(response);
                 break;
             }
@@ -510,6 +529,37 @@ impl AgentContract {
                 return Ok((response, all_receipts, provider_call_count, "ok".to_string()));
             }
         }
+        if let Some(validation_receipt) =
+            native_tool_auto_validation_receipt(&dispatcher, &self.initial_prompt, &all_receipts)
+        {
+            all_receipts.push(validation_receipt);
+        }
+        let initial_repair_reasons = native_tool_completion_evidence_repair_reasons(
+            &self.metadata,
+            &self.initial_prompt,
+            &response.output,
+            &all_receipts,
+        );
+        if !initial_repair_reasons.is_empty()
+            && native_tool_completion_evidence_repair_enabled(&self.metadata)
+        {
+            let repaired = native_tool_completion_evidence_repair_loop(
+                &provider,
+                &dispatcher,
+                tools,
+                self.model.clone(),
+                &self.metadata,
+                &self.initial_prompt,
+                &system,
+                response,
+                all_receipts,
+                provider_call_count,
+                initial_repair_reasons,
+            )?;
+            response = repaired.0;
+            all_receipts = repaired.1;
+            provider_call_count = repaired.2;
+        }
         let terminal_output_has_tool_calls = !parse_native_tool_calls(&response.output).is_empty();
         let completion_evidence_finalization = native_tool_needs_completion_evidence_finalization(
             &self.metadata,
@@ -583,6 +633,65 @@ impl AgentContract {
                 );
             }
         }
+        let final_repair_reasons = native_tool_completion_evidence_repair_reasons(
+            &self.metadata,
+            &self.initial_prompt,
+            &response.output,
+            &all_receipts,
+        );
+        if !final_repair_reasons.is_empty()
+            && native_tool_completion_evidence_repair_enabled(&self.metadata)
+        {
+            let repaired = native_tool_completion_evidence_repair_loop(
+                &provider,
+                &dispatcher,
+                tools,
+                self.model.clone(),
+                &self.metadata,
+                &self.initial_prompt,
+                &system,
+                response,
+                all_receipts,
+                provider_call_count,
+                final_repair_reasons,
+            )?;
+            response = repaired.0;
+            all_receipts = repaired.1;
+            provider_call_count = repaired.2;
+        }
+        if let Some(validation_receipt) =
+            native_tool_auto_validation_receipt(&dispatcher, &self.initial_prompt, &all_receipts)
+        {
+            all_receipts.push(validation_receipt);
+        }
+        if !parse_native_tool_calls(&response.output).is_empty()
+            && native_tool_has_successful_mutation(&all_receipts)
+            && native_tool_completion_evidence_timeout_synthesis_enabled(&self.metadata)
+        {
+            response = native_tool_synthetic_completion_evidence_response(
+                &response,
+                &self.initial_prompt,
+                &all_receipts,
+                "terminal_tool_calls_after_evidence_repair",
+            );
+        }
+        let unresolved_final_reasons = native_tool_completion_evidence_repair_reasons(
+            &self.metadata,
+            &self.initial_prompt,
+            &response.output,
+            &all_receipts,
+        );
+        if !unresolved_final_reasons.is_empty()
+            && native_tool_completion_evidence_contract_enabled(&self.metadata)
+        {
+            return Err(ProviderError::new(
+                ProviderErrorCode::InvalidRequest,
+                format!(
+                    "native_tool_unresolved_completion_evidence:{}",
+                    unresolved_final_reasons.join(",")
+                ),
+            ));
+        }
         response.raw = json!({
             "provider_raw": response.raw,
             "native_tool_loop": {
@@ -637,6 +746,86 @@ fn native_tool_has_successful_mutation(receipts: &[NativeToolReceipt]) -> bool {
         receipt.status == "ok"
             && matches!(receipt.tool_name.as_str(), "file_write" | "file_patch")
     })
+}
+
+fn native_tool_has_successful_validation_command(receipts: &[NativeToolReceipt]) -> bool {
+    receipts.iter().any(|receipt| {
+        receipt.status == "ok"
+            && receipt.tool_name == "command_run"
+            && receipt
+                .result
+                .get("success")
+                .and_then(Value::as_bool)
+                .unwrap_or(false)
+    })
+}
+
+fn native_tool_failed_validation_command_refs(receipts: &[NativeToolReceipt]) -> Vec<String> {
+    receipts
+        .iter()
+        .filter(|receipt| {
+            receipt.status == "ok"
+                && receipt.tool_name == "command_run"
+                && !receipt
+                    .result
+                    .get("success")
+                    .and_then(Value::as_bool)
+                    .unwrap_or(false)
+        })
+        .map(|receipt| format!("failed_validation_command_receipt:{}", receipt.call_id))
+        .collect()
+}
+
+fn native_tool_failed_validation_receipt_details(receipts: &[NativeToolReceipt]) -> String {
+    let details = receipts
+        .iter()
+        .filter(|receipt| {
+            receipt.status == "ok"
+                && receipt.tool_name == "command_run"
+                && !receipt
+                    .result
+                    .get("success")
+                    .and_then(Value::as_bool)
+                    .unwrap_or(false)
+        })
+        .map(|receipt| {
+            let cmd = receipt
+                .result
+                .get("cmd")
+                .and_then(|value| serde_json::to_string(value).ok())
+                .unwrap_or_else(|| "[]".to_string());
+            let exit_code = receipt
+                .result
+                .get("exit_code")
+                .map(|value| value.to_string())
+                .unwrap_or_else(|| "null".to_string());
+            let stdout = receipt
+                .result
+                .get("stdout")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .chars()
+                .take(1800)
+                .collect::<String>();
+            let stderr = receipt
+                .result
+                .get("stderr")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .chars()
+                .take(1800)
+                .collect::<String>();
+            format!(
+                "{} cmd={} exit_code={}\nstdout:\n{}\nstderr:\n{}",
+                receipt.call_id, cmd, exit_code, stdout, stderr
+            )
+        })
+        .collect::<Vec<_>>();
+    if details.is_empty() {
+        "none".to_string()
+    } else {
+        details.join("\n\n---\n\n")
+    }
 }
 
 fn native_tool_context_only_turn(receipts: &[NativeToolReceipt]) -> bool {
@@ -833,6 +1022,7 @@ fn native_tool_initial_prompt(original_prompt: &str, metadata: &Value) -> String
     let criteria = metadata
         .get("native_success_criteria")
         .or_else(|| metadata.pointer("/workflow/native_success_criteria"));
+    let evidence_target_brief = native_tool_evidence_target_brief(original_prompt);
     let requires_native_tool_use = criteria
         .and_then(|value| value.get("requires_native_tool_use"))
         .and_then(Value::as_bool)
@@ -847,19 +1037,19 @@ fn native_tool_initial_prompt(original_prompt: &str, metadata: &Value) -> String
         .unwrap_or(false);
     if force_discovery_first {
         return format!(
-            "{original_prompt}\n\nNative tool-use initiation rule: before planning, editing, or final answering, return only JSON with a tool_calls array that discovers the local project shape. Start with file_list on the local project root or directory implied by the task. Use file_stat before reading any target path that may not exist. After discovery observations, classify the work as create, edit, extend, debug, or refactor; then read only relevant existing context files before writing or patching. For create/new-file tasks, do not file_read the target file unless file_stat or file_list shows it exists. If the task requires mutation, do not repeat discovery/read-only turns after sufficient context; transition to file_write/file_patch or return a structured blocker. Do not produce prose, analysis, or a final answer until native discovery observations are returned."
+            "{original_prompt}\n\nNative tool-use initiation rule: before planning, editing, or final answering, return only JSON with a tool_calls array that discovers the local project shape. Start with file_list on the local project root or directory implied by the task. Use file_stat before reading any target path that may not exist. After discovery observations, classify the work as create, edit, extend, debug, or refactor; then read only relevant existing context files before writing or patching. For create/new-file tasks, do not file_read the target file unless file_stat or file_list shows it exists. If the task requires mutation, do not repeat discovery/read-only turns after sufficient context; transition to file_write/file_patch or return a structured blocker. Do not produce prose, analysis, or a final answer until native discovery observations are returned.{evidence_target_brief}"
         );
     }
     if !force_read_first {
         if requires_native_tool_use {
             return format!(
-                "{original_prompt}\n\nNative coding tool-use rule: choose the shortest safe native file-tool path for the task. If the request is an isolated greenfield/create-file task with an explicit target path and behavior, return only JSON tool_calls with file_write now; discovery is optional, not mandatory. If the request modifies, debugs, refactors, or extends an existing or unclear project, use file_list/file_stat and then read relevant existing files before writing. For multi-requirement tasks, derive a concise task_requirement_checklist from the numbered/bulleted/user-stated requirements and keep working until each item has receipt-backed evidence, or return a structured partial/blocker naming uncovered items. Do not provide a final answer for mutation work until native file_write or file_patch observations confirm the change, or return a structured blocker if mutation cannot proceed."
+                "{original_prompt}\n\nNative coding tool-use rule: choose the shortest safe native file-tool path for the task. If the request is an isolated greenfield/create-file task with an explicit target path and behavior, return only JSON tool_calls with file_write now; discovery is optional, not mandatory. If the request modifies, debugs, refactors, or extends an existing or unclear project, use file_list/file_stat and then read relevant existing files before writing. For multi-requirement tasks, derive a concise task_requirement_checklist from the numbered/bulleted/user-stated requirements and keep working until each item has receipt-backed evidence, or return a structured partial/blocker naming uncovered items. If adding or updating tests, tests must be faithful to the user prompt and observed project behavior: do not invent unrequested semantics, prefer behavior and parsed-structure assertions over brittle whitespace/format assertions, and isolate setup stdout/stderr from the action being asserted. If tests, validation, or test status are requested, use command_run after edits to run the relevant local validation command, inspect failures, and patch before finalizing. Do not provide a final answer for mutation work until native file_write or file_patch observations confirm the change, or return a structured blocker if mutation cannot proceed.{evidence_target_brief}"
             );
         }
         return original_prompt.to_string();
     }
     format!(
-        "{original_prompt}\n\nNative tool-use initiation rule: before planning or final answering, return only JSON with a tool_calls array that reads existing local context files relevant to the task. If a target may not exist yet, use file_stat first rather than file_read. Prefer file_read_many when multiple existing files are known. Do not produce prose, analysis, or a final answer until native file-read observations are returned."
+        "{original_prompt}\n\nNative tool-use initiation rule: before planning or final answering, return only JSON with a tool_calls array that reads existing local context files relevant to the task. If a target may not exist yet, use file_stat first rather than file_read. Prefer file_read_many when multiple existing files are known. Do not produce prose, analysis, or a final answer until native file-read observations are returned.{evidence_target_brief}"
     )
 }
 
@@ -1148,6 +1338,280 @@ fn native_tool_needs_completion_evidence_finalization(
         && !output.contains("task_requirement_checklist")
 }
 
+fn native_tool_completion_evidence_repair_enabled(metadata: &Value) -> bool {
+    metadata
+        .get("native_success_criteria")
+        .or_else(|| metadata.pointer("/workflow/native_success_criteria"))
+        .and_then(|value| value.get("repair_uncovered_requirements_before_final"))
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+}
+
+fn native_tool_completion_evidence_repair_max_turns(metadata: &Value) -> u64 {
+    metadata
+        .get("native_success_criteria")
+        .or_else(|| metadata.pointer("/workflow/native_success_criteria"))
+        .and_then(|value| value.get("completion_evidence_repair_max_turns"))
+        .and_then(Value::as_u64)
+        .unwrap_or(2)
+        .clamp(1, 5)
+}
+
+fn native_tool_completion_evidence_repair_reasons(
+    metadata: &Value,
+    original_prompt: &str,
+    output: &str,
+    receipts: &[NativeToolReceipt],
+) -> Vec<String> {
+    if !native_tool_completion_evidence_contract_enabled(metadata)
+        || !native_tool_prompt_has_multiple_requirements(original_prompt)
+    {
+        return Vec::new();
+    }
+    let mut reasons = Vec::<String>::new();
+    if output.contains("partial_or_blocked")
+        || output.contains("\"status\": \"uncovered\"")
+        || output.contains("\"status\":\"uncovered\"")
+        || output.contains("\"status\": \"blocked\"")
+        || output.contains("\"status\":\"blocked\"")
+    {
+        reasons.push("reported_uncovered_or_blocked_requirement".to_string());
+    }
+    reasons.extend(native_tool_prompt_evidence_gaps(original_prompt, receipts));
+    reasons.sort();
+    reasons.dedup();
+    reasons
+}
+
+fn native_tool_prompt_evidence_gaps(
+    original_prompt: &str,
+    receipts: &[NativeToolReceipt],
+) -> Vec<String> {
+    let mut reasons = Vec::<String>::new();
+    for path in native_tool_prompt_required_changed_paths(original_prompt) {
+        if !native_tool_changed_paths_include(receipts, &path) {
+            reasons.push(format!("missing_changed_path:{path}"));
+        }
+    }
+    let prompt_lower = original_prompt.to_ascii_lowercase();
+    if native_tool_prompt_requires_test_changes(&prompt_lower)
+        && !native_tool_changed_path_matches(receipts, |path| {
+            let lower = path.to_ascii_lowercase();
+            lower.contains("/test") || lower.contains("\\test") || lower.contains("tests/")
+        })
+    {
+        reasons.push("missing_test_change_receipt".to_string());
+    }
+    if native_tool_prompt_requires_doc_changes(&prompt_lower)
+        && !native_tool_changed_path_matches(receipts, |path| {
+            let lower = path.to_ascii_lowercase();
+            lower.ends_with("readme.md")
+                || lower.contains("/docs/")
+                || lower.contains("\\docs\\")
+                || lower.contains("/doc/")
+        })
+    {
+        reasons.push("missing_doc_change_receipt".to_string());
+    }
+    if native_tool_prompt_requires_validation_command(&prompt_lower)
+        && !native_tool_has_successful_validation_command(receipts)
+    {
+        let failed_validation_refs = native_tool_failed_validation_command_refs(receipts);
+        if failed_validation_refs.is_empty() {
+            reasons.push("missing_validation_command_receipt".to_string());
+        } else {
+            reasons.extend(failed_validation_refs);
+        }
+    }
+    reasons.sort();
+    reasons.dedup();
+    reasons
+}
+
+fn native_tool_evidence_target_brief(original_prompt: &str) -> String {
+    let mut items = Vec::<String>::new();
+    let paths = native_tool_prompt_required_changed_paths(original_prompt);
+    if !paths.is_empty() {
+        items.push(format!(
+            "- prompt-derived target paths needing mutation evidence when applicable: {}",
+            paths.join(", ")
+        ));
+    }
+    let prompt_lower = original_prompt.to_ascii_lowercase();
+    if native_tool_prompt_requires_test_changes(&prompt_lower) {
+        items.push("- tests were explicitly requested; include a test-file mutation receipt or a blocker".to_string());
+    }
+    if native_tool_prompt_requires_doc_changes(&prompt_lower) {
+        items.push("- docs/README were explicitly requested; include a docs mutation receipt or a blocker".to_string());
+    }
+    if native_tool_prompt_requires_validation_command(&prompt_lower) {
+        items.push("- validation/test status was requested; include a successful command_run validation receipt or a blocker".to_string());
+    }
+    if items.is_empty() {
+        return String::new();
+    }
+    format!(
+        "\n\nImplementation evidence targets:\n{}\nThese are generic prompt-derived evidence targets, not domain-specific hardcoded rules. For multi-requirement tasks, do not finalize until these target paths/categories have mutation receipts or a blocker explains why they should not be changed.",
+        items.join("\n")
+    )
+}
+
+fn native_tool_prompt_required_changed_paths(original_prompt: &str) -> Vec<String> {
+    let mut paths = native_tool_unique_code_path_mentions(original_prompt)
+        .into_iter()
+        .filter(|path| {
+            let lower = path.to_ascii_lowercase();
+            !lower.contains("python")
+                && !lower.ends_with("json")
+                && !lower.ends_with("json.")
+                && !lower.contains("public_reasoning")
+                && !lower.contains("reasoning_rollup")
+        })
+        .collect::<Vec<_>>();
+    paths.sort();
+    paths.dedup();
+    paths
+}
+
+fn native_tool_prompt_requires_test_changes(prompt_lower: &str) -> bool {
+    prompt_lower.contains("add tests")
+        || prompt_lower.contains("update tests")
+        || prompt_lower.contains("test for")
+        || prompt_lower.contains("tests for")
+}
+
+fn native_tool_prompt_requires_validation_command(prompt_lower: &str) -> bool {
+    prompt_lower.contains("test status")
+        || prompt_lower.contains("run tests")
+        || prompt_lower.contains("runs tests")
+        || prompt_lower.contains("pytest")
+        || prompt_lower.contains("validation status")
+        || prompt_lower.contains("validate")
+}
+
+fn native_tool_prompt_requires_doc_changes(prompt_lower: &str) -> bool {
+    prompt_lower.contains("update readme")
+        || prompt_lower.contains("readme.md")
+        || prompt_lower.contains("update docs")
+        || prompt_lower.contains("documentation")
+}
+
+fn native_tool_changed_paths_include(receipts: &[NativeToolReceipt], expected: &str) -> bool {
+    let expected = expected.trim().trim_start_matches("./");
+    native_tool_changed_path_matches(receipts, |path| {
+        let normalized = path.replace('\\', "/");
+        normalized.ends_with(expected) || normalized.contains(&format!("/{expected}"))
+    })
+}
+
+fn native_tool_changed_path_matches<F>(receipts: &[NativeToolReceipt], mut predicate: F) -> bool
+where
+    F: FnMut(&str) -> bool,
+{
+    native_tool_changed_paths(receipts)
+        .iter()
+        .any(|path| predicate(path))
+}
+
+#[allow(clippy::too_many_arguments)]
+fn native_tool_completion_evidence_repair_loop(
+    provider: &Arc<dyn crate::provider::ProviderClient>,
+    dispatcher: &NativeToolDispatcher,
+    tools: &[String],
+    model: Option<String>,
+    metadata: &Value,
+    original_prompt: &str,
+    system: &str,
+    mut response: ProviderResponse,
+    mut receipts: Vec<NativeToolReceipt>,
+    mut provider_call_count: u64,
+    mut repair_reasons: Vec<String>,
+) -> Result<(ProviderResponse, Vec<NativeToolReceipt>, u64), ProviderError> {
+    let max_turns = native_tool_completion_evidence_repair_max_turns(metadata);
+    let mut prompt =
+        native_tool_completion_evidence_repair_prompt(original_prompt, &response.output, &receipts, &repair_reasons);
+    for turn_idx in 0..max_turns {
+        provider_call_count += 1;
+        let request = ProviderRequest {
+            prompt: prompt.clone(),
+            system: Some(system.to_string()),
+            tools: tools.to_vec(),
+            model: model.clone(),
+            metadata: metadata.clone(),
+        };
+        let next_response = provider.complete(&request)?;
+        let calls = parse_native_tool_calls(&next_response.output);
+        if calls.is_empty() {
+            response = next_response;
+            repair_reasons = native_tool_completion_evidence_repair_reasons(
+                metadata,
+                original_prompt,
+                &response.output,
+                &receipts,
+            );
+            if repair_reasons.is_empty() {
+                break;
+            }
+            prompt = native_tool_completion_evidence_repair_prompt(
+                original_prompt,
+                &response.output,
+                &receipts,
+                &repair_reasons,
+            );
+            continue;
+        }
+        let mut turn_receipts = Vec::new();
+        for call in calls.into_iter().take(8) {
+            let receipt = dispatcher.dispatch(call);
+            turn_receipts.push(receipt.clone());
+            receipts.push(receipt);
+        }
+        response = next_response;
+        repair_reasons = native_tool_completion_evidence_repair_reasons(
+            metadata,
+            original_prompt,
+            &response.output,
+            &receipts,
+        );
+        if repair_reasons.is_empty() {
+            break;
+        }
+        let observation = native_tool_observation_prompt(&turn_receipts);
+        let failed_validation_details = native_tool_failed_validation_receipt_details(&receipts);
+        prompt = format!(
+            "{}\n\nCompletion evidence repair turn {} produced observations:\n{}\n\nFailed validation receipt details:\n{}\n\nRemaining uncovered evidence requirements:\n{}\n\nContinue repairing only the remaining uncovered requirements. Return only JSON tool_calls for file_write/file_patch/file_read/file_list/file_stat/command_run, or return a structured partial/blocker if the remaining requirements cannot be completed.\n\nValidation repair triage rules:\n- Treat failed validation stdout/stderr as repair input, not as a blocker.\n- If product code violates the original task, patch product code.\n- If generated tests assert incidental formatting, serialization whitespace, or setup-command output from earlier calls, patch the tests to assert prompt-faithful behavior.\n- For captured CLI/stdout tests, clear or isolate setup output before asserting the command under test.\n- After patching, rerun command_run.",
+            original_prompt,
+            turn_idx + 1,
+            observation,
+            failed_validation_details,
+            repair_reasons.join("\n")
+        );
+    }
+    Ok((response, receipts, provider_call_count))
+}
+
+fn native_tool_completion_evidence_repair_prompt(
+    original_prompt: &str,
+    previous_output: &str,
+    receipts: &[NativeToolReceipt],
+    repair_reasons: &[String],
+) -> String {
+    let changed_paths = native_tool_changed_paths(receipts);
+    let receipt_refs = native_tool_successful_receipt_refs(receipts);
+    let evidence_target_brief = native_tool_evidence_target_brief(original_prompt);
+    let failed_validation_details = native_tool_failed_validation_receipt_details(receipts);
+    format!(
+        "Completion evidence repair pass. This is a bounded continuation of the same coding task, not a new task.\n\nOriginal task:\n{}\n{}\n\nReceipt-backed changed files so far:\n{}\n\nSuccessful receipt refs:\n{}\n\nFailed validation receipt details:\n{}\n\nUncovered evidence requirements detected by the runtime:\n{}\n\nPrevious output preview:\n{}\n\nRepair rules:\n- Do not finalize yet unless every uncovered evidence requirement has been addressed or a genuine blocker remains.\n- Use native file tools to inspect and mutate only files relevant to the uncovered requirements.\n- For missing_changed_path items, change the prompt-derived path or return a blocker explaining why that path should not be changed.\n- For missing_test_change_receipt, add or update tests when the task requested tests.\n- For missing_doc_change_receipt, update README/docs when the task requested docs.\n- For missing_validation_command_receipt, run the relevant local validation command with command_run after edits.\n- For failed_validation_command_receipt items, compare the failure against the original task before editing. If product code violates the task, patch product code. If the generated test invented unrequested semantics or asserts incidental formatting/stdout setup noise, patch the test to assert prompt-faithful behavior or parsed structure. Then rerun command_run.\n- Use a validation blocker only for missing dependencies, unavailable commands, permissions, or genuinely ambiguous user requirements.\n- Return only JSON tool_calls while repairing. Do not return a partial/blocker merely because work remains; use a blocker only when local files, permissions, or missing user information genuinely prevent mutation.\n- Do not expose hidden chain-of-thought.",
+        original_prompt.chars().take(2600).collect::<String>(),
+        evidence_target_brief,
+        changed_paths.join("\n"),
+        receipt_refs.join("\n"),
+        failed_validation_details,
+        repair_reasons.join("\n"),
+        previous_output.chars().take(1400).collect::<String>()
+    )
+}
+
 fn native_tool_completion_evidence_contract_enabled(metadata: &Value) -> bool {
     metadata
         .get("completion_evidence_contract")
@@ -1250,6 +1714,87 @@ fn native_tool_successful_receipt_refs(receipts: &[NativeToolReceipt]) -> Vec<St
         .collect()
 }
 
+fn native_tool_bootstrap_discovery_receipt(
+    dispatcher: &NativeToolDispatcher,
+    original_prompt: &str,
+) -> Option<NativeToolReceipt> {
+    let project_root = native_tool_prompt_project_root(original_prompt)?;
+    let receipt = dispatcher.dispatch(crate::native_tools::NativeToolCall {
+        id: "runtime_bootstrap_file_list".to_string(),
+        name: "file_list".to_string(),
+        args: json!({
+            "path": project_root,
+            "recursive": false,
+            "max_entries": 200
+        }),
+    });
+    if receipt.status == "ok" {
+        Some(receipt)
+    } else {
+        None
+    }
+}
+
+fn native_tool_auto_validation_receipt(
+    dispatcher: &NativeToolDispatcher,
+    original_prompt: &str,
+    receipts: &[NativeToolReceipt],
+) -> Option<NativeToolReceipt> {
+    let prompt_lower = original_prompt.to_ascii_lowercase();
+    if !native_tool_prompt_requires_validation_command(&prompt_lower)
+        || native_tool_has_successful_validation_command(receipts)
+    {
+        return None;
+    }
+    let project_root = native_tool_prompt_project_root(original_prompt)?;
+    let project_root_path = std::path::PathBuf::from(&project_root);
+    let cmd = if prompt_lower.contains("pytest")
+        || (project_root_path.join("pyproject.toml").exists()
+            && project_root_path.join("tests").is_dir())
+    {
+        vec!["python3", "-m", "pytest", "-q"]
+    } else {
+        return None;
+    };
+    Some(dispatcher.dispatch(crate::native_tools::NativeToolCall {
+        id: "runtime_auto_validation_command".to_string(),
+        name: "command_run".to_string(),
+        args: json!({
+            "cwd": project_root,
+            "cmd": cmd,
+            "timeout_seconds": 120,
+            "max_output_bytes": 12000
+        }),
+    }))
+}
+
+fn native_tool_prompt_project_root(original_prompt: &str) -> Option<String> {
+    for token in original_prompt.split_whitespace() {
+        let candidate = token.trim_matches(|ch: char| {
+            matches!(
+                ch,
+                '"' | '\'' | '`' | ',' | '.' | ';' | ':' | '(' | ')' | '[' | ']' | '{' | '}'
+            )
+        });
+        if !candidate.starts_with('/') {
+            continue;
+        }
+        let mut path = std::path::PathBuf::from(candidate);
+        while !path.exists() {
+            if !path.pop() {
+                break;
+            }
+        }
+        if path.is_file() {
+            path = path.parent()?.to_path_buf();
+        }
+        if path.is_dir() {
+            return Some(path.display().to_string());
+        }
+    }
+    None
+}
+
 fn native_tool_synthetic_completion_evidence_response(
     previous_response: &ProviderResponse,
     original_prompt: &str,
@@ -1258,11 +1803,13 @@ fn native_tool_synthetic_completion_evidence_response(
 ) -> ProviderResponse {
     let changed_paths = native_tool_changed_paths(receipts);
     let receipt_refs = native_tool_successful_receipt_refs(receipts);
+    let evidence_gaps = native_tool_prompt_evidence_gaps(original_prompt, receipts);
     let mut requirements = native_tool_requirement_lines(original_prompt);
     if requirements.is_empty() {
         requirements.push("Complete the requested coding task.".to_string());
     }
-    let item_status = if changed_paths.is_empty() {
+    let has_unresolved_gaps = changed_paths.is_empty() || !evidence_gaps.is_empty();
+    let item_status = if has_unresolved_gaps {
         "blocked"
     } else if reason.contains("timeout") {
         "covered"
@@ -1278,18 +1825,17 @@ fn native_tool_synthetic_completion_evidence_response(
                 "requirement": requirement,
                 "status": item_status,
                 "evidence_refs": receipt_refs.clone(),
-                "blocker_reason": if changed_paths.is_empty() { Value::String(reason.to_string()) } else { Value::Null },
+                "blocker_reason": if has_unresolved_gaps { Value::String(format!("{}; unresolved_evidence_gaps={}", reason, evidence_gaps.join(","))) } else { Value::Null },
             })
         })
         .collect::<Vec<_>>();
-    let completion_status = if changed_paths.is_empty() {
+    let completion_status = if has_unresolved_gaps {
         "partial_or_blocked"
     } else if reason.contains("timeout") {
         "success_receipt_backed_finalization_timeout"
     } else {
         "success_receipt_backed_runtime_synthesized"
     };
-    let has_changed_paths = !changed_paths.is_empty();
     let output = format!(
         "Runtime synthesized completion-evidence finalization.\n\n```json\n{}\n```",
         serde_json::to_string_pretty(&json!({
@@ -1302,7 +1848,7 @@ fn native_tool_synthetic_completion_evidence_response(
                 "synthesis_reason": reason,
             },
             "checkpoint_or_blocker": {
-                "kind": if has_changed_paths { "completed_checkpoint" } else { "structured_blocker" },
+                "kind": if has_unresolved_gaps { "structured_blocker" } else { "completed_checkpoint" },
                 "summary": reason,
             },
             "public_reasoning_trace": {
@@ -1322,8 +1868,8 @@ fn native_tool_synthetic_completion_evidence_response(
                 "risks": [
                     "Runtime synthesis cannot prove semantic completeness beyond available receipts and caller validation."
                 ],
-                "blockers": if has_changed_paths { Vec::<String>::new() } else { vec![reason.to_string()] },
-                "confidence": if has_changed_paths { "medium" } else { "low" },
+                "blockers": if has_unresolved_gaps { vec![format!("{}; unresolved_evidence_gaps={}", reason, evidence_gaps.join(","))] } else { Vec::<String>::new() },
+                "confidence": if has_unresolved_gaps { "low" } else { "medium" },
                 "evidence_refs": receipt_refs.clone(),
                 "tool_receipt_refs": receipt_refs.clone(),
                 "child_trace_refs": [],
@@ -1337,7 +1883,7 @@ fn native_tool_synthetic_completion_evidence_response(
                 "changed_files": changed_paths,
                 "evidence_refs": receipt_refs,
                 "task_requirement_checklist": checklist,
-                "blockers": if has_changed_paths { Vec::<String>::new() } else { vec![reason.to_string()] },
+                "blockers": if has_unresolved_gaps { vec![format!("{}; unresolved_evidence_gaps={}", reason, evidence_gaps.join(","))] } else { Vec::<String>::new() },
                 "redaction_policy": "no_hidden_chain_of_thought"
             },
             "child_reasoning_trace_refs": [],
@@ -1463,6 +2009,7 @@ fn native_tool_recovery_provider_timeout_seconds(metadata: &Value) -> u64 {
 
 fn native_tool_empty_retry_prompt(original_prompt: &str, previous_output: &str, retry: u64) -> String {
     let previous = previous_output.trim();
+    let evidence_target_brief = native_tool_evidence_target_brief(original_prompt);
     let previous = if previous.is_empty() {
         "The previous response was empty.".to_string()
     } else {
@@ -1472,7 +2019,7 @@ fn native_tool_empty_retry_prompt(original_prompt: &str, previous_output: &str, 
         )
     };
     format!(
-        "{original_prompt}\n\nNative tool retry {retry}: this coding run requires native file-tool receipts before it can complete. {previous}\n\nReturn only JSON with a tool_calls array now. For explicit isolated create-file work, call file_write directly. For existing or unclear project work, start with file_list or file_stat, then read relevant existing files. For multi-requirement tasks, continue until each user-stated requirement has receipt-backed evidence, or return a structured partial/blocker naming uncovered requirements. Do not provide a final answer until native tool observations confirm required writes/patches, or return a structured blocker if mutation cannot proceed."
+        "{original_prompt}\n\nNative tool retry {retry}: this coding run requires native tool receipts before it can complete. {previous}{evidence_target_brief}\n\nReturn only JSON with a tool_calls array now. For explicit isolated create-file work, call file_write directly. For existing or unclear project work, start with file_list or file_stat, then read relevant existing files. If tests, validation, or test status are requested after edits, call command_run with the relevant local validation command before finalizing. For multi-requirement mutation tasks, do not return a final answer or partial report while required target paths/categories still lack mutation or validation receipts. Continue until each user-stated requirement has receipt-backed evidence, or return a structured blocker only if local files, permissions, or missing user information genuinely prevent mutation."
     )
 }
 
