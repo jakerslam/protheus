@@ -975,12 +975,12 @@ fn fallback_final_response_from_tool_evidence(message: &str, response_tools: &[V
     let mut response_parts = Vec::<String>::new();
     if request_is_comparative {
         response_parts.push(
-            "The safest bounded answer is that this comparison is not ready for a source-backed ranking yet; treat any conclusion as provisional until the missing sides have usable evidence."
+            "This retrieval attempt did not produce enough balanced evidence to make a source-backed comparison or ranking."
                 .to_string(),
         );
     } else {
         response_parts.push(
-            "The safest bounded answer is that the current retrieval state does not support a source-backed conclusion yet; any decision should stay conservative until coverage improves."
+            "This retrieval attempt did not produce enough relevant evidence to answer the question well."
                 .to_string(),
         );
     }
@@ -990,14 +990,17 @@ fn fallback_final_response_from_tool_evidence(message: &str, response_tools: &[V
         response_parts.push(coverage_sentence);
     }
     response_parts.push(uncertainty);
-    response_parts.push(
-        "The current tradeoff is breadth versus confidence: we can stay narrow and source-backed on the covered evidence, or broaden retrieval before making a stronger claim."
-            .to_string(),
-    );
-    response_parts.push(
-        "My recommendation is to treat this as a partial answer, keep any conclusions bounded to the covered evidence, and only make a stronger comparison after adding primary-source coverage for the missing sides."
-            .to_string(),
-    );
+    if request_is_comparative {
+        response_parts.push(
+            "The right recovery is another retrieval pass that targets the missing sides and primary or official sources before giving a practical recommendation."
+                .to_string(),
+        );
+    } else {
+        response_parts.push(
+            "The right recovery is another retrieval pass with narrower, topic-specific queries and primary or high-signal sources before presenting findings as research."
+                .to_string(),
+        );
+    }
     clean_text(&response_parts.join("\n\n"), 3_000)
 }
 
@@ -1410,6 +1413,40 @@ fn response_has_public_source_signal(response_text: &str) -> bool {
     ]
     .iter()
     .any(|marker| normalized.contains(marker))
+        || response_text_contains_domain_like_source_marker(&normalized)
+}
+
+fn response_text_contains_domain_like_source_marker(text: &str) -> bool {
+    text.split_whitespace().any(|token| {
+        let cleaned = token
+            .trim_matches(|ch: char| {
+                !ch.is_ascii_alphanumeric() && ch != '.' && ch != '/' && ch != ':' && ch != '-'
+            })
+            .trim_start_matches("http://")
+            .trim_start_matches("https://")
+            .trim_start_matches("www.");
+        let host = cleaned
+            .split('/')
+            .next()
+            .unwrap_or("")
+            .chars()
+            .filter(|ch| ch.is_ascii_alphanumeric() || *ch == '.' || *ch == '-')
+            .collect::<String>();
+        let labels = host
+            .split('.')
+            .filter(|label| !label.is_empty())
+            .collect::<Vec<_>>();
+        if labels.len() < 2 {
+            return false;
+        }
+        let tld = labels.last().copied().unwrap_or("");
+        if !(2..=24).contains(&tld.len()) || !tld.chars().all(|ch| ch.is_ascii_alphabetic()) {
+            return false;
+        }
+        labels
+            .iter()
+            .any(|label| label.chars().any(|ch| ch.is_ascii_alphabetic()))
+    })
 }
 
 fn response_missing_required_entity_lanes(
@@ -2920,27 +2957,36 @@ mod workflow_fallback_tests {
     }
 
     #[test]
-    fn ordinary_lookup_and_search_intents_preserve_batch_query_candidate() {
+    fn ordinary_lookup_and_search_intents_do_not_create_latent_candidates() {
         for message in [
             "look up recent changes in the relevant frameworks",
             "search the web for public evidence about a named system",
             "use web research to compare current options",
         ] {
             let candidates = latent_tool_candidates_for_message(message, &[]);
-            assert_eq!(candidates.len(), 1, "{message}: {candidates:?}");
-            assert_eq!(
-                candidates[0].get("tool").and_then(Value::as_str),
-                Some("batch_query"),
-                "{message}: {candidates:?}"
-            );
-            assert_eq!(
-                candidates[0]
-                    .get("selected_tool_family")
-                    .and_then(Value::as_str),
-                Some("web_research"),
-                "{message}: {candidates:?}"
-            );
+            assert!(candidates.is_empty(), "{message}: {candidates:?}");
         }
+    }
+
+    #[test]
+    fn time_scoped_update_requests_do_not_create_latent_candidates() {
+        for message in [
+            "give me an update on the agentic landscape in May 2026",
+            "summarize the current state of synthetic biology in 2026",
+            "brief me on the electric vehicle market landscape this year",
+        ] {
+            let candidates = latent_tool_candidates_for_message(message, &[]);
+            assert!(candidates.is_empty(), "{message}: {candidates:?}");
+        }
+    }
+
+    #[test]
+    fn evaluative_web_research_prompts_do_not_create_latent_candidates() {
+        let candidates = latent_tool_candidates_for_message(
+            "What is the best agentic framework in 2026? Search first, but do not trust marketing pages blindly. Give me a defensible answer.",
+            &[],
+        );
+        assert!(candidates.is_empty(), "{candidates:?}");
     }
 
     #[test]
@@ -3193,6 +3239,13 @@ mod workflow_fallback_tests {
             ),
             None
         );
+        assert_eq!(
+            tool_backed_final_verifier_violation_reason(
+                "Bottom line: Alpha is better for production while Beta is better for prototypes (langchain.com).",
+                &tools,
+            ),
+            None
+        );
     }
 
     #[test]
@@ -3272,35 +3325,13 @@ mod workflow_fallback_tests {
             pending.pointer("/input/query").and_then(Value::as_str),
             Some("compare retrieval tools")
         );
-        assert!(
-            pending.pointer("/input/keywords/0").is_some(),
-            "recovered batch query should carry keyword metadata: {pending:?}"
-        );
-        assert!(
-            pending.pointer("/input/required_coverage").is_some(),
-            "recovered batch query should carry coverage metadata: {pending:?}"
-        );
-        let entities = pending
-            .pointer("/input/required_coverage/entities")
-            .and_then(Value::as_array)
-            .cloned()
-            .unwrap_or_default();
-        for expected in ["Firecrawl", "Tavily", "Exa"] {
-            assert!(
-                entities.iter().any(|value| value.as_str() == Some(expected)),
-                "entity {expected} should be preserved as its own query-pack target: {pending:?}"
-            );
-        }
-        assert_eq!(
-            pending
-                .pointer("/input/query_metadata_policy/classification")
-                .and_then(Value::as_str),
-            Some("expanded_query_pack")
-        );
+        assert!(pending.pointer("/input/keywords").is_none(), "{pending:?}");
+        assert!(pending.pointer("/input/required_coverage").is_none(), "{pending:?}");
+        assert!(pending.pointer("/input/query_metadata_policy").is_none(), "{pending:?}");
     }
 
     #[test]
-    fn latent_candidate_recovery_marks_narrow_batch_query_without_forcing_metadata() {
+    fn latent_candidate_recovery_preserves_input_without_forcing_metadata() {
         let candidates = json!([{
             "workflow_only": true,
             "selected_tool_family": "web_research",
@@ -3317,36 +3348,19 @@ mod workflow_fallback_tests {
             manual_toolbox_pending_request_from_latent_candidates(&candidates, "weather in Denver today")
                 .expect("single valid latent candidate");
 
-        assert_eq!(
-            pending
-                .pointer("/input/query_metadata_policy/classification")
-                .and_then(Value::as_str),
-            Some("narrow_lookup_or_initial_discovery")
-        );
+        assert!(pending.pointer("/input/query_metadata_policy").is_none(), "{pending:?}");
     }
 
     #[test]
-    fn latent_candidates_mark_tool_required_research_without_forcing_trivia() {
+    fn latent_candidates_do_not_classify_research_from_question_shape() {
         let research_candidates = latent_tool_candidates_for_message(
             "Research Firecrawl, Tavily, and Exa as data tools for AI research agents.",
             &[],
         );
-        assert_eq!(research_candidates.len(), 1, "{research_candidates:?}");
-        assert_eq!(
-            research_candidates[0]
-                .get("requires_tool_attempt_before_final_answer")
-                .and_then(Value::as_bool),
-            Some(true)
-        );
+        assert!(research_candidates.is_empty(), "{research_candidates:?}");
 
         let trivia_candidates = latent_tool_candidates_for_message("what is 2+2?", &[]);
-        assert_eq!(trivia_candidates.len(), 1, "{trivia_candidates:?}");
-        assert_eq!(
-            trivia_candidates[0]
-                .get("requires_tool_attempt_before_final_answer")
-                .and_then(Value::as_bool),
-            Some(false)
-        );
+        assert!(trivia_candidates.is_empty(), "{trivia_candidates:?}");
     }
 
     #[test]
@@ -3983,11 +3997,10 @@ mod workflow_fallback_tests {
             .and_then(Value::as_str)
             .unwrap_or("");
         assert!(!response.trim().is_empty());
-        assert!(response.contains("recorded evidence is partial"));
+        assert!(response.contains("did not produce enough"));
         assert!(response.contains("Recorded evidence so far"));
         assert!(!response.contains("What we know:"));
-        assert!(response.contains("stronger source-backed conclusion"));
-        assert!(response.contains("partial answer"));
+        assert!(response.contains("another retrieval pass"));
         assert!(!response.contains("Tool findings from this turn"));
         assert!(!response.contains("agentic framework"));
         assert!(!response.contains("benchmark"));
@@ -4080,9 +4093,9 @@ mod workflow_fallback_tests {
                 ]
             })],
         );
-        assert!(response.contains("partial comparison"));
-        assert!(response.contains("tradeoff"));
-        assert!(response.contains("recommend"));
+        assert!(response.contains("comparison"));
+        assert!(response.contains("retrieval pass"));
+        assert!(response.contains("recommendation"));
         assert!(response.contains("LangGraph"));
         assert!(response.contains("CrewAI"));
         assert!(response.contains("OpenHands"));
@@ -4121,7 +4134,7 @@ mod workflow_fallback_tests {
         assert!(response.contains("LangChain"), "{response}");
         assert!(response.contains("OpenAI Agents SDK"), "{response}");
         assert!(response.contains("production readiness"), "{response}");
-        assert!(response.starts_with("The safest bounded answer"), "{response}");
+        assert!(response.starts_with("This retrieval attempt"), "{response}");
 
         let synthesis_input =
             workflow_synthesis_input_for_final_response("research PydanticAI", &tools, &json!({}));
@@ -4138,6 +4151,57 @@ mod workflow_fallback_tests {
                 .and_then(Value::as_str),
             Some("entity"),
             "{synthesis_input:#?}"
+        );
+    }
+
+    #[test]
+    fn tool_input_required_coverage_becomes_synthesis_lanes() {
+        let input = json!({
+            "query": "Compare AlphaTool and BetaTool for current research workflows.",
+            "required_coverage": {
+                "entities": ["AlphaTool", "BetaTool"],
+                "facets": ["current fit", "operational risk"]
+            },
+            "query_metadata_policy": {
+                "classification": "expanded_query_pack"
+            }
+        })
+        .to_string();
+        let tools = vec![json!({
+            "name": "batch_query",
+            "status": "ok",
+            "is_error": false,
+            "input": input,
+            "evidence_refs": [{
+                "title": "AlphaTool docs",
+                "snippet": "AlphaTool has current public documentation."
+            }]
+        })];
+
+        let lanes = synthesis_coverage_lanes_for_tools(&tools, 8);
+        assert!(
+            lanes.iter().any(|row| {
+                row.get("kind").and_then(Value::as_str) == Some("entity")
+                    && row.get("requested_text").and_then(Value::as_str) == Some("AlphaTool")
+            }),
+            "{lanes:#?}"
+        );
+        assert!(
+            lanes.iter().any(|row| {
+                row.get("kind").and_then(Value::as_str) == Some("facet")
+                    && row.get("requested_text").and_then(Value::as_str) == Some("current fit")
+            }),
+            "{lanes:#?}"
+        );
+
+        let missing = response_missing_required_entity_lanes("AlphaTool has evidence.", &tools);
+        assert!(missing.iter().any(|row| row == "BetaTool"), "{missing:#?}");
+        assert!(
+            response_missing_required_entity_lanes(
+                "AlphaTool and BetaTool both need source-backed treatment.",
+                &tools
+            )
+            .is_empty()
         );
     }
 

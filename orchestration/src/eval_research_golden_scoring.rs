@@ -514,6 +514,40 @@ fn response_has_inline_citation_signal(response_text: &str) -> bool {
     ]
     .iter()
     .any(|needle| normalized.contains(*needle))
+        || text_contains_domain_like_source_marker(&normalized)
+}
+
+fn text_contains_domain_like_source_marker(text: &str) -> bool {
+    text.split_whitespace().any(|token| {
+        let cleaned = token
+            .trim_matches(|ch: char| {
+                !ch.is_ascii_alphanumeric() && ch != '.' && ch != '/' && ch != ':' && ch != '-'
+            })
+            .trim_start_matches("http://")
+            .trim_start_matches("https://")
+            .trim_start_matches("www.");
+        let host = cleaned
+            .split('/')
+            .next()
+            .unwrap_or("")
+            .chars()
+            .filter(|ch| ch.is_ascii_alphanumeric() || *ch == '.' || *ch == '-')
+            .collect::<String>();
+        let labels = host
+            .split('.')
+            .filter(|label| !label.is_empty())
+            .collect::<Vec<_>>();
+        if labels.len() < 2 {
+            return false;
+        }
+        let tld = labels.last().copied().unwrap_or("");
+        if !(2..=24).contains(&tld.len()) || !tld.chars().all(|ch| ch.is_ascii_alphabetic()) {
+            return false;
+        }
+        labels
+            .iter()
+            .any(|label| label.chars().any(|ch| ch.is_ascii_alphabetic()))
+    })
 }
 
 fn query_satisfaction(
@@ -3013,6 +3047,28 @@ mod tests {
                 .pointer("/subgates/evidence_4_does_not_overclaim_or_deny_recorded_state")
                 .and_then(Value::as_bool),
             Some(false)
+        );
+    }
+
+    #[test]
+    fn citation_behavior_accepts_domain_style_source_mentions() {
+        let behavior = citation_behavior(
+            &json!({}),
+            "The strongest current signal favors Alpha for production (langchain.com) while Beta remains better for exploration.",
+            &json!({
+                "usable_evidence": true,
+                "evidence_count": 2
+            }),
+        );
+        assert_eq!(
+            behavior
+                .get("response_source_signal")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            behavior.get("citation_signal").and_then(Value::as_bool),
+            Some(true)
         );
     }
 }

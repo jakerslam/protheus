@@ -74,6 +74,16 @@ fn build_response_finalization_payload(
     tooling_invariant: &Value,
     web_invariant: &Value,
 ) -> Value {
+    let citations = tool_completion
+        .get("citations")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let source_refs = tool_completion
+        .get("source_refs")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_else(|| citations.clone());
     json!({
         "applied": finalization_outcome != "unchanged",
         "outcome": finalization_outcome,
@@ -84,6 +94,8 @@ fn build_response_finalization_payload(
             .and_then(Value::as_bool)
             .unwrap_or(false),
         "tool_completion": tool_completion,
+        "citations": citations,
+        "source_refs": source_refs,
         "final_answer_contract": tool_completion
             .get("final_answer_contract")
             .cloned()
@@ -153,6 +165,75 @@ fn claim_source_tags_for_report(response_tools: &[Value], max_items: usize) -> V
     tags
 }
 
+fn response_has_public_source_signal_for_finalization(text: &str) -> bool {
+    let lowered = clean_text(text, 8_000).to_ascii_lowercase();
+    [
+        "http://",
+        "https://",
+        "source:",
+        "sources:",
+        "citation",
+        "citations",
+        "according to",
+        "official docs",
+        "the docs",
+        "release notes",
+        "changelog",
+        "paper",
+        "study",
+    ]
+    .iter()
+    .any(|marker| lowered.contains(marker))
+        || text_contains_domain_like_source_marker(&lowered)
+}
+
+fn text_contains_domain_like_source_marker(text: &str) -> bool {
+    text.split_whitespace().any(|token| {
+        let cleaned = token
+            .trim_matches(|ch: char| {
+                !ch.is_ascii_alphanumeric() && ch != '.' && ch != '/' && ch != ':' && ch != '-'
+            })
+            .trim_start_matches("http://")
+            .trim_start_matches("https://")
+            .trim_start_matches("www.");
+        let host = cleaned
+            .split('/')
+            .next()
+            .unwrap_or("")
+            .chars()
+            .filter(|ch| ch.is_ascii_alphanumeric() || *ch == '.' || *ch == '-')
+            .collect::<String>();
+        let labels = host
+            .split('.')
+            .filter(|label| !label.is_empty())
+            .collect::<Vec<_>>();
+        if labels.len() < 2 {
+            return false;
+        }
+        let tld = labels.last().copied().unwrap_or("");
+        if !(2..=24).contains(&tld.len()) || !tld.chars().all(|ch| ch.is_ascii_alphabetic()) {
+            return false;
+        }
+        labels
+            .iter()
+            .any(|label| label.chars().any(|ch| ch.is_ascii_alphabetic()))
+    })
+}
+
+fn join_compact_label_list(labels: &[String]) -> String {
+    match labels.len() {
+        0 => String::new(),
+        1 => labels[0].clone(),
+        2 => format!("{} and {}", labels[0], labels[1]),
+        _ => {
+            let mut head = labels[..labels.len() - 1].join(", ");
+            head.push_str(", and ");
+            head.push_str(labels.last().map(String::as_str).unwrap_or(""));
+            head
+        }
+    }
+}
+
 fn enforce_user_facing_finalization_contract(
     user_message: &str,
     output: String,
@@ -174,7 +255,24 @@ fn enforce_user_facing_finalization_contract(
             220,
         );
     }
-    let (mut finalized, mut report) = enforce_tool_completion_contract(prefinalized, response_tools);
+    let (mut finalized, mut report) =
+        enforce_tool_completion_contract(prefinalized, response_tools);
+    if !response_tools.is_empty()
+        && !response_has_evidence_tags(&finalized)
+        && !response_has_public_source_signal_for_finalization(&finalized)
+    {
+        let source_grounding = compact_source_grounding_sentence(response_tools, 3);
+        if !source_grounding.is_empty() {
+            finalized = clean_text(&format!("{finalized}\n\n{source_grounding}"), 32_000);
+            if let Some(obj) = report.as_object_mut() {
+                obj.insert("source_grounding_repair_used".to_string(), Value::Bool(true));
+                obj.insert(
+                    "source_grounding_sentence".to_string(),
+                    Value::String(source_grounding),
+                );
+            }
+        }
+    }
     if !failure_reason.is_empty()
         && report.get("completion_state").and_then(Value::as_str) == Some("reported_no_findings")
     {
@@ -222,7 +320,9 @@ fn enforce_user_facing_finalization_contract(
         "no_prompt_echo": !response_prompt_echo_detected(user_message, &finalized),
         "no_placeholder_copy": !response_is_no_findings_placeholder(&finalized)
             && !response_looks_like_tool_ack_without_findings(&finalized),
-        "no_unsourced_claims": !claim_sources.is_empty() || response_has_evidence_tags(&finalized),
+        "no_unsourced_claims": !claim_sources.is_empty()
+            || response_has_evidence_tags(&finalized)
+            || response_has_public_source_signal_for_finalization(&finalized),
         "claim_sources": claim_sources
     });
     if let Some(obj) = report.as_object_mut() {
@@ -703,6 +803,12 @@ fn enrich_tool_completion_receipt(tool_completion: Value, response_tools: &[Valu
         .take(8)
         .cloned()
         .collect::<Vec<_>>();
+    let mut citations = compact_citations_from_evidence_refs(&evidence_refs_used);
+    let mut citation_projection_source = "tool_completion_evidence_refs";
+    if citations.is_empty() {
+        citations = compact_citations_from_tool_attempts(&tool_attempts);
+        citation_projection_source = "tool_completion_candidate_rows";
+    }
     let live_tool_status = steps
         .first()
         .and_then(|row| row.get("status"))
@@ -715,8 +821,229 @@ fn enrich_tool_completion_receipt(tool_completion: Value, response_tools: &[Valu
     if !evidence_refs_used.is_empty() {
         enriched["evidence_refs_used"] = Value::Array(evidence_refs_used);
     }
+    if !citations.is_empty() {
+        enriched["citations"] = Value::Array(citations.clone());
+        enriched["source_refs"] = Value::Array(citations);
+        enriched["citation_projection_source"] = json!(citation_projection_source);
+    }
     enriched["live_status_source"] = json!("tool_completion_receipt_v1");
     enriched
+}
+
+fn compact_citations_from_evidence_refs(evidence_refs: &[Value]) -> Vec<Value> {
+    let mut citations = Vec::<Value>::new();
+    for evidence_ref in evidence_refs {
+        if citations.len() >= 8 {
+            break;
+        }
+        if let Some(citation) = compact_citation_from_evidence_ref(citations.len() + 1, evidence_ref)
+        {
+            citations.push(citation);
+        }
+    }
+    citations
+}
+
+fn compact_citations_from_tool_attempts(tool_attempts: &[Value]) -> Vec<Value> {
+    let mut citations = Vec::<Value>::new();
+    let mut seen = HashSet::<String>::new();
+    for attempt in tool_attempts {
+        for key in ["evidence_refs", "search_results", "provider_results"] {
+            let Some(rows) = attempt.get(key).and_then(Value::as_array) else {
+                continue;
+            };
+            for row in rows {
+                if citations.len() >= 8 {
+                    return citations;
+                }
+                let Some(citation) = compact_citation_from_evidence_ref(citations.len() + 1, row)
+                else {
+                    continue;
+                };
+                let dedupe_key = compact_citation_dedupe_key(&citation);
+                if dedupe_key.is_empty() || seen.insert(dedupe_key) {
+                    citations.push(citation);
+                }
+            }
+        }
+    }
+    citations
+}
+
+fn compact_citation_dedupe_key(citation: &Value) -> String {
+    clean_text(
+        citation
+            .get("locator")
+            .or_else(|| citation.get("title"))
+            .or_else(|| citation.get("snippet"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        500,
+    )
+    .to_ascii_lowercase()
+}
+
+fn compact_citation_from_evidence_ref(index: usize, evidence_ref: &Value) -> Option<Value> {
+    if let Some(raw) = evidence_ref.as_str() {
+        let value = clean_text(raw, 500);
+        if value.is_empty() {
+            return None;
+        }
+        let mut citation = serde_json::Map::new();
+        citation.insert("citation_id".to_string(), json!(format!("source_{index}")));
+        if value.starts_with("http://") || value.starts_with("https://") {
+            citation.insert("locator".to_string(), json!(value));
+        } else {
+            citation.insert("source_ref".to_string(), json!(value));
+        }
+        return Some(Value::Object(citation));
+    }
+    let locator = clean_text(
+        evidence_ref
+            .get("locator")
+            .or_else(|| evidence_ref.get("url"))
+            .or_else(|| evidence_ref.get("source_url"))
+            .or_else(|| evidence_ref.get("link"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        500,
+    );
+    let title = clean_text(
+        evidence_ref
+            .get("title")
+            .or_else(|| evidence_ref.get("name"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        180,
+    );
+    let snippet = clean_text(
+        evidence_ref
+            .get("snippet")
+            .or_else(|| evidence_ref.get("summary"))
+            .or_else(|| evidence_ref.get("source_excerpt"))
+            .or_else(|| evidence_ref.get("description"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        320,
+    );
+    if locator.is_empty() && title.is_empty() && snippet.is_empty() {
+        return None;
+    }
+    let source_domain = clean_text(
+        evidence_ref
+            .get("source_domain")
+            .or_else(|| evidence_ref.get("domain"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        120,
+    );
+    let source_kind = clean_text(
+        evidence_ref
+            .get("source_kind")
+            .or_else(|| evidence_ref.get("source_class"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        120,
+    );
+    let mut citation = serde_json::Map::new();
+    citation.insert("citation_id".to_string(), json!(format!("source_{index}")));
+    if !title.is_empty() {
+        citation.insert("title".to_string(), json!(title));
+    }
+    if !locator.is_empty() {
+        citation.insert("locator".to_string(), json!(locator));
+    }
+    if !source_domain.is_empty() {
+        citation.insert("source_domain".to_string(), json!(source_domain));
+    }
+    if !source_kind.is_empty() {
+        citation.insert("source_kind".to_string(), json!(source_kind));
+    }
+    if !snippet.is_empty() {
+        citation.insert("snippet".to_string(), json!(snippet));
+    }
+    Some(Value::Object(citation))
+}
+
+fn compact_source_grounding_label(citation: &Value) -> String {
+    let source_domain = clean_text(
+        citation
+            .get("source_domain")
+            .or_else(|| citation.get("domain"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        80,
+    );
+    if !source_domain.is_empty() && !source_domain.eq_ignore_ascii_case("news.google.com") {
+        return source_domain;
+    }
+    let locator = clean_text(
+        citation
+            .get("locator")
+            .or_else(|| citation.get("source_ref"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        320,
+    );
+    let locator_host = locator
+        .trim_start_matches("http://")
+        .trim_start_matches("https://")
+        .trim_start_matches("www.")
+        .split('/')
+        .next()
+        .unwrap_or("");
+    if !locator_host.is_empty() && !locator_host.eq_ignore_ascii_case("news.google.com") {
+        return clean_text(locator_host, 80);
+    }
+    let title = clean_text(citation.get("title").and_then(Value::as_str).unwrap_or(""), 120);
+    if let Some((_, tail)) = title.rsplit_once(" - ") {
+        let tail = clean_text(tail, 80);
+        if !tail.is_empty() {
+            return tail;
+        }
+    }
+    title
+}
+
+fn compact_source_grounding_sentence(response_tools: &[Value], max_items: usize) -> String {
+    let tool_attempts = response_tools
+        .iter()
+        .filter_map(enrich_tool_attempt_receipt_from_row)
+        .take(16)
+        .collect::<Vec<_>>();
+    let mut labels = Vec::<String>::new();
+    let mut seen = HashSet::<String>::new();
+    for citation in compact_citations_from_tool_attempts(&tool_attempts) {
+        if labels.len() >= max_items.clamp(1, 4) {
+            break;
+        }
+        let source_kind = clean_text(
+            citation
+                .get("source_kind")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            80,
+        )
+        .to_ascii_lowercase();
+        if source_kind.contains("low_confidence") {
+            continue;
+        }
+        let label = compact_source_grounding_label(&citation);
+        if label.is_empty() {
+            continue;
+        }
+        let dedupe = label.to_ascii_lowercase();
+        if seen.insert(dedupe) {
+            labels.push(label);
+        }
+    }
+    if labels.is_empty() {
+        return String::new();
+    }
+    if labels.len() == 1 {
+        return format!("Source used here: {}.", labels[0]);
+    }
+    format!("Sources used here include {}.", join_compact_label_list(&labels))
 }
 
 fn enrich_tool_attempt_receipt_from_row(row: &Value) -> Option<Value> {
@@ -918,6 +1245,153 @@ mod tool_completion_live_status_tests {
                 .pointer("/tool_attempts/0/provider_results/0/provider")
                 .and_then(Value::as_str),
             Some("bing_rss")
+        );
+    }
+
+    #[test]
+    fn projects_evidence_refs_as_final_package_citations() {
+        let enriched = enrich_tool_completion_receipt(
+            json!({"completion_state":"reported_findings"}),
+            &[json!({
+                "name": "batch_query",
+                "status": "ok",
+                "is_error": false,
+                "evidence_refs": [
+                    {
+                        "title": "LlamaIndex docs",
+                        "locator": "https://docs.llamaindex.ai/",
+                        "source_domain": "docs.llamaindex.ai",
+                        "snippet": "LlamaIndex focuses on data ingestion and retrieval workflows."
+                    }
+                ]
+            })],
+        );
+        assert_eq!(
+            enriched
+                .pointer("/citations/0/title")
+                .and_then(Value::as_str),
+            Some("LlamaIndex docs")
+        );
+        let finalization = build_response_finalization_payload(
+            "workflow_authored",
+            false,
+            false,
+            &enriched,
+            false,
+            false,
+            false,
+            false,
+            &json!({}),
+            &json!({}),
+            &json!({}),
+        );
+        assert_eq!(
+            finalization
+                .pointer("/citations/0/locator")
+                .and_then(Value::as_str),
+            Some("https://docs.llamaindex.ai/")
+        );
+        assert_eq!(
+            finalization
+                .pointer("/source_refs/0/source_domain")
+                .and_then(Value::as_str),
+            Some("docs.llamaindex.ai")
+        );
+    }
+
+    #[test]
+    fn projects_candidate_rows_as_final_package_citations_when_refs_are_thin() {
+        let enriched = enrich_tool_completion_receipt(
+            json!({"completion_state":"reported_findings"}),
+            &[json!({
+                "name": "batch_query",
+                "status": "ok",
+                "is_error": false,
+                "evidence_refs": [
+                    {"status": "ok"}
+                ],
+                "search_results": [
+                    {
+                        "title": "CrewAI changelog",
+                        "url": "https://docs.crewai.com/changelog",
+                        "description": "Recent CrewAI releases and production behavior changes."
+                    }
+                ],
+                "provider_results": [
+                    {
+                        "title": "CrewAI changelog",
+                        "url": "https://docs.crewai.com/changelog"
+                    }
+                ]
+            })],
+        );
+        assert_eq!(
+            enriched
+                .pointer("/citation_projection_source")
+                .and_then(Value::as_str),
+            Some("tool_completion_candidate_rows")
+        );
+        assert_eq!(
+            enriched
+                .pointer("/citations/0/locator")
+                .and_then(Value::as_str),
+            Some("https://docs.crewai.com/changelog")
+        );
+    }
+
+    #[test]
+    fn projects_string_evidence_refs_as_source_refs() {
+        let enriched = enrich_tool_completion_receipt(
+            json!({"completion_state":"reported_findings"}),
+            &[json!({
+                "name": "batch_query",
+                "status": "ok",
+                "is_error": false,
+                "evidence_refs": [
+                    "https://langchain-ai.github.io/langgraph/concepts/durable_execution/"
+                ]
+            })],
+        );
+        assert_eq!(
+            enriched
+                .pointer("/source_refs/0/locator")
+                .and_then(Value::as_str),
+            Some("https://langchain-ai.github.io/langgraph/concepts/durable_execution/")
+        );
+    }
+
+    #[test]
+    fn finalization_appends_compact_source_grounding_when_answer_lacks_it() {
+        let (finalized, report, _) = enforce_user_facing_finalization_contract(
+            "Compare Alpha and Beta for production.",
+            "Alpha looks steadier for production, while Beta remains more flexible.".to_string(),
+            &[json!({
+                "name": "batch_query",
+                "status": "ok",
+                "is_error": false,
+                "evidence_refs": [
+                    {
+                        "title": "Alpha docs",
+                        "locator": "https://docs.alpha.dev/production",
+                        "source_domain": "docs.alpha.dev",
+                        "snippet": "Alpha emphasizes production reliability."
+                    },
+                    {
+                        "title": "Beta engineering blog",
+                        "locator": "https://engineering.beta.dev/flexibility",
+                        "source_domain": "engineering.beta.dev",
+                        "snippet": "Beta favors flexibility and experimentation."
+                    }
+                ]
+            })],
+        );
+        assert!(finalized.contains("Sources used here include"));
+        assert!(finalized.contains("docs.alpha.dev"));
+        assert_eq!(
+            report
+                .get("source_grounding_repair_used")
+                .and_then(Value::as_bool),
+            Some(true)
         );
     }
 

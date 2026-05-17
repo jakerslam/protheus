@@ -547,6 +547,7 @@ fn assistant_row_to_payload(row: &Value) -> Option<Value> {
     });
     if let Some(object) = row.as_object() {
         for key in [
+            "detail_refs",
             "tools",
             "response_workflow",
             "response_finalization",
@@ -597,18 +598,40 @@ fn hydrate_recovered_payload_from_session_artifacts(
     agent_id: &str,
     payload: &mut Value,
 ) {
+    if payload.get("response_finalization").is_none() {
+        if let Some(finalization) = payload
+            .pointer("/detail_refs/response_finalization/ref")
+            .and_then(Value::as_str)
+            .and_then(|detail_ref| {
+                load_session_artifact_detail_ref(dashboard_state_root, agent_id, detail_ref)
+            })
+        {
+            payload["response_finalization"] = finalization;
+        }
+    }
+    if payload.get("response_workflow").is_none() {
+        if let Some(workflow) = payload
+            .pointer("/detail_refs/response_workflow/ref")
+            .and_then(Value::as_str)
+            .and_then(|detail_ref| {
+                load_session_artifact_detail_ref(dashboard_state_root, agent_id, detail_ref)
+            })
+        {
+            payload["response_workflow"] = workflow;
+        }
+    }
     let Some(tool_rows) = payload.get("tools").and_then(Value::as_array).cloned() else {
         return;
     };
     let mut hydrated_tools = Vec::<Value>::new();
     let mut loaded_any = false;
     for row in tool_rows {
-        if let Some(artifact) = row
-            .get("detail_ref")
-            .and_then(Value::as_str)
-            .and_then(|detail_ref| {
-                load_session_artifact_detail_ref(dashboard_state_root, agent_id, detail_ref)
-            })
+        if let Some(artifact) =
+            row.get("detail_ref")
+                .and_then(Value::as_str)
+                .and_then(|detail_ref| {
+                    load_session_artifact_detail_ref(dashboard_state_root, agent_id, detail_ref)
+                })
         {
             loaded_any = true;
             hydrated_tools.push(artifact);
@@ -635,6 +658,19 @@ fn hydrate_recovered_payload_from_session_artifacts(
                 "tool_attempts": hydrated_tools
             }
         });
+    }
+    if let Some(finalized_text) = payload
+        .pointer("/response_finalization/finalized_output")
+        .or_else(|| payload.pointer("/response_finalization/final_output"))
+        .or_else(|| payload.pointer("/response_finalization/final_response/text"))
+        .or_else(|| payload.pointer("/response_workflow/final_llm_response/text"))
+        .and_then(Value::as_str)
+        .map(|raw| clean_text(raw, 64_000))
+        .filter(|raw| !raw.is_empty())
+    {
+        payload["response"] = Value::String(finalized_text.clone());
+        payload["text"] = Value::String(finalized_text.clone());
+        payload["message"] = Value::String(finalized_text);
     }
 }
 
@@ -1182,6 +1218,27 @@ mod eval_research_golden_utils_tests {
             .expect("artifact json"),
         )
         .expect("artifact write");
+        fs::write(
+            artifacts_dir.join("response_finalization-def456.json"),
+            serde_json::to_string_pretty(&json!({
+                "outcome": "finalized",
+                "citations": [{"locator": "https://example.com"}],
+                "finalized_output": "Recovered final answer with source signal from example.com."
+            }))
+            .expect("finalization json"),
+        )
+        .expect("finalization write");
+        fs::write(
+            artifacts_dir.join("response_workflow-ghi789.json"),
+            serde_json::to_string_pretty(&json!({
+                "final_llm_response": {
+                    "text": "Recovered workflow answer with source signal from example.com.",
+                    "citations": [{"locator": "https://example.com"}]
+                }
+            }))
+            .expect("workflow json"),
+        )
+        .expect("workflow write");
         let session = json!({
             "agent_id": agent_id,
             "active_session_id": "default",
@@ -1197,6 +1254,14 @@ mod eval_research_golden_utils_tests {
                     {
                         "role": "assistant",
                         "text": "new answer",
+                        "detail_refs": {
+                            "response_finalization": {
+                                "ref": "session_artifact:agent-recovery:response_finalization:def456"
+                            },
+                            "response_workflow": {
+                                "ref": "session_artifact:agent-recovery:response_workflow:ghi789"
+                            }
+                        },
                         "tools": [{
                             "name": "batch_query",
                             "status": "done",
@@ -1234,6 +1299,22 @@ mod eval_research_golden_utils_tests {
                 .get("recovered_session_artifacts_hydrated")
                 .and_then(Value::as_bool),
             Some(true)
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/citations/0/locator")
+                .and_then(Value::as_str),
+            Some("https://example.com")
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_workflow/final_llm_response/citations/0/locator")
+                .and_then(Value::as_str),
+            Some("https://example.com")
+        );
+        assert_eq!(
+            payload.get("response").and_then(Value::as_str),
+            Some("Recovered final answer with source signal from example.com.")
         );
         assert!(recovered_payload_has_structured_turn_artifacts(&payload));
     }

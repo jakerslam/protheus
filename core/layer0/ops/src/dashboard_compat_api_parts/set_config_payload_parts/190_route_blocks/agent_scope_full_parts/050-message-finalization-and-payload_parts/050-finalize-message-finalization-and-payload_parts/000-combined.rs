@@ -269,18 +269,28 @@ fn finalize_message_finalization_and_payload(
                 &initial_draft_response,
             ))
     {
-        if let Some(pending_request) =
-            manual_toolbox_pending_request_from_latent_candidates(&latent_tool_candidates, message)
-        {
+        let recovered_pending_request =
+            workflow_pending_request_from_selected_tool_contract(&response_workflow, message)
+                .or_else(|| {
+                    manual_toolbox_pending_request_from_latent_candidates(
+                        &latent_tool_candidates,
+                        message,
+                    )
+                });
+        if let Some(pending_request) = recovered_pending_request {
+            let recovery_source = pending_request
+                .get("source")
+                .and_then(Value::as_str)
+                .unwrap_or("latent_candidate_recovery");
             workflow_system_events.push(turn_workflow_event(
-                "latent_tool_candidate_promoted_to_pending_request",
+                "workflow_pending_tool_request_recovered",
                 json!({
-                    "source": "latent_candidate_recovery_contract",
+                    "source": recovery_source,
                     "tool_name": pending_request
                         .get("tool_name")
                         .and_then(Value::as_str)
                         .unwrap_or(""),
-                    "ambiguity_policy": "single_valid_workflow_only_candidate"
+                    "ambiguity_policy": "single_valid_workflow_only_candidate_or_selected_tool_contract"
                 }),
             ));
             response_workflow["manual_toolbox_pending_tool_request"] = pending_request.clone();
@@ -755,6 +765,26 @@ fn finalize_message_finalization_and_payload(
         visible_response_repaired,
         &finalization_outcome,
     );
+    let final_package_citations = response_finalization
+        .get("citations")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let final_package_source_refs = response_finalization
+        .get("source_refs")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    if !final_package_citations.is_empty() {
+        response_workflow["citations"] = Value::Array(final_package_citations.clone());
+        response_workflow["final_llm_response"]["citations"] =
+            Value::Array(final_package_citations.clone());
+    }
+    if !final_package_source_refs.is_empty() {
+        response_workflow["source_refs"] = Value::Array(final_package_source_refs.clone());
+        response_workflow["final_llm_response"]["source_refs"] =
+            Value::Array(final_package_source_refs.clone());
+    }
     let turn_transaction = crate::dashboard_tool_turn_loop::turn_transaction_payload(
         "complete",
         if response_tools.is_empty() {
@@ -837,6 +867,12 @@ fn finalize_message_finalization_and_payload(
     payload["response_workflow"] = response_workflow;
     payload["terminal_transcript"] = Value::Array(terminal_transcript);
     payload["response_finalization"] = response_finalization;
+    if !final_package_citations.is_empty() {
+        payload["citations"] = Value::Array(final_package_citations);
+    }
+    if !final_package_source_refs.is_empty() {
+        payload["source_refs"] = Value::Array(final_package_source_refs);
+    }
     if let Some(pending_request) = manual_toolbox_pending_tool_request {
         payload["pending_tool_request"] = pending_request;
     }
