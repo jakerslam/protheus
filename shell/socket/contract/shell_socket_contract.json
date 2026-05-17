@@ -595,6 +595,27 @@
       "requires_detail_refs": true
     },
     {
+      "name": "SkillMutationProjection",
+      "description": "Bounded acknowledgement/projection for skill install/create/uninstall actions; shell plugs receive display status only, not skill registry authority.",
+      "allowed_top_level_fields": [
+        "ok",
+        "name",
+        "slug",
+        "runtime",
+        "enabled",
+        "installed",
+        "created",
+        "uninstalled",
+        "warnings",
+        "error",
+        "receipt_ref",
+        "correlation_id"
+      ],
+      "max_response_bytes": 32768,
+      "requires_cursor": false,
+      "requires_detail_refs": true
+    },
+    {
       "name": "IngressAck",
       "description": "Bounded acknowledgement or receipt for a shell-submitted request.",
       "allowed_top_level_fields": [
@@ -2311,6 +2332,82 @@
       "shell_must_not_hold": [
         "hand_runtime_authority",
         "agent_lifecycle_authority"
+      ]
+    },
+    {
+      "id": "install_skill",
+      "purpose": "Request skill installation through Gateway admission.",
+      "route_class": "request_ingress",
+      "request_shape": "SkillInstallRequest",
+      "response_shape": "SkillMutationProjection",
+      "default_projection": "SkillMutationProjection",
+      "cursor_required": false,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "owner_of_truth": "kernel_skill_registry",
+      "shell_may_hold": [
+        "name",
+        "slug",
+        "warnings",
+        "receipt_ref"
+      ],
+      "shell_must_not_hold": [
+        "skill_registry_authority",
+        "raw_skill_manifest",
+        "install_authority"
+      ]
+    },
+    {
+      "id": "uninstall_skill",
+      "purpose": "Request skill uninstallation through Gateway admission.",
+      "route_class": "request_ingress",
+      "request_shape": "SkillUninstallRequest",
+      "response_shape": "SkillMutationProjection",
+      "default_projection": "SkillMutationProjection",
+      "cursor_required": false,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "owner_of_truth": "kernel_skill_registry",
+      "shell_may_hold": [
+        "name",
+        "uninstalled",
+        "receipt_ref"
+      ],
+      "shell_must_not_hold": [
+        "skill_registry_authority",
+        "raw_skill_manifest",
+        "install_authority"
+      ]
+    },
+    {
+      "id": "create_skill",
+      "purpose": "Request local prompt skill creation through Gateway admission.",
+      "route_class": "request_ingress",
+      "request_shape": "SkillCreateRequest",
+      "response_shape": "SkillMutationProjection",
+      "default_projection": "SkillMutationProjection",
+      "cursor_required": false,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "owner_of_truth": "kernel_skill_registry",
+      "shell_may_hold": [
+        "name",
+        "created",
+        "receipt_ref"
+      ],
+      "shell_must_not_hold": [
+        "skill_registry_authority",
+        "raw_skill_manifest",
+        "install_authority"
       ]
     },
     {

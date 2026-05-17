@@ -786,6 +786,36 @@ function makeHeadlessGatewayFetch(calls: CallRecord[], includeControlledViolatio
         receipt_ref: 'receipt:hand-deactivate:probe',
         correlation_id: 'probe-hand-deactivate',
       };
+    } else if (route === 'POST /api/shell-socket/skills/install') {
+      capabilityId = 'install_skill';
+      payload = {
+        ok: true,
+        name: String(body.slug || 'repo-architect'),
+        slug: String(body.slug || 'repo-architect'),
+        installed: true,
+        warnings: [],
+        receipt_ref: 'receipt:skill-install:probe',
+        correlation_id: 'probe-skill-install',
+      };
+    } else if (route === 'POST /api/shell-socket/skills/uninstall') {
+      capabilityId = 'uninstall_skill';
+      payload = {
+        ok: true,
+        name: String(body.name || 'repo-architect'),
+        uninstalled: true,
+        receipt_ref: 'receipt:skill-uninstall:probe',
+        correlation_id: 'probe-skill-uninstall',
+      };
+    } else if (route === 'POST /api/shell-socket/skills/create') {
+      capabilityId = 'create_skill';
+      payload = {
+        ok: true,
+        name: String(body.name || 'probe-skill'),
+        runtime: String(body.runtime || 'prompt_only'),
+        created: true,
+        receipt_ref: 'receipt:skill-create:probe',
+        correlation_id: 'probe-skill-create',
+      };
     } else if (method === 'POST' && /^\/api\/shell-socket\/agents\/[^/]+\/git-tree$/.test(pathName)) {
       capabilityId = 'set_git_tree';
       payload = makeIngressAck('git-tree');
@@ -975,6 +1005,14 @@ async function runProbe(options: ProbeOptions): Promise<Record<string, unknown>>
   const handPause = await client.pauseHandInstance<any>(handActivate.instance_id || 'handinst-probe');
   const handResume = await client.resumeHandInstance<any>(handActivate.instance_id || 'handinst-probe');
   const handDeactivate = await client.deactivateHandInstance<any>(handActivate.instance_id || 'handinst-probe');
+  const skillInstall = await client.installSkill<any>({ slug: 'repo-architect' });
+  const skillUninstall = await client.uninstallSkill<any>({ name: 'repo-architect' });
+  const skillCreate = await client.createSkill<any>({
+    name: 'probe-skill',
+    description: 'Probe skill',
+    runtime: 'prompt_only',
+    prompt_context: 'Probe prompt context',
+  });
   const gitAck = await client.setGitTree<any>(agentId, { tree_ref: 'git-tree:current' });
   const freshSessionAck = await client.freshSession<any>(agentId, { reason: 'headless_probe' });
   const compactSessionAck = await client.compactSession<any>(agentId, { reason: 'headless_probe' });
@@ -1055,6 +1093,9 @@ async function runProbe(options: ProbeOptions): Promise<Record<string, unknown>>
       hand_pause_receipt: handPause.receipt_ref,
       hand_resume_receipt: handResume.receipt_ref,
       hand_deactivate_receipt: handDeactivate.receipt_ref,
+      skill_install_receipt: skillInstall.receipt_ref,
+      skill_uninstall_receipt: skillUninstall.receipt_ref,
+      skill_create_receipt: skillCreate.receipt_ref,
       git_receipt: gitAck.receipt_ref,
       fresh_session_receipt: freshSessionAck.receipt_ref,
       compact_session_receipt: compactSessionAck.receipt_ref,

@@ -66,6 +66,9 @@ export type ShellSocketCapabilityId =
   | 'pause_hand_instance'
   | 'resume_hand_instance'
   | 'deactivate_hand_instance'
+  | 'install_skill'
+  | 'uninstall_skill'
+  | 'create_skill'
   | 'set_git_tree'
   | 'fresh_session'
   | 'compact_session'
@@ -156,6 +159,9 @@ export const SHELL_SOCKET_ROUTES: ReadonlyArray<ShellSocketRouteDefinition> = Ob
   { capabilityId: 'pause_hand_instance', method: 'POST', path: '/api/shell-socket/hands/instances/{instance_id}/pause', pathParams: ['instance_id'] },
   { capabilityId: 'resume_hand_instance', method: 'POST', path: '/api/shell-socket/hands/instances/{instance_id}/resume', pathParams: ['instance_id'] },
   { capabilityId: 'deactivate_hand_instance', method: 'POST', path: '/api/shell-socket/hands/instances/{instance_id}/deactivate', pathParams: ['instance_id'] },
+  { capabilityId: 'install_skill', method: 'POST', path: '/api/shell-socket/skills/install' },
+  { capabilityId: 'uninstall_skill', method: 'POST', path: '/api/shell-socket/skills/uninstall' },
+  { capabilityId: 'create_skill', method: 'POST', path: '/api/shell-socket/skills/create' },
   { capabilityId: 'set_git_tree', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/git-tree', pathParams: ['agent_id'] },
   { capabilityId: 'fresh_session', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/fresh-session', pathParams: ['agent_id'] },
   { capabilityId: 'compact_session', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/compact-session', pathParams: ['agent_id'] },
@@ -505,6 +511,18 @@ export class ShellSocketGatewayClient {
     return this.request<T>('deactivate_hand_instance', { query: { instance_id: instanceId }, body: request });
   }
 
+  installSkill<T = unknown>(request: unknown): Promise<T> {
+    return this.request<T>('install_skill', { body: request });
+  }
+
+  uninstallSkill<T = unknown>(request: unknown): Promise<T> {
+    return this.request<T>('uninstall_skill', { body: request });
+  }
+
+  createSkill<T = unknown>(request: unknown): Promise<T> {
+    return this.request<T>('create_skill', { body: request });
+  }
+
   setGitTree<T = unknown>(agentId: string, treeSelection: unknown): Promise<T> {
     return this.request<T>('set_git_tree', { query: { agent_id: agentId }, body: treeSelection });
   }
@@ -533,7 +551,7 @@ export function shellSocketClientSelfTest(): Record<string, unknown> {
     fetchImpl: async () => ({ ok: true, status: 200, text: async () => '{}' }),
   });
   return {
-    ok: routeIds.length === uniqueRouteIds.size && routeIds.length === 68,
+    ok: routeIds.length === uniqueRouteIds.size && routeIds.length === 71,
     type: 'shell_socket_gateway_client_self_test',
     route_count: routeIds.length,
     unique_route_count: uniqueRouteIds.size,

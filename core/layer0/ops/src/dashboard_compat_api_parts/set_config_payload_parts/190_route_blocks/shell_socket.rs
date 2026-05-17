@@ -1256,4 +1256,46 @@ fn shell_socket_hand_projection(capability: &str, legacy: CompatApiResponse) -> 
     }
 }
 
+fn shell_socket_skill_projection(capability: &str, legacy: CompatApiResponse) -> CompatApiResponse {
+    let payload = legacy.payload;
+    let ok = legacy.status < 400 && payload.get("ok").and_then(Value::as_bool).unwrap_or(true);
+    let mut out = Map::<String, Value>::new();
+    out.insert("ok".to_string(), json!(ok));
+    for key in [
+        "name",
+        "slug",
+        "runtime",
+        "enabled",
+        "installed",
+        "created",
+        "uninstalled",
+        "warnings",
+    ] {
+        if let Some(value) = payload.get(key) {
+            out.insert(key.to_string(), value.clone());
+        }
+    }
+    if capability == "uninstall_skill" && ok {
+        out.entry("uninstalled".to_string()).or_insert(json!(true));
+    }
+    if capability == "create_skill" && ok {
+        out.entry("created".to_string()).or_insert(json!(true));
+    }
+    if let Some(error) = payload.get("error").and_then(Value::as_str) {
+        out.insert("error".to_string(), json!(clean_text(error, 240)));
+    }
+    out.insert(
+        "receipt_ref".to_string(),
+        json!(shell_socket_receipt_ref(capability, &payload)),
+    );
+    out.insert(
+        "correlation_id".to_string(),
+        json!(format!("shell_socket.{capability}")),
+    );
+    CompatApiResponse {
+        status: if ok { 200 } else { legacy.status.max(400) },
+        payload: Value::Object(out),
+    }
+}
+
 include!("shell_socket_parts/020-routes.rs");

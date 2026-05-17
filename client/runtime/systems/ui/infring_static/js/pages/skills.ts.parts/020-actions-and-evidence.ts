@@ -82,7 +82,7 @@
       this.installingSlug = slug;
       this.installResult = null;
       try {
-        var data = await InfringAPI.post('/api/clawhub/install', { slug: slug });
+        var data = await InfringAPI.post('/api/shell-socket/skills/install', { slug: slug });
         this.installResult = data;
         if (data.warnings && data.warnings.length > 0) {
           InfringToast.success('Skill "' + data.name + '" installed with ' + data.warnings.length + ' warning(s)');
@@ -112,7 +112,7 @@
       var self = this;
       InfringToast.confirm('Uninstall Skill', 'Uninstall skill "' + name + '"? This cannot be undone.', async function() {
         try {
-          await InfringAPI.post('/api/skills/uninstall', { name: name });
+          await InfringAPI.post('/api/shell-socket/skills/uninstall', { name: name });
           InfringToast.success('Skill "' + name + '" uninstalled');
           await self.loadSkills();
         } catch(e) {
@@ -124,7 +124,7 @@
     // Create prompt-only skill
     async createDemoSkill(skill) {
       try {
-        await InfringAPI.post('/api/skills/create', {
+        await InfringAPI.post('/api/shell-socket/skills/create', {
           name: skill.name,
           description: skill.description,
           runtime: 'prompt_only',

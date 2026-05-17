@@ -741,6 +741,18 @@ fn handle_shell_socket_routes(
         let legacy = dashboard_compat_api_hands::handle(root, "DELETE", &legacy_path, body, snapshot)?;
         return Some(shell_socket_hand_projection("deactivate_hand_instance", legacy));
     }
+    if method == "POST" && parts == ["skills", "install"] {
+        let legacy = dashboard_skills_marketplace::handle(root, "POST", "/api/clawhub/install", snapshot, body)?;
+        return Some(shell_socket_skill_projection("install_skill", legacy));
+    }
+    if method == "POST" && parts == ["skills", "uninstall"] {
+        let legacy = dashboard_skills_marketplace::handle(root, "POST", "/api/skills/uninstall", snapshot, body)?;
+        return Some(shell_socket_skill_projection("uninstall_skill", legacy));
+    }
+    if method == "POST" && parts == ["skills", "create"] {
+        let legacy = dashboard_skills_marketplace::handle(root, "POST", "/api/skills/create", snapshot, body)?;
+        return Some(shell_socket_skill_projection("create_skill", legacy));
+    }
     if method == "POST" && parts.len() == 3 && parts[0] == "agents" && parts[2] == "git-tree" {
         let legacy_path = format!("/api/agents/{}/git-tree/switch", clean_agent_id(&parts[1]));
         let legacy = handle_agent_scope_routes(root, "POST", &legacy_path, &legacy_path, body, headers, snapshot, requester_agent)?;
