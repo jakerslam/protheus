@@ -34,6 +34,9 @@ export type ShellSocketCapabilityId =
   | 'revive_agent'
   | 'clone_agent'
   | 'clear_agent_history'
+  | 'delete_archived_agent'
+  | 'delete_all_archived_agents'
+  | 'archive_all_agents'
   | 'stop_agent'
   | 'create_session'
   | 'switch_session'
@@ -98,6 +101,9 @@ export const SHELL_SOCKET_ROUTES: ReadonlyArray<ShellSocketRouteDefinition> = Ob
   { capabilityId: 'revive_agent', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/revive', pathParams: ['agent_id'] },
   { capabilityId: 'clone_agent', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/clone', pathParams: ['agent_id'] },
   { capabilityId: 'clear_agent_history', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/history/clear', pathParams: ['agent_id'] },
+  { capabilityId: 'delete_archived_agent', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/archived/delete', pathParams: ['agent_id'] },
+  { capabilityId: 'delete_all_archived_agents', method: 'POST', path: '/api/shell-socket/agents/archived/delete-all' },
+  { capabilityId: 'archive_all_agents', method: 'POST', path: '/api/shell-socket/agents/archive-all' },
   { capabilityId: 'stop_agent', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/stop', pathParams: ['agent_id'] },
   { capabilityId: 'create_session', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/sessions', pathParams: ['agent_id'] },
   { capabilityId: 'switch_session', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/sessions/{session_id}/switch', pathParams: ['agent_id', 'session_id'] },
@@ -325,6 +331,18 @@ export class ShellSocketGatewayClient {
     return this.request<T>('clear_agent_history', { query: { agent_id: agentId }, body: request });
   }
 
+  deleteArchivedAgent<T = unknown>(agentId: string, request: unknown = {}): Promise<T> {
+    return this.request<T>('delete_archived_agent', { query: { agent_id: agentId }, body: request });
+  }
+
+  deleteAllArchivedAgents<T = unknown>(request: unknown = {}): Promise<T> {
+    return this.request<T>('delete_all_archived_agents', { body: request });
+  }
+
+  archiveAllAgents<T = unknown>(request: unknown = {}): Promise<T> {
+    return this.request<T>('archive_all_agents', { body: request });
+  }
+
   stopAgent<T = unknown>(agentId: string, request: unknown = {}): Promise<T> {
     return this.request<T>('stop_agent', { query: { agent_id: agentId }, body: request });
   }
@@ -377,7 +395,7 @@ export function shellSocketClientSelfTest(): Record<string, unknown> {
     fetchImpl: async () => ({ ok: true, status: 200, text: async () => '{}' }),
   });
   return {
-    ok: routeIds.length === uniqueRouteIds.size && routeIds.length === 42,
+    ok: routeIds.length === uniqueRouteIds.size && routeIds.length === 45,
     type: 'shell_socket_gateway_client_self_test',
     route_count: routeIds.length,
     unique_route_count: uniqueRouteIds.size,

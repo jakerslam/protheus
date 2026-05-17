@@ -408,6 +408,13 @@
         "reason",
         "removed_history_entries",
         "deleted_archived_agents",
+        "removed_contract",
+        "removed_profile",
+        "removed_archived",
+        "removed_session_file",
+        "attempted",
+        "archived_count",
+        "include_permanent",
         "error",
         "receipt_ref",
         "correlation_id"
@@ -1355,6 +1362,81 @@
         "conversation_tree",
         "raw_messages",
         "session_store_truth"
+      ]
+    },
+    {
+      "id": "delete_archived_agent",
+      "purpose": "Request permanent deletion of one archived agent record through Gateway without shell-owned registry deletion authority.",
+      "route_class": "request_ingress",
+      "request_shape": "ArchivedAgentDeleteRequest",
+      "response_shape": "AgentLifecycleProjection",
+      "default_projection": "AgentLifecycleProjection",
+      "cursor_required": false,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "owner_of_truth": "kernel_agent_registry",
+      "shell_may_hold": [
+        "agent_id",
+        "removed_history_entries",
+        "receipt_ref"
+      ],
+      "shell_must_not_hold": [
+        "registry_deletion_authority",
+        "contract_store_truth",
+        "full_agent_profile"
+      ]
+    },
+    {
+      "id": "delete_all_archived_agents",
+      "purpose": "Request permanent deletion of archived agent records through Gateway without shell-owned registry deletion authority.",
+      "route_class": "request_ingress",
+      "request_shape": "ArchivedAgentsDeleteAllRequest",
+      "response_shape": "AgentLifecycleProjection",
+      "default_projection": "AgentLifecycleProjection",
+      "cursor_required": false,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "owner_of_truth": "kernel_agent_registry",
+      "shell_may_hold": [
+        "deleted_archived_agents",
+        "removed_history_entries",
+        "receipt_ref"
+      ],
+      "shell_must_not_hold": [
+        "bulk_registry_deletion_authority",
+        "contract_store_truth",
+        "archived_agent_store_truth"
+      ]
+    },
+    {
+      "id": "archive_all_agents",
+      "purpose": "Request bulk active-agent archive through Gateway without shell-owned lifecycle authority.",
+      "route_class": "request_ingress",
+      "request_shape": "AgentArchiveAllRequest",
+      "response_shape": "AgentLifecycleProjection",
+      "default_projection": "AgentLifecycleProjection",
+      "cursor_required": false,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "owner_of_truth": "kernel_agent_registry",
+      "shell_may_hold": [
+        "attempted",
+        "archived_count",
+        "receipt_ref"
+      ],
+      "shell_must_not_hold": [
+        "bulk_lifecycle_authority",
+        "registry_truth",
+        "full_agent_profiles"
       ]
     },
     {

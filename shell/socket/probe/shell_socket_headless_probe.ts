@@ -435,6 +435,35 @@ function makeHeadlessGatewayFetch(calls: CallRecord[], includeControlledViolatio
         receipt_ref: 'receipt:agent-history-clear:probe',
         correlation_id: 'probe-agent-history-clear',
       };
+    } else if (method === 'POST' && /^\/api\/shell-socket\/agents\/[^/]+\/archived\/delete$/.test(pathName)) {
+      capabilityId = 'delete_archived_agent';
+      payload = {
+        ok: true,
+        agent_id: decodeURIComponent(pathName.split('/')[4] || 'agent-probe'),
+        removed_history_entries: 1,
+        removed_archived: true,
+        receipt_ref: 'receipt:delete-archived-agent:probe',
+        correlation_id: 'probe-delete-archived-agent',
+      };
+    } else if (route === 'POST /api/shell-socket/agents/archived/delete-all') {
+      capabilityId = 'delete_all_archived_agents';
+      payload = {
+        ok: true,
+        removed_history_entries: 2,
+        deleted_archived_agents: 2,
+        receipt_ref: 'receipt:delete-all-archived-agents:probe',
+        correlation_id: 'probe-delete-all-archived-agents',
+      };
+    } else if (route === 'POST /api/shell-socket/agents/archive-all') {
+      capabilityId = 'archive_all_agents';
+      payload = {
+        ok: true,
+        attempted: 2,
+        archived_count: 2,
+        include_permanent: false,
+        receipt_ref: 'receipt:archive-all-agents:probe',
+        correlation_id: 'probe-archive-all-agents',
+      };
     } else if (method === 'POST' && /^\/api\/shell-socket\/agents\/[^/]+\/stop$/.test(pathName)) {
       capabilityId = 'stop_agent';
       payload = {
@@ -659,6 +688,9 @@ async function runProbe(options: ProbeOptions): Promise<Record<string, unknown>>
   const agentReviveAck = await client.reviveAgent<any>(agentId, { role: 'analyst' });
   const agentCloneAck = await client.cloneAgent<any>(agentId, { new_name: 'Clone Probe Agent' });
   const agentHistoryClearAck = await client.clearAgentHistory<any>(agentId);
+  const archivedAgentDeleteAck = await client.deleteArchivedAgent<any>(agentId, { contract_id: 'contract-probe' });
+  const allArchivedAgentsDeleteAck = await client.deleteAllArchivedAgents<any>();
+  const archiveAllAgentsAck = await client.archiveAllAgents<any>({ reason: 'headless_probe' });
   const agentStopAck = await client.stopAgent<any>(agentId, { reason: 'headless_probe' });
   const createSessionAck = await client.createSession<any>(agentId, { label: 'Probe Session' });
   const switchSessionAck = await client.switchSession<any>(agentId, sessionId);
@@ -713,6 +745,9 @@ async function runProbe(options: ProbeOptions): Promise<Record<string, unknown>>
       agent_revive_receipt: agentReviveAck.receipt_ref,
       agent_clone_receipt: agentCloneAck.receipt_ref,
       agent_history_clear_receipt: agentHistoryClearAck.receipt_ref,
+      archived_agent_delete_receipt: archivedAgentDeleteAck.receipt_ref,
+      all_archived_agents_delete_receipt: allArchivedAgentsDeleteAck.receipt_ref,
+      archive_all_agents_receipt: archiveAllAgentsAck.receipt_ref,
       agent_stop_receipt: agentStopAck.receipt_ref,
       create_session_receipt: createSessionAck.receipt_ref,
       switch_session_receipt: switchSessionAck.receipt_ref,

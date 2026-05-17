@@ -638,9 +638,9 @@ function agentsPage() {
       if (!agentId) return;
       this.confirmDeleteTerminatedKey = '';
       try {
-        var suffix = '/api/agents/terminated/' + encodeURIComponent(agentId);
-        if (contractId) suffix += '?contract_id=' + encodeURIComponent(contractId);
-        var result = await InfringAPI.del(suffix);
+        var result = await InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(agentId) + '/archived/delete', {
+          contract_id: contractId || undefined
+        });
         var removed = Number(result && result.removed_history_entries || 0);
         var label = removed > 0 ? (' and ' + removed + ' archived record(s)') : '';
         InfringToast.success('Permanently deleted ' + agentId + label);
@@ -665,7 +665,7 @@ function agentsPage() {
         'Permanently delete all archived agents? This cannot be undone.',
         async function() {
           try {
-            var result = await InfringAPI.del('/api/agents/terminated?all=1');
+            var result = await InfringAPI.post('/api/shell-socket/agents/archived/delete-all', {});
             var removed = Number(result && result.deleted_archived_agents || 0);
             InfringToast.success('Deleted ' + removed + ' archived agent(s).');
             await Alpine.store('app').refreshAgents();
@@ -692,7 +692,7 @@ function agentsPage() {
           var store = Alpine.store('app');
           var failures = [];
           try {
-            await InfringAPI.post('/api/agents/archive-all', { reason: 'user_archive_all' });
+            await InfringAPI.post('/api/shell-socket/agents/archive-all', { reason: 'user_archive_all' });
           } catch (_) {
             // Fallback path below will sweep survivors one-by-one.
           }

@@ -542,6 +542,37 @@ fn handle_shell_socket_routes(
         let legacy = handle_agent_scope_routes(root, "DELETE", &legacy_path, &legacy_path, body, headers, snapshot, requester_agent)?;
         return Some(shell_socket_agent_lifecycle_projection("clear_agent_history", legacy));
     }
+    if method == "POST" && parts.len() == 4 && parts[0] == "agents" && parts[2] == "archived" && parts[3] == "delete" {
+        let request = serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
+        let contract_id = request
+            .get("contract_id")
+            .and_then(Value::as_str)
+            .map(|value| clean_text(value, 120))
+            .filter(|value| !value.is_empty());
+        let legacy_path = if let Some(contract_id) = contract_id {
+            format!(
+                "/api/agents/terminated/{}?contract_id={}",
+                clean_agent_id(&parts[1]),
+                contract_id
+            )
+        } else {
+            format!("/api/agents/terminated/{}", clean_agent_id(&parts[1]))
+        };
+        let legacy_path_only = format!("/api/agents/terminated/{}", clean_agent_id(&parts[1]));
+        let legacy = handle_primary_dashboard_routes(root, "DELETE", &legacy_path, &legacy_path_only, body, headers, snapshot, requester_agent)?;
+        return Some(shell_socket_agent_lifecycle_projection("delete_archived_agent", legacy));
+    }
+    if method == "POST" && parts.len() == 3 && parts[0] == "agents" && parts[1] == "archived" && parts[2] == "delete-all" {
+        let legacy_path = "/api/agents/terminated?all=1";
+        let legacy_path_only = "/api/agents/terminated";
+        let legacy = handle_primary_dashboard_routes(root, "DELETE", legacy_path, legacy_path_only, body, headers, snapshot, requester_agent)?;
+        return Some(shell_socket_agent_lifecycle_projection("delete_all_archived_agents", legacy));
+    }
+    if method == "POST" && parts.len() == 2 && parts[0] == "agents" && parts[1] == "archive-all" {
+        let legacy_path = "/api/agents/archive-all";
+        let legacy = handle_primary_dashboard_routes(root, "POST", legacy_path, legacy_path, body, headers, snapshot, requester_agent)?;
+        return Some(shell_socket_agent_lifecycle_projection("archive_all_agents", legacy));
+    }
     if method == "POST" && parts.len() == 3 && parts[0] == "agents" && parts[2] == "stop" {
         let legacy_path = format!("/api/agents/{}/stop", clean_agent_id(&parts[1]));
         let legacy = handle_agent_scope_routes(root, "POST", &legacy_path, &legacy_path, body, headers, snapshot, requester_agent)?;

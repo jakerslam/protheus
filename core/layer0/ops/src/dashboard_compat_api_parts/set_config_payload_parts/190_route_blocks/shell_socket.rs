@@ -874,6 +874,13 @@ fn shell_socket_agent_lifecycle_projection(capability: &str, legacy: CompatApiRe
         "reason",
         "removed_history_entries",
         "deleted_archived_agents",
+        "removed_contract",
+        "removed_profile",
+        "removed_archived",
+        "removed_session_file",
+        "attempted",
+        "archived_count",
+        "include_permanent",
     ] {
         if let Some(value) = payload.get(key) {
             out.insert(key.to_string(), value.clone());
