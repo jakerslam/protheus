@@ -53,6 +53,10 @@ export type ShellSocketCapabilityId =
   | 'run_schedule'
   | 'set_trigger_enabled'
   | 'delete_trigger'
+  | 'start_channel_qr'
+  | 'configure_channel'
+  | 'test_channel'
+  | 'remove_channel_config'
   | 'set_git_tree'
   | 'fresh_session'
   | 'compact_session'
@@ -130,6 +134,10 @@ export const SHELL_SOCKET_ROUTES: ReadonlyArray<ShellSocketRouteDefinition> = Ob
   { capabilityId: 'run_schedule', method: 'POST', path: '/api/shell-socket/scheduler/jobs/{job_id}/run', pathParams: ['job_id'] },
   { capabilityId: 'set_trigger_enabled', method: 'POST', path: '/api/shell-socket/scheduler/triggers/{trigger_id}/enable', pathParams: ['trigger_id'] },
   { capabilityId: 'delete_trigger', method: 'POST', path: '/api/shell-socket/scheduler/triggers/{trigger_id}/delete', pathParams: ['trigger_id'] },
+  { capabilityId: 'start_channel_qr', method: 'POST', path: '/api/shell-socket/channels/{channel_id}/qr/start', pathParams: ['channel_id'] },
+  { capabilityId: 'configure_channel', method: 'POST', path: '/api/shell-socket/channels/{channel_id}/configure', pathParams: ['channel_id'] },
+  { capabilityId: 'test_channel', method: 'POST', path: '/api/shell-socket/channels/{channel_id}/test', pathParams: ['channel_id'] },
+  { capabilityId: 'remove_channel_config', method: 'POST', path: '/api/shell-socket/channels/{channel_id}/configure/remove', pathParams: ['channel_id'] },
   { capabilityId: 'set_git_tree', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/git-tree', pathParams: ['agent_id'] },
   { capabilityId: 'fresh_session', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/fresh-session', pathParams: ['agent_id'] },
   { capabilityId: 'compact_session', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/compact-session', pathParams: ['agent_id'] },
@@ -427,6 +435,22 @@ export class ShellSocketGatewayClient {
     return this.request<T>('delete_trigger', { query: { trigger_id: triggerId }, body: request });
   }
 
+  startChannelQr<T = unknown>(channelId: string, request: unknown = {}): Promise<T> {
+    return this.request<T>('start_channel_qr', { query: { channel_id: channelId }, body: request });
+  }
+
+  configureChannel<T = unknown>(channelId: string, request: unknown): Promise<T> {
+    return this.request<T>('configure_channel', { query: { channel_id: channelId }, body: request });
+  }
+
+  testChannel<T = unknown>(channelId: string, request: unknown = {}): Promise<T> {
+    return this.request<T>('test_channel', { query: { channel_id: channelId }, body: request });
+  }
+
+  removeChannelConfig<T = unknown>(channelId: string, request: unknown = {}): Promise<T> {
+    return this.request<T>('remove_channel_config', { query: { channel_id: channelId }, body: request });
+  }
+
   setGitTree<T = unknown>(agentId: string, treeSelection: unknown): Promise<T> {
     return this.request<T>('set_git_tree', { query: { agent_id: agentId }, body: treeSelection });
   }
@@ -455,7 +479,7 @@ export function shellSocketClientSelfTest(): Record<string, unknown> {
     fetchImpl: async () => ({ ok: true, status: 200, text: async () => '{}' }),
   });
   return {
-    ok: routeIds.length === uniqueRouteIds.size && routeIds.length === 55,
+    ok: routeIds.length === uniqueRouteIds.size && routeIds.length === 59,
     type: 'shell_socket_gateway_client_self_test',
     route_count: routeIds.length,
     unique_route_count: uniqueRouteIds.size,

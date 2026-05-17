@@ -639,6 +639,55 @@ function makeHeadlessGatewayFetch(calls: CallRecord[], includeControlledViolatio
         receipt_ref: 'receipt:delete-trigger:probe',
         correlation_id: 'probe-delete-trigger',
       };
+    } else if (method === 'POST' && /^\/api\/shell-socket\/channels\/[^/]+\/qr\/start$/.test(pathName)) {
+      capabilityId = 'start_channel_qr';
+      payload = {
+        ok: true,
+        channel_id: decodeURIComponent(pathName.split('/')[4] || 'whatsapp'),
+        status: 'ok',
+        available: true,
+        session_id: 'qr-session-probe',
+        qr_data_url: 'data:image/svg+xml;base64,PHN2Zy8+',
+        connected: false,
+        message: 'Scan the QR code with WhatsApp.',
+        help: 'Open WhatsApp -> Linked devices -> Link a device',
+        receipt_ref: 'receipt:start-channel-qr:probe',
+        correlation_id: 'probe-start-channel-qr',
+      };
+    } else if (method === 'POST' && /^\/api\/shell-socket\/channels\/[^/]+\/configure$/.test(pathName)) {
+      capabilityId = 'configure_channel';
+      payload = {
+        ok: true,
+        channel_id: decodeURIComponent(pathName.split('/')[4] || 'whatsapp'),
+        configured: true,
+        has_token: true,
+        status: 'ok',
+        message: 'Channel configured.',
+        receipt_ref: 'receipt:configure-channel:probe',
+        correlation_id: 'probe-configure-channel',
+      };
+    } else if (method === 'POST' && /^\/api\/shell-socket\/channels\/[^/]+\/test$/.test(pathName)) {
+      capabilityId = 'test_channel';
+      payload = {
+        ok: true,
+        channel_id: decodeURIComponent(pathName.split('/')[4] || 'whatsapp'),
+        status: 'ok',
+        connected: true,
+        message: 'Channel test succeeded.',
+        receipt_ref: 'receipt:test-channel:probe',
+        correlation_id: 'probe-test-channel',
+      };
+    } else if (method === 'POST' && /^\/api\/shell-socket\/channels\/[^/]+\/configure\/remove$/.test(pathName)) {
+      capabilityId = 'remove_channel_config';
+      payload = {
+        ok: true,
+        channel_id: decodeURIComponent(pathName.split('/')[4] || 'whatsapp'),
+        configured: false,
+        status: 'ok',
+        message: 'Channel removed.',
+        receipt_ref: 'receipt:remove-channel-config:probe',
+        correlation_id: 'probe-remove-channel-config',
+      };
     } else if (method === 'POST' && /^\/api\/shell-socket\/agents\/[^/]+\/git-tree$/.test(pathName)) {
       capabilityId = 'set_git_tree';
       payload = makeIngressAck('git-tree');
@@ -810,6 +859,10 @@ async function runProbe(options: ProbeOptions): Promise<Record<string, unknown>>
   const cronDeleteAck = await client.deleteCronJob<any>('job-probe');
   const triggerEnableAck = await client.setTriggerEnabled<any>('trigger-probe', { enabled: true });
   const triggerDeleteAck = await client.deleteTrigger<any>('trigger-probe');
+  const channelQrAck = await client.startChannelQr<any>('whatsapp');
+  const channelConfigAck = await client.configureChannel<any>('whatsapp', { fields: { phone_number: '+15555550123' } });
+  const channelTestAck = await client.testChannel<any>('whatsapp', { force_live: true });
+  const channelRemoveAck = await client.removeChannelConfig<any>('whatsapp');
   const gitAck = await client.setGitTree<any>(agentId, { tree_ref: 'git-tree:current' });
   const freshSessionAck = await client.freshSession<any>(agentId, { reason: 'headless_probe' });
   const compactSessionAck = await client.compactSession<any>(agentId, { reason: 'headless_probe' });
@@ -877,6 +930,10 @@ async function runProbe(options: ProbeOptions): Promise<Record<string, unknown>>
       cron_delete_receipt: cronDeleteAck.receipt_ref,
       trigger_enable_receipt: triggerEnableAck.receipt_ref,
       trigger_delete_receipt: triggerDeleteAck.receipt_ref,
+      channel_qr_receipt: channelQrAck.receipt_ref,
+      channel_config_receipt: channelConfigAck.receipt_ref,
+      channel_test_receipt: channelTestAck.receipt_ref,
+      channel_remove_receipt: channelRemoveAck.receipt_ref,
       git_receipt: gitAck.receipt_ref,
       fresh_session_receipt: freshSessionAck.receipt_ref,
       compact_session_receipt: compactSessionAck.receipt_ref,

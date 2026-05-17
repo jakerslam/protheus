@@ -522,6 +522,32 @@
       "requires_detail_refs": true
     },
     {
+      "name": "ChannelMutationProjection",
+      "description": "Bounded acknowledgement/projection for channel setup actions; shell plugs receive display status and QR display data only, not secret/config authority.",
+      "allowed_top_level_fields": [
+        "ok",
+        "channel_id",
+        "name",
+        "display_name",
+        "configured",
+        "has_token",
+        "status",
+        "available",
+        "session_id",
+        "qr_data_url",
+        "connected",
+        "expired",
+        "message",
+        "help",
+        "error",
+        "receipt_ref",
+        "correlation_id"
+      ],
+      "max_response_bytes": 65536,
+      "requires_cursor": false,
+      "requires_detail_refs": true
+    },
+    {
       "name": "IngressAck",
       "description": "Bounded acknowledgement or receipt for a shell-submitted request.",
       "allowed_top_level_fields": [
@@ -1898,6 +1924,113 @@
         "trigger_authority",
         "event_policy_truth",
         "queue_truth"
+      ]
+    },
+    {
+      "id": "start_channel_qr",
+      "purpose": "Request channel QR setup display data through Gateway without shell-owned channel authority.",
+      "route_class": "request_ingress",
+      "request_shape": "ChannelQrStartRequest",
+      "response_shape": "ChannelMutationProjection",
+      "default_projection": "ChannelMutationProjection",
+      "cursor_required": false,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "owner_of_truth": "orchestration_channel_bridge",
+      "shell_may_hold": [
+        "channel_id",
+        "session_id",
+        "qr_data_url",
+        "connected",
+        "receipt_ref"
+      ],
+      "shell_must_not_hold": [
+        "channel_authority",
+        "channel_secret",
+        "raw_channel_config"
+      ]
+    },
+    {
+      "id": "configure_channel",
+      "purpose": "Submit channel configuration through Gateway admission without retaining raw config in shell plugs.",
+      "route_class": "request_ingress",
+      "request_shape": "ChannelConfigureRequest",
+      "response_shape": "ChannelMutationProjection",
+      "default_projection": "ChannelMutationProjection",
+      "cursor_required": false,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "owner_of_truth": "orchestration_channel_bridge",
+      "shell_may_hold": [
+        "channel_id",
+        "configured",
+        "has_token",
+        "status",
+        "receipt_ref"
+      ],
+      "shell_must_not_hold": [
+        "channel_authority",
+        "channel_secret",
+        "raw_channel_config"
+      ]
+    },
+    {
+      "id": "test_channel",
+      "purpose": "Request a channel connectivity test through Gateway without exposing raw provider responses by default.",
+      "route_class": "request_ingress",
+      "request_shape": "ChannelTestRequest",
+      "response_shape": "ChannelMutationProjection",
+      "default_projection": "ChannelMutationProjection",
+      "cursor_required": false,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "owner_of_truth": "orchestration_channel_bridge",
+      "shell_may_hold": [
+        "channel_id",
+        "status",
+        "message",
+        "connected",
+        "receipt_ref"
+      ],
+      "shell_must_not_hold": [
+        "channel_authority",
+        "raw_provider_response",
+        "channel_secret"
+      ]
+    },
+    {
+      "id": "remove_channel_config",
+      "purpose": "Request channel configuration removal through Gateway admission.",
+      "route_class": "request_ingress",
+      "request_shape": "ChannelConfigRemoveRequest",
+      "response_shape": "ChannelMutationProjection",
+      "default_projection": "ChannelMutationProjection",
+      "cursor_required": false,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "owner_of_truth": "orchestration_channel_bridge",
+      "shell_may_hold": [
+        "channel_id",
+        "configured",
+        "status",
+        "receipt_ref"
+      ],
+      "shell_must_not_hold": [
+        "channel_authority",
+        "channel_secret",
+        "raw_channel_config"
       ]
     },
     {

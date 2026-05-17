@@ -665,6 +665,34 @@ fn handle_shell_socket_routes(
         let legacy = dashboard_compat_api_sidebar_ops::handle(root, "DELETE", &legacy_path, body, snapshot)?;
         return Some(shell_socket_scheduler_projection("delete_trigger", legacy));
     }
+    if method == "POST" && parts.len() == 4 && parts[0] == "channels" && parts[2] == "qr" && parts[3] == "start" {
+        let channel_id = clean_text(&parts[1], 120);
+        let legacy_path = format!("/api/channels/{channel_id}/qr/start");
+        let legacy = if channel_id == "whatsapp" {
+            dashboard_compat_api_channels::handle(root, "POST", "/api/channels/whatsapp/qr/start", body)?
+        } else {
+            dashboard_compat_api_channels::handle(root, "POST", &legacy_path, body)?
+        };
+        return Some(shell_socket_channel_projection("start_channel_qr", &channel_id, legacy));
+    }
+    if method == "POST" && parts.len() == 3 && parts[0] == "channels" && parts[2] == "configure" {
+        let channel_id = clean_text(&parts[1], 120);
+        let legacy_path = format!("/api/channels/{channel_id}/configure");
+        let legacy = dashboard_compat_api_channels::handle(root, "POST", &legacy_path, body)?;
+        return Some(shell_socket_channel_projection("configure_channel", &channel_id, legacy));
+    }
+    if method == "POST" && parts.len() == 3 && parts[0] == "channels" && parts[2] == "test" {
+        let channel_id = clean_text(&parts[1], 120);
+        let legacy_path = format!("/api/channels/{channel_id}/test");
+        let legacy = dashboard_compat_api_channels::handle(root, "POST", &legacy_path, body)?;
+        return Some(shell_socket_channel_projection("test_channel", &channel_id, legacy));
+    }
+    if method == "POST" && parts.len() == 4 && parts[0] == "channels" && parts[2] == "configure" && parts[3] == "remove" {
+        let channel_id = clean_text(&parts[1], 120);
+        let legacy_path = format!("/api/channels/{channel_id}/configure");
+        let legacy = dashboard_compat_api_channels::handle(root, "DELETE", &legacy_path, body)?;
+        return Some(shell_socket_channel_projection("remove_channel_config", &channel_id, legacy));
+    }
     if method == "POST" && parts.len() == 3 && parts[0] == "agents" && parts[2] == "git-tree" {
         let legacy_path = format!("/api/agents/{}/git-tree/switch", clean_agent_id(&parts[1]));
         let legacy = handle_agent_scope_routes(root, "POST", &legacy_path, &legacy_path, body, headers, snapshot, requester_agent)?;

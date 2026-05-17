@@ -213,7 +213,7 @@ function channelsPage() {
       this.qr.connected = false;
       this.qr.expired = false;
       try {
-        var result = await InfringAPI.post('/api/channels/whatsapp/qr/start', {});
+        var result = await InfringAPI.post('/api/shell-socket/channels/whatsapp/qr/start', {});
         this.qr.available = result.available || false;
         this.qr.dataUrl = result.qr_data_url || '';
         this.qr.sessionId = result.session_id || '';
@@ -265,13 +265,13 @@ function channelsPage() {
       var name = this.setupModal.name;
       this.configuring = true;
       try {
-        await InfringAPI.post('/api/channels/' + name + '/configure', {
+        await InfringAPI.post('/api/shell-socket/channels/' + encodeURIComponent(name) + '/configure', {
           fields: this.formValues
         });
         this.setupStep = 2;
         // Auto-test after save
         try {
-          var testResult = await InfringAPI.post('/api/channels/' + name + '/test', { force_live: true });
+          var testResult = await InfringAPI.post('/api/shell-socket/channels/' + encodeURIComponent(name) + '/test', { force_live: true });
           if (testResult.status === 'ok') {
             this.testPassed = true;
             this.setupStep = 3;
@@ -296,7 +296,7 @@ function channelsPage() {
       var self = this;
       InfringToast.confirm('Remove Channel', 'Remove ' + displayName + ' configuration? This will deactivate the channel.', async function() {
         try {
-          await InfringAPI.delete('/api/channels/' + name + '/configure');
+          await InfringAPI.post('/api/shell-socket/channels/' + encodeURIComponent(name) + '/configure/remove', {});
           InfringToast.success(displayName + ' removed and deactivated.');
           await self.refreshStatus();
           self.setupModal = null;
@@ -311,7 +311,7 @@ function channelsPage() {
       var name = this.setupModal.name;
       this.testing[name] = true;
       try {
-        var result = await InfringAPI.post('/api/channels/' + name + '/test', { force_live: true });
+        var result = await InfringAPI.post('/api/shell-socket/channels/' + encodeURIComponent(name) + '/test', { force_live: true });
         if (result.status === 'ok') {
           this.testPassed = true;
           this.setupStep = 3;
