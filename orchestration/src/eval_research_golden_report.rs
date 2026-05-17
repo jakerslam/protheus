@@ -181,6 +181,48 @@ pub(super) fn markdown_report(report: &Value) -> String {
             0
         )
     ));
+    out.push_str(&format!(
+        "- response_grading_layers: generic={}/{} ({:.3}) evidence={}/{} ({:.3}) rubric={}/{} ({:.3})\n",
+        u64_at(
+            split,
+            &["response_grading_layers", "generic_response_contract_pass_cases"],
+            0
+        ),
+        u64_at(summary, &["cases"], 0),
+        f64_at(
+            split,
+            &["response_grading_layers", "generic_response_contract_pass_rate"],
+            0.0
+        ),
+        u64_at(
+            split,
+            &[
+                "response_grading_layers",
+                "tool_backed_evidence_contract_pass_cases"
+            ],
+            0
+        ),
+        u64_at(summary, &["cases"], 0),
+        f64_at(
+            split,
+            &[
+                "response_grading_layers",
+                "tool_backed_evidence_contract_pass_rate"
+            ],
+            0.0
+        ),
+        u64_at(
+            split,
+            &["response_grading_layers", "workflow_specific_rubric_pass_cases"],
+            0
+        ),
+        u64_at(summary, &["cases"], 0),
+        f64_at(
+            split,
+            &["response_grading_layers", "workflow_specific_rubric_pass_rate"],
+            0.0
+        )
+    ));
     let excellent_quality = split.get("excellent_quality").unwrap_or(&Value::Null);
     out.push_str(&format!(
         "- excellent_quality: excellent={}/{} ({:.3}) top_blocker={}\n",

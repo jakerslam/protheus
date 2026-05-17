@@ -20,6 +20,7 @@ pub(super) struct CaseGrade {
     pub(super) coverage_entities: Vec<String>,
     pub(super) citation_behavior: Value,
     pub(super) query_satisfaction: Value,
+    pub(super) response_grading_layers: Value,
 }
 
 pub(super) fn grade_case(
@@ -40,11 +41,15 @@ pub(super) fn grade_case(
     let tool_choice_final_response = tool_choice_as_final_response(&response_text);
     let empty_response = response_text.trim().is_empty();
     let unsupported_claim = unsupported_claim_signal(case, &response_text);
-    let retrieval_quality = retrieval_provider_quality(payload);
+    let retrieval_quality = retrieval_provider_quality(payload, &normalized_prompt);
     let source_signal = has_source_signal(&response_text, &retrieval_quality);
     let citation_behavior = citation_behavior(payload, &response_text, &retrieval_quality);
     let citation_signal = citation_behavior
         .get("citation_signal")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let response_source_signal = citation_behavior
+        .get("response_source_signal")
         .and_then(Value::as_bool)
         .unwrap_or(false);
     let limitation_signal = has_limitation_signal(&normalized);
@@ -56,7 +61,7 @@ pub(super) fn grade_case(
         &coverage_entities,
         entity_coverage,
         final_answer_present,
-        source_signal,
+        response_source_signal,
         citation_signal,
         limitation_signal,
     );
@@ -64,6 +69,37 @@ pub(super) fn grade_case(
         .get("score")
         .and_then(Value::as_u64)
         .unwrap_or(0);
+    let source_summary_without_answer = source_summary_without_answer_signal(&normalized);
+    let generic_response_contract = generic_response_contract(
+        &response_text,
+        final_answer_present,
+        &query_satisfaction,
+        source_summary_without_answer,
+        raw_tool_leak,
+        internal_leak,
+        tool_choice_final_response,
+    );
+    let evidence_use_contract = tool_backed_evidence_contract(
+        &normalized,
+        &retrieval_quality,
+        &citation_behavior,
+        limitation_signal,
+        &query_satisfaction,
+        unsupported_claim,
+    );
+    let workflow_specific_rubric = research_workflow_specific_rubric(
+        &query_satisfaction,
+        source_signal,
+        limitation_signal,
+        &normalized,
+    );
+    let response_grading_layers = json!({
+        "schema_version": 1,
+        "generic_response_contract": generic_response_contract,
+        "tool_backed_evidence_contract": evidence_use_contract,
+        "workflow_specific_rubric": workflow_specific_rubric,
+        "note": "Separates general answer quality, evidence-use discipline, and research-specific rubric checks so format flexibility and workflow-specific semantics can evolve independently."
+    });
 
     let workflow_score = gates.values().filter(|ok| **ok).count() as u64 * 5;
     let evidence_score = (if source_signal { 6 } else { 0 })
@@ -71,7 +107,7 @@ pub(super) fn grade_case(
         + (if !raw_tool_leak { 5 } else { 0 })
         + (if limitation_signal { 4 } else { 0 })
         + (if !unsupported_claim { 4 } else { 0 });
-    let synthesis_score = (if final_answer_present { 6 } else { 0 })
+    let synthesis_score_raw = (if final_answer_present { 6 } else { 0 })
         + ((entity_coverage * 7.0).round() as u64)
         + (if has_tradeoff_or_structure(&normalized) {
             6
@@ -85,6 +121,8 @@ pub(super) fn grade_case(
         })
         + (if limitation_signal { 2 } else { 0 })
         + query_satisfaction_score.min(10);
+    let synthesis_score =
+        synthesis_score_raw.saturating_sub(if source_summary_without_answer { 8 } else { 0 });
     let projection_score = (if !raw_tool_leak { 5 } else { 0 })
         + (if !internal_leak { 5 } else { 0 })
         + (if !empty_response { 5 } else { 0 })
@@ -116,6 +154,9 @@ pub(super) fn grade_case(
         failures.push(format!(
             "query_satisfaction_low:{query_satisfaction_score}<7"
         ));
+    }
+    if source_summary_without_answer {
+        failures.push("source_summary_without_user_answer".to_string());
     }
     if raw_tool_leak {
         failures.push("raw_tool_payload_leaked".to_string());
@@ -167,6 +208,7 @@ pub(super) fn grade_case(
         coverage_entities,
         citation_behavior,
         query_satisfaction,
+        response_grading_layers,
     }
 }
 
@@ -429,16 +471,24 @@ fn response_citation_count(payload: &Value) -> u64 {
     [
         "/citations",
         "/sources",
+        "/source_refs",
         "/response_workflow/citations",
         "/response_workflow/sources",
+        "/response_workflow/source_refs",
         "/response_workflow/final_llm_response/citations",
         "/response_workflow/final_llm_response/sources",
+        "/response_workflow/final_llm_response/source_refs",
         "/response_finalization/citations",
         "/response_finalization/sources",
+        "/response_finalization/source_refs",
         "/response_finalization/final_response/citations",
         "/response_finalization/final_response/sources",
+        "/response_finalization/final_response/source_refs",
         "/response_finalization/final_llm_response/citations",
         "/response_finalization/final_llm_response/sources",
+        "/response_finalization/final_llm_response/source_refs",
+        "/response_finalization/tool_completion/citations",
+        "/response_finalization/tool_completion/source_refs",
     ]
     .iter()
     .map(|pointer| count_content_items(payload.pointer(pointer).unwrap_or(&Value::Null)))
@@ -504,8 +554,365 @@ fn query_satisfaction(
         "evidence_aware": evidence_aware,
         "decision_value": decision_value,
         "right_granularity": right_granularity,
+        "coverage_entity_aliases": coverage_entity_aliases(coverage_entities),
         "note": "Query satisfaction is derived from the original prompt plus available evidence behavior, not from hidden expected answers."
     })
+}
+
+fn generic_response_contract(
+    response_text: &str,
+    final_answer_present: bool,
+    query_satisfaction: &Value,
+    source_summary_without_answer: bool,
+    raw_tool_leak: bool,
+    internal_leak: bool,
+    tool_choice_final_response: bool,
+) -> Value {
+    let intent_answered = query_satisfaction
+        .get("intent_answered")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let clean_projection = !raw_tool_leak && !internal_leak && !tool_choice_final_response;
+    let human_readable = normal_prose_signal(response_text);
+    let mut subgates = serde_json::Map::new();
+    subgates.insert(
+        "generic_1_final_answer_present".to_string(),
+        json!(final_answer_present),
+    );
+    subgates.insert(
+        "generic_2_answers_user_goal".to_string(),
+        json!(intent_answered),
+    );
+    subgates.insert(
+        "generic_3_no_source_summary_without_answer".to_string(),
+        json!(!source_summary_without_answer),
+    );
+    subgates.insert(
+        "generic_4_projection_clean".to_string(),
+        json!(clean_projection),
+    );
+    subgates.insert(
+        "generic_5_human_readable_shape".to_string(),
+        json!(human_readable),
+    );
+    let ordered = [
+        ("generic_1_final_answer_present", "missing_final_answer"),
+        ("generic_2_answers_user_goal", "user_goal_not_answered"),
+        (
+            "generic_3_no_source_summary_without_answer",
+            "source_summary_without_user_answer",
+        ),
+        (
+            "generic_4_projection_clean",
+            "projection_contains_internal_or_tool_state",
+        ),
+        (
+            "generic_5_human_readable_shape",
+            "response_shape_not_human_readable",
+        ),
+    ];
+    let blockers = ordered
+        .iter()
+        .filter_map(|(gate, blocker)| {
+            (!subgates
+                .get(*gate)
+                .and_then(Value::as_bool)
+                .unwrap_or(false))
+            .then(|| (*blocker).to_string())
+        })
+        .collect::<Vec<_>>();
+    let score = [
+        final_answer_present,
+        intent_answered,
+        !source_summary_without_answer,
+        clean_projection,
+        human_readable,
+    ]
+    .iter()
+    .filter(|ok| **ok)
+    .count() as u64
+        * 4;
+    json!({
+        "schema_version": 1,
+        "layer_id": "generic_response_contract_v1",
+        "pass": blockers.is_empty(),
+        "score": score,
+        "max_score": 20,
+        "subgates": Value::Object(subgates),
+        "blockers": blockers,
+        "top_blocker": blockers.first().cloned().unwrap_or_else(|| "none".to_string()),
+        "note": "Generic response grading checks that the answer is actually user-facing, goal-directed, and readable without depending on a fixed visible format."
+    })
+}
+
+fn tool_backed_evidence_contract(
+    normalized_response: &str,
+    retrieval_quality: &Value,
+    citation_behavior: &Value,
+    limitation_signal: bool,
+    query_satisfaction: &Value,
+    unsupported_claim: bool,
+) -> Value {
+    let tool_executed = retrieval_quality
+        .get("tool_executed")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let usable_evidence = retrieval_quality
+        .get("usable_evidence")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let retrieval_status = str_at(retrieval_quality, &["status"], "unknown");
+    let evidence_count = citation_behavior
+        .get("evidence_count")
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let citation_signal = citation_behavior
+        .get("citation_signal")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let response_source_signal = citation_behavior
+        .get("response_source_signal")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let synthesis_ignored_citable_evidence = citation_behavior
+        .get("synthesis_ignored_citable_evidence")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let scope_covered = query_satisfaction
+        .get("scope_covered")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    let needs_gap_statement = !scope_covered
+        || matches!(
+            retrieval_status.as_str(),
+            "low_signal"
+                | "no_results"
+                | "no_evidence"
+                | "provider_degraded"
+                | "raw_provider_absent"
+                | "conflicting_provider_state"
+                | "low_relevance"
+        );
+    let denies_recorded_evidence =
+        response_denies_recorded_evidence(normalized_response, evidence_count);
+    let uses_recorded_evidence_when_present =
+        !tool_executed || evidence_count == 0 || response_source_signal || citation_signal;
+    let preserves_source_signal_when_citable =
+        !usable_evidence || evidence_count == 0 || citation_signal;
+    let names_limits_when_needed = !needs_gap_statement || limitation_signal;
+    let mut subgates = serde_json::Map::new();
+    subgates.insert(
+        "evidence_1_uses_recorded_evidence_when_present".to_string(),
+        json!(uses_recorded_evidence_when_present),
+    );
+    subgates.insert(
+        "evidence_2_preserves_compact_source_signal_when_citable".to_string(),
+        json!(preserves_source_signal_when_citable),
+    );
+    subgates.insert(
+        "evidence_3_does_not_ignore_citable_evidence".to_string(),
+        json!(!synthesis_ignored_citable_evidence),
+    );
+    subgates.insert(
+        "evidence_4_does_not_overclaim_or_deny_recorded_state".to_string(),
+        json!(!unsupported_claim && !denies_recorded_evidence),
+    );
+    subgates.insert(
+        "evidence_5_names_limits_when_needed".to_string(),
+        json!(names_limits_when_needed),
+    );
+    let ordered = [
+        (
+            "evidence_1_uses_recorded_evidence_when_present",
+            "recorded_evidence_not_used",
+        ),
+        (
+            "evidence_2_preserves_compact_source_signal_when_citable",
+            "missing_compact_source_signal",
+        ),
+        (
+            "evidence_3_does_not_ignore_citable_evidence",
+            "citable_evidence_ignored",
+        ),
+        (
+            "evidence_4_does_not_overclaim_or_deny_recorded_state",
+            "recorded_state_overclaimed_or_denied",
+        ),
+        (
+            "evidence_5_names_limits_when_needed",
+            "missing_evidence_gap_statement",
+        ),
+    ];
+    let blockers = ordered
+        .iter()
+        .filter_map(|(gate, blocker)| {
+            (!subgates
+                .get(*gate)
+                .and_then(Value::as_bool)
+                .unwrap_or(false))
+            .then(|| (*blocker).to_string())
+        })
+        .collect::<Vec<_>>();
+    let score = [
+        uses_recorded_evidence_when_present,
+        preserves_source_signal_when_citable,
+        !synthesis_ignored_citable_evidence,
+        !unsupported_claim && !denies_recorded_evidence,
+        names_limits_when_needed,
+    ]
+    .iter()
+    .filter(|ok| **ok)
+    .count() as u64
+        * 5;
+    let top_blocker = blockers
+        .first()
+        .cloned()
+        .unwrap_or_else(|| "none".to_string());
+    json!({
+        "schema_version": 1,
+        "layer_id": "tool_backed_evidence_contract_v1",
+        "pass": blockers.is_empty(),
+        "score": score,
+        "max_score": 25,
+        "subgates": Value::Object(subgates),
+        "blockers": blockers,
+        "top_blocker": top_blocker,
+        "retrieval_status": retrieval_status,
+        "note": "Evidence-use grading is format-flexible but requires the final answer to use recorded evidence honestly when evidence exists."
+    })
+}
+
+fn research_workflow_specific_rubric(
+    query_satisfaction: &Value,
+    source_signal: bool,
+    limitation_signal: bool,
+    normalized_response: &str,
+) -> Value {
+    let query_satisfaction_score = query_satisfaction
+        .get("score")
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let scope_covered = query_satisfaction
+        .get("scope_covered")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    let decision_value = query_satisfaction
+        .get("decision_value")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let right_granularity = query_satisfaction
+        .get("right_granularity")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let research_structure =
+        has_tradeoff_or_structure(normalized_response) || source_signal || limitation_signal;
+    let mut subgates = serde_json::Map::new();
+    subgates.insert(
+        "rubric_1_query_satisfaction".to_string(),
+        json!(query_satisfaction_score >= 7),
+    );
+    subgates.insert("rubric_2_scope_covered".to_string(), json!(scope_covered));
+    subgates.insert(
+        "rubric_3_decision_or_explanatory_value".to_string(),
+        json!(decision_value || has_tradeoff_or_structure(normalized_response)),
+    );
+    subgates.insert(
+        "rubric_4_right_granularity".to_string(),
+        json!(right_granularity),
+    );
+    subgates.insert(
+        "rubric_5_research_structure_or_grounding".to_string(),
+        json!(research_structure),
+    );
+    let ordered = [
+        (
+            "rubric_1_query_satisfaction",
+            "query_satisfaction_below_rubric",
+        ),
+        ("rubric_2_scope_covered", "requested_scope_not_covered"),
+        (
+            "rubric_3_decision_or_explanatory_value",
+            "missing_decision_or_explanatory_value",
+        ),
+        ("rubric_4_right_granularity", "response_granularity_off"),
+        (
+            "rubric_5_research_structure_or_grounding",
+            "missing_research_structure_or_grounding",
+        ),
+    ];
+    let blockers = ordered
+        .iter()
+        .filter_map(|(gate, blocker)| {
+            (!subgates
+                .get(*gate)
+                .and_then(Value::as_bool)
+                .unwrap_or(false))
+            .then(|| (*blocker).to_string())
+        })
+        .collect::<Vec<_>>();
+    let score = (query_satisfaction_score.min(10) * 2)
+        + (if scope_covered { 5 } else { 0 })
+        + (if decision_value || has_tradeoff_or_structure(normalized_response) {
+            4
+        } else {
+            0
+        })
+        + (if right_granularity { 3 } else { 0 })
+        + (if research_structure { 3 } else { 0 });
+    let normalized_score = score.min(35);
+    let top_blocker = blockers
+        .first()
+        .cloned()
+        .unwrap_or_else(|| "none".to_string());
+    json!({
+        "schema_version": 1,
+        "layer_id": "research_workflow_specific_rubric_v1",
+        "pass": blockers.is_empty(),
+        "score": normalized_score,
+        "max_score": 35,
+        "subgates": Value::Object(subgates),
+        "blockers": blockers,
+        "top_blocker": top_blocker,
+        "note": "This layer is intentionally workflow-specific. It captures research-answer usefulness without requiring any fixed visible format."
+    })
+}
+
+fn response_denies_recorded_evidence(normalized_response: &str, evidence_count: u64) -> bool {
+    if evidence_count == 0 {
+        return false;
+    }
+    let denies_source_backed = normalized_response.contains("no source backed")
+        || normalized_response.contains("no source-backed");
+    denies_source_backed
+        || contains_any(
+            normalized_response,
+            &[
+                "no evidence was found",
+                "no evidence is available",
+                "no tool result is available",
+            ],
+        )
+}
+
+fn source_summary_without_answer_signal(normalized_response: &str) -> bool {
+    if normalized_response.is_empty() {
+        return false;
+    }
+    let generic_bounded_template = normalized_response.contains("the safest bounded answer")
+        && normalized_response.contains("recorded evidence so far");
+    let raw_retrieval_summary = normalized_response.contains("recorded evidence so far")
+        && normalized_response.contains("from web retrieval")
+        && (normalized_response.contains("here s what i found")
+            || normalized_response.contains("heres what i found"));
+    let unanswered_retry_template = normalized_response
+        .contains("current turn does not yet support a complete answer")
+        && (normalized_response.contains("current tradeoff is breadth versus confidence")
+            || normalized_response.contains("treat this as a partial answer"));
+    let broken_prompt_echo = normalized_response.contains("complete answer to ?");
+    generic_bounded_template
+        || raw_retrieval_summary
+        || unanswered_retry_template
+        || broken_prompt_echo
 }
 
 fn response_matches_prompt_intent(normalized_prompt: &str, normalized_response: &str) -> bool {
@@ -568,7 +975,7 @@ fn response_matches_decision_prompt(normalized_prompt: &str, normalized_response
 
 fn response_has_right_granularity(normalized_response: &str) -> bool {
     let word_count = normalized_response.split_whitespace().count();
-    (45..=900).contains(&word_count)
+    (20..=900).contains(&word_count)
 }
 
 fn user_stated_required_entities(
@@ -582,12 +989,17 @@ fn user_stated_required_entities(
         .collect()
 }
 
-fn retrieval_provider_quality(payload: &Value) -> Value {
+fn retrieval_provider_quality(payload: &Value, normalized_prompt: &str) -> Value {
     let tool_executed = has_tool_execution(payload);
     let candidate_count = provider_candidate_count(payload);
     let evidence_count = provider_evidence_count(payload);
     let content_rich_candidate_count = provider_content_rich_candidate_count(payload);
     let claim_hint_count = provider_claim_hint_count(payload);
+    let prompt_relevance = evidence_prompt_relevance(payload, normalized_prompt);
+    let topic_relevant_evidence = prompt_relevance
+        .get("topic_relevant_evidence")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
     let status_text = tool_status_marker_text(payload);
     let explicit_no_results = contains_any(
         &status_text,
@@ -654,6 +1066,8 @@ fn retrieval_provider_quality(payload: &Value) -> Value {
         "raw_provider_absent"
     } else if explicit_low_signal {
         "low_signal"
+    } else if evidence_count > 0 && !topic_relevant_evidence {
+        "low_relevance"
     } else {
         "usable"
     };
@@ -688,6 +1102,9 @@ fn retrieval_provider_quality(payload: &Value) -> Value {
     if tool_executed && evidence_count > 0 && claim_hint_count == 0 {
         flags.push("claim_hints_absent");
     }
+    if tool_executed && evidence_count > 0 && !topic_relevant_evidence {
+        flags.push("topic_relevance_absent");
+    }
     flags.sort_unstable();
     flags.dedup();
     json!({
@@ -701,6 +1118,7 @@ fn retrieval_provider_quality(payload: &Value) -> Value {
         "usable_evidence": usable_evidence,
         "allows_excellent": allows_excellent,
         "quality_flags": flags,
+        "prompt_relevance": prompt_relevance,
         "classification_inputs": {
             "explicit_no_results_marker": explicit_no_results,
             "explicit_provider_degraded_marker": explicit_provider_degraded,
@@ -708,10 +1126,213 @@ fn retrieval_provider_quality(payload: &Value) -> Value {
             "evidence_artifact_conflict": evidence_artifact_conflict,
             "content_rich_candidate_count": content_rich_candidate_count,
             "claim_hint_count": claim_hint_count,
+            "topic_relevant_evidence": topic_relevant_evidence,
             "status_marker_source": "structured_tool_status_fields_only"
         },
         "note": "Excellent requires usable retrieval/provider evidence; low-evidence fallbacks may pass but cannot earn excellent."
     })
+}
+
+fn evidence_prompt_relevance(payload: &Value, normalized_prompt: &str) -> Value {
+    let prompt_terms = research_prompt_topic_terms(normalized_prompt, 12);
+    let evidence_texts = evidence_relevance_texts(payload);
+    if prompt_terms.len() < 2 || evidence_texts.is_empty() {
+        return json!({
+            "schema_version": 1,
+            "topic_relevant_evidence": true,
+            "prompt_terms": prompt_terms,
+            "evidence_text_count": evidence_texts.len(),
+            "relevant_evidence_count": 0,
+            "min_overlap_terms": 0,
+            "note": "Prompt relevance was not enforced because the prompt had too few durable topic terms or no evidence text was available."
+        });
+    }
+    let min_overlap = if prompt_terms.len() <= 3 { 1 } else { 2 };
+    let relevant_evidence_count = evidence_texts
+        .iter()
+        .filter(|text| prompt_term_overlap_count(&prompt_terms, text) >= min_overlap)
+        .count() as u64;
+    json!({
+        "schema_version": 1,
+        "topic_relevant_evidence": relevant_evidence_count > 0,
+        "prompt_terms": prompt_terms,
+        "evidence_text_count": evidence_texts.len(),
+        "relevant_evidence_count": relevant_evidence_count,
+        "min_overlap_terms": min_overlap,
+        "note": "Checks whether at least one evidence item overlaps the user's durable topic terms, so unrelated source rows do not count as usable research evidence."
+    })
+}
+
+fn evidence_relevance_texts(payload: &Value) -> Vec<String> {
+    let mut out = Vec::<String>::new();
+    for row in selected_tool_contexts(payload) {
+        collect_evidence_relevance_texts(row, 0, &mut out);
+    }
+    out.sort();
+    out.dedup();
+    out
+}
+
+fn collect_evidence_relevance_texts(value: &Value, depth: usize, out: &mut Vec<String>) {
+    if depth > 7 || out.len() >= 80 {
+        return;
+    }
+    match value {
+        Value::Array(rows) => {
+            for row in rows {
+                collect_evidence_relevance_texts(row, depth + 1, out);
+            }
+        }
+        Value::Object(map) => {
+            for key in [
+                "title",
+                "source_domain",
+                "snippet",
+                "summary",
+                "content",
+                "markdown",
+                "text",
+                "body",
+                "description",
+                "abstract",
+                "claim_hints",
+                "claims",
+                "extracted_claims",
+                "claim_candidates",
+                "key_findings",
+                "findings",
+                "evidence",
+                "evidence_refs",
+                "evidence_pack",
+                "evidence_pack_candidates",
+                "sources",
+                "citations",
+                "search_results",
+                "provider_results",
+            ] {
+                if let Some(child) = map.get(key) {
+                    collect_evidence_relevance_texts(child, depth + 1, out);
+                }
+            }
+        }
+        Value::String(raw) => {
+            let cleaned = clean_text(raw, 1_000);
+            if cleaned.split_whitespace().count() >= 3 {
+                out.push(normalize_for_compare(&cleaned));
+            }
+        }
+        _ => {}
+    }
+}
+
+fn research_prompt_topic_terms(normalized_prompt: &str, limit: usize) -> Vec<String> {
+    let mut terms = Vec::<String>::new();
+    for token in normalized_prompt.split_whitespace() {
+        let token = token.trim();
+        if token.len() < 3 && token != "ai" {
+            continue;
+        }
+        if research_prompt_stop_term(token) {
+            continue;
+        }
+        let stem = research_term_stem(token);
+        if stem.len() < 3 && stem != "ai" {
+            continue;
+        }
+        if !terms.iter().any(|existing| existing == &stem) {
+            terms.push(stem);
+        }
+        if terms.len() >= limit {
+            break;
+        }
+    }
+    terms
+}
+
+fn research_prompt_stop_term(token: &str) -> bool {
+    matches!(
+        token,
+        "about"
+            | "after"
+            | "against"
+            | "also"
+            | "answer"
+            | "anything"
+            | "around"
+            | "before"
+            | "best"
+            | "between"
+            | "current"
+            | "currently"
+            | "does"
+            | "explain"
+            | "find"
+            | "give"
+            | "into"
+            | "landscape"
+            | "latest"
+            | "look"
+            | "looking"
+            | "make"
+            | "more"
+            | "most"
+            | "need"
+            | "overview"
+            | "research"
+            | "right"
+            | "some"
+            | "summarize"
+            | "tell"
+            | "that"
+            | "the"
+            | "their"
+            | "there"
+            | "these"
+            | "this"
+            | "update"
+            | "using"
+            | "what"
+            | "when"
+            | "where"
+            | "which"
+            | "while"
+            | "with"
+            | "would"
+            | "january"
+            | "february"
+            | "march"
+            | "april"
+            | "may"
+            | "june"
+            | "july"
+            | "august"
+            | "september"
+            | "october"
+            | "november"
+            | "december"
+    )
+}
+
+fn research_term_stem(token: &str) -> String {
+    let mut value = token.trim().to_string();
+    for suffix in ["ing", "ed", "es", "s"] {
+        if value.len() > suffix.len() + 3 && value.ends_with(suffix) {
+            value.truncate(value.len() - suffix.len());
+            break;
+        }
+    }
+    value
+}
+
+fn prompt_term_overlap_count(prompt_terms: &[String], normalized_text: &str) -> usize {
+    let text_terms = normalized_text
+        .split_whitespace()
+        .map(research_term_stem)
+        .collect::<Vec<_>>();
+    prompt_terms
+        .iter()
+        .filter(|term| text_terms.iter().any(|text_term| text_term == *term))
+        .count()
 }
 
 struct ExcellentDiagnosticInput<'a> {
@@ -765,6 +1386,7 @@ fn excellent_diagnostics(input: ExcellentDiagnosticInput<'_>) -> Value {
                 | "provider_degraded"
                 | "raw_provider_absent"
                 | "conflicting_provider_state"
+                | "low_relevance"
         );
     let evidence_gaps_named_when_needed = !needs_gap_statement || input.limitation_signal;
     let mut subgates = serde_json::Map::new();
@@ -1403,19 +2025,30 @@ fn entity_coverage(normalized_response: &str, required_entities: &[String]) -> f
 }
 
 fn normalized_response_covers_entity(normalized_response: &str, entity: &str) -> bool {
-    let normalized_entity = normalize_for_compare(entity);
-    if normalized_entity.is_empty() {
+    let aliases = entity_coverage_aliases(entity);
+    aliases
+        .iter()
+        .any(|alias| normalized_response_covers_entity_alias(normalized_response, alias))
+}
+
+fn normalized_response_covers_entity_alias(normalized_response: &str, alias: &str) -> bool {
+    let normalized_alias = normalize_for_compare(alias);
+    if normalized_alias.is_empty() {
         return false;
     }
-    if normalized_response.contains(&normalized_entity) {
+    if normalized_term_present(normalized_response, &normalized_alias) {
         return true;
     }
-    if normalized_response.contains(&simple_plural_variant(&normalized_entity))
-        || normalized_response.contains(&simple_singular_variant(&normalized_entity))
-    {
+    if normalized_term_present(
+        normalized_response,
+        &simple_plural_variant(&normalized_alias),
+    ) || normalized_term_present(
+        normalized_response,
+        &simple_singular_variant(&normalized_alias),
+    ) {
         return true;
     }
-    let tokens = normalized_entity
+    let tokens = normalized_alias
         .split_whitespace()
         .filter(|token| token.len() > 2)
         .collect::<Vec<_>>();
@@ -1425,10 +2058,139 @@ fn normalized_response_covers_entity(normalized_response: &str, entity: &str) ->
             .all(|token| token_or_simple_variant_present(normalized_response, token))
 }
 
+fn entity_coverage_aliases(entity: &str) -> Vec<String> {
+    let mut aliases = Vec::<String>::new();
+    push_unique_alias(&mut aliases, entity);
+    for alias in explicit_parenthetical_aliases(entity) {
+        push_unique_alias(&mut aliases, &alias);
+    }
+    if let Some(acronym) = derived_initialism_alias(entity) {
+        push_unique_alias(&mut aliases, &acronym);
+    }
+    aliases
+}
+
+fn coverage_entity_aliases(coverage_entities: &[String]) -> Value {
+    Value::Object(
+        coverage_entities
+            .iter()
+            .map(|entity| {
+                (
+                    entity.clone(),
+                    json!(entity_coverage_aliases(entity)
+                        .into_iter()
+                        .filter(
+                            |alias| normalize_for_compare(alias) != normalize_for_compare(entity)
+                        )
+                        .collect::<Vec<_>>()),
+                )
+            })
+            .collect(),
+    )
+}
+
+fn push_unique_alias(aliases: &mut Vec<String>, raw: &str) {
+    let cleaned = clean_text(raw, 120);
+    if cleaned.is_empty() {
+        return;
+    }
+    let normalized = normalize_for_compare(&cleaned);
+    if aliases
+        .iter()
+        .any(|existing| normalize_for_compare(existing) == normalized)
+    {
+        return;
+    }
+    aliases.push(cleaned);
+}
+
+fn explicit_parenthetical_aliases(raw: &str) -> Vec<String> {
+    let mut out = Vec::<String>::new();
+    let mut rest = raw;
+    while let Some(open_idx) = rest.find('(') {
+        let after_open = &rest[open_idx + 1..];
+        let Some(close_idx) = after_open.find(')') else {
+            break;
+        };
+        let alias = clean_text(&after_open[..close_idx], 40);
+        if alias
+            .chars()
+            .all(|ch| ch.is_ascii_alphanumeric() || ch == '-' || ch == '_' || ch.is_whitespace())
+            && alias
+                .chars()
+                .filter(|ch| ch.is_ascii_alphanumeric())
+                .count()
+                >= 2
+        {
+            out.push(alias);
+        }
+        rest = &after_open[close_idx + 1..];
+    }
+    out
+}
+
+fn derived_initialism_alias(raw: &str) -> Option<String> {
+    let tokens = raw
+        .split(|ch: char| !ch.is_ascii_alphanumeric())
+        .filter(|token| !token.is_empty())
+        .filter(|token| !entity_initialism_stopword(token))
+        .collect::<Vec<_>>();
+    if tokens.len() < 2 {
+        return None;
+    }
+    let acronym = tokens
+        .iter()
+        .filter_map(|token| token.chars().next())
+        .collect::<String>()
+        .to_ascii_uppercase();
+    let len = acronym.chars().count();
+    if (3..=8).contains(&len) {
+        Some(acronym)
+    } else {
+        None
+    }
+}
+
+fn entity_initialism_stopword(raw: &str) -> bool {
+    matches!(
+        normalize_for_compare(raw).as_str(),
+        "a" | "an"
+            | "and"
+            | "as"
+            | "at"
+            | "by"
+            | "for"
+            | "from"
+            | "in"
+            | "of"
+            | "on"
+            | "or"
+            | "the"
+            | "to"
+            | "vs"
+            | "with"
+    )
+}
+
+fn normalized_term_present(normalized_response: &str, normalized_term: &str) -> bool {
+    if normalized_term.is_empty() {
+        return false;
+    }
+    if normalized_term.split_whitespace().count() > 1 {
+        return normalized_response.contains(normalized_term);
+    }
+    if normalized_term.len() <= 4 {
+        return normalized_response
+            .split(|ch: char| !ch.is_ascii_alphanumeric())
+            .any(|token| token == normalized_term);
+    }
+    normalized_response.contains(normalized_term)
+}
+
 fn token_or_simple_variant_present(normalized_response: &str, token: &str) -> bool {
-    normalized_response.contains(token)
-        || normalized_response.contains(&simple_plural_variant(token))
-        || normalized_response.contains(&simple_singular_variant(token))
+    normalized_term_present(normalized_response, token)
+        || normalized_term_present(normalized_response, &simple_plural_variant(token))
+        || normalized_term_present(normalized_response, &simple_singular_variant(token))
 }
 
 fn simple_plural_variant(value: &str) -> String {
@@ -1522,7 +2284,8 @@ mod tests {
             }]
         });
 
-        let quality = retrieval_provider_quality(&payload);
+        let quality =
+            retrieval_provider_quality(&payload, "rendered research page source backed synthesis");
         assert_eq!(
             quality.get("status").and_then(Value::as_str),
             Some("usable")
@@ -1564,7 +2327,7 @@ mod tests {
             }]
         });
 
-        let quality = retrieval_provider_quality(&payload);
+        let quality = retrieval_provider_quality(&payload, "rag stack options");
         assert_eq!(
             quality.get("candidate_count").and_then(Value::as_u64),
             Some(0)
@@ -1633,6 +2396,123 @@ mod tests {
     }
 
     #[test]
+    fn entity_coverage_accepts_derived_initialism_aliases() {
+        let response = normalize_for_compare(
+            "The MCP ecosystem has strong momentum, but product teams should avoid \
+             overcommitting to unstable server behavior without source-backed checks.",
+        );
+        assert!(normalized_response_covers_entity(
+            &response,
+            "Model Context Protocol"
+        ));
+        assert_eq!(
+            entity_coverage(&response, &["Model Context Protocol".to_string()]),
+            1.0
+        );
+    }
+
+    #[test]
+    fn query_satisfaction_reports_entity_aliases_without_requiring_format() {
+        let response = normalize_for_compare(
+            "According to source evidence, MCP is useful as an integration pattern, \
+             but the ecosystem still has maturity and security gaps.",
+        );
+        let entities = vec!["Model Context Protocol".to_string()];
+        let coverage = entity_coverage(&response, &entities);
+        let satisfaction = query_satisfaction(
+            &normalize_for_compare("Research the current Model Context Protocol ecosystem."),
+            &response,
+            &entities,
+            coverage,
+            true,
+            true,
+            true,
+            true,
+        );
+        assert_eq!(
+            satisfaction.get("scope_covered").and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            satisfaction
+                .pointer("/coverage_entity_aliases/Model Context Protocol/0")
+                .and_then(Value::as_str),
+            Some("MCP")
+        );
+    }
+
+    #[test]
+    fn grade_case_counts_initialism_alias_as_user_entity_coverage() {
+        let case = json!({
+            "prompt": "Research the current Model Context Protocol ecosystem and summarize maturity and risk.",
+            "expected_gate_path": {
+                "gate_1": "tool_required",
+                "gate_2": "web_research",
+                "gate_3": "batch_query",
+                "gate_4_required_fields": ["query", "aperture"]
+            },
+            "required_entities": ["Model Context Protocol"]
+        });
+        let payload = json!({
+            "response": "According to source evidence, the MCP ecosystem has strong integration momentum, but product teams should avoid overcommitting to immature server behavior. The practical recommendation is to design around the pattern while keeping adapters replaceable and treating security boundaries as still evolving.",
+            "pending_tool_request": {
+                "status": "executed",
+                "selected_tool_family": "web_research",
+                "selected_tool_label": "Research query pack",
+                "tool_name": "batch_query",
+                "tool_key": "batch_query",
+                "input": {
+                    "source": "web",
+                    "query": "Research the current Model Context Protocol ecosystem.",
+                    "queries": ["Model Context Protocol ecosystem maturity risk"],
+                    "keywords": ["Model Context Protocol", "MCP", "maturity", "risk"],
+                    "required_coverage": {"entities": ["Model Context Protocol"], "facets": ["maturity", "risk"]},
+                    "aliases": ["MCP"],
+                    "aperture": "medium"
+                }
+            },
+            "tools": [{
+                "name": "batch_query",
+                "status": "ok",
+                "candidate_count": 4,
+                "content_rich_candidate_count": 3,
+                "claim_hint_count": 2,
+                "evidence_refs": [{
+                    "title": "MCP ecosystem source",
+                    "locator": "https://example.test/mcp",
+                    "snippet": "This source describes the MCP ecosystem, maturity signals, risks, and integration behavior with enough detail to support synthesis.",
+                    "claim_hints": ["MCP ecosystem maturity varies by implementation."]
+                }]
+            }]
+        });
+
+        let grade = grade_case(&case, &payload, 85, 95);
+        assert_eq!(grade.coverage_entities, vec!["Model Context Protocol"]);
+        assert!(!grade
+            .failures
+            .iter()
+            .any(|failure| failure.starts_with("entity_coverage_low")));
+        assert_eq!(
+            grade
+                .query_satisfaction
+                .get("scope_covered")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+    }
+
+    #[test]
+    fn short_derived_initialisms_are_not_used_as_loose_entity_aliases() {
+        assert_eq!(derived_initialism_alias("Artificial Intelligence"), None);
+        let response =
+            normalize_for_compare("AI safety is discussed, but no country coverage appears.");
+        assert!(!normalized_response_covers_entity(
+            &response,
+            "Artificial Intelligence"
+        ));
+    }
+
+    #[test]
     fn hidden_fixture_entities_do_not_hard_fail_broad_discovery_prompts() {
         let case = json!({
             "prompt": "Research the strongest open-source coding agents right now and explain which are useful for real repositories versus demos.",
@@ -1686,6 +2566,104 @@ mod tests {
             Some(true)
         );
         assert!(grade.pass, "{:?}", grade.failures);
+    }
+
+    #[test]
+    fn real_conversation_source_summary_is_not_a_passing_research_answer() {
+        let case = json!({
+            "prompt": "what are some scientific breakthroughs 2026?",
+            "expected_gate_path": {
+                "gate_1": "tool_required",
+                "gate_2": "web_research",
+                "gate_3": "web_search",
+                "gate_4_required_fields": ["query", "aperture"]
+            }
+        });
+        let payload = json!({
+            "response": "The safest bounded answer is that the current retrieval state does not support a source-backed conclusion yet; any decision should stay conservative until coverage improves. Recorded evidence so far: Here's what I found:\n\nweb search: From web retrieval: www.nature.com: New tools drive scientific discovery: evidence from all nobel-prize and major non-nobel breakthroughs Nature; Spring 2026 University of Miami Medicine Magazine Highlights Breakthroughs in Heart, Vision and Cancer Research; Nine scientific breakthroughs I’d like to see in 2026. The current turn does not yet support a complete answer to: what are some scientific breakthroughs 2026?. The current tradeoff is breadth versus confidence: we can stay narrow and source-backed on the covered evidence, or broaden retrieval before making a stronger claim. My recommendation is to treat this as a partial answer.",
+            "pending_tool_request": {
+                "status": "executed",
+                "selected_tool_family": "web_research",
+                "selected_tool_label": "Web search",
+                "tool_name": "web_search",
+                "tool_key": "web_search",
+                "input": {
+                    "query": "what are some scientific breakthroughs 2026?",
+                    "keywords": ["scientific breakthroughs", "2026"],
+                    "aperture": "web"
+                }
+            },
+            "tools": [{
+                "name": "web_search",
+                "status": "ok",
+                "candidate_count": 3,
+                "content_rich_candidate_count": 3,
+                "claim_hint_count": 2,
+                "evidence_refs": [{
+                    "title": "New tools drive scientific discovery",
+                    "locator": "https://www.nature.com/example",
+                    "snippet": "New tools drive scientific discovery: evidence from Nobel-prize and major non-Nobel breakthroughs.",
+                    "claim_hints": ["Scientific discovery depends on new tools."]
+                }]
+            }]
+        });
+
+        let grade = grade_case(&case, &payload, 85, 95);
+        assert!(!grade.pass, "{:?}", grade.failures);
+        assert!(grade
+            .failures
+            .iter()
+            .any(|failure| failure == "source_summary_without_user_answer"));
+    }
+
+    #[test]
+    fn off_topic_evidence_does_not_count_as_usable_research_data() {
+        let payload = json!({
+            "tools": [{
+                "name": "web_search",
+                "status": "ok",
+                "candidate_count": 3,
+                "content_rich_candidate_count": 3,
+                "claim_hint_count": 3,
+                "evidence_refs": [
+                    {
+                        "title": "Most Concerning Question Mark Ravens Face With Rookie TE Matthew Hibner",
+                        "locator": "https://www.si.com/example",
+                        "snippet": "Sports Illustrated published a story about the Baltimore Ravens and a rookie tight end.",
+                        "claim_hints": ["The Ravens have a roster question."]
+                    },
+                    {
+                        "title": "Clinical gaps and legal loopholes paved the way for the Virginia Tech tragedy",
+                        "locator": "https://www.psychologytoday.com/example",
+                        "snippet": "A psychology article discusses clinical gaps and legal loopholes.",
+                        "claim_hints": ["Clinical gaps shaped a tragedy."]
+                    },
+                    {
+                        "title": "Leaders Seek to Address Big Question Mark Around Private Markets",
+                        "locator": "https://www.thinkadvisor.com/example",
+                        "snippet": "A finance article discusses private market uncertainty.",
+                        "claim_hints": ["Private markets face uncertainty."]
+                    }
+                ]
+            }]
+        });
+
+        let quality = retrieval_provider_quality(
+            &payload,
+            &normalize_for_compare("give me an update on the AI agentic landscape in May 2026"),
+        );
+        assert_eq!(
+            quality.get("status").and_then(Value::as_str),
+            Some("low_relevance"),
+            "{quality:#?}"
+        );
+        assert_eq!(
+            quality
+                .pointer("/prompt_relevance/topic_relevant_evidence")
+                .and_then(Value::as_bool),
+            Some(false),
+            "{quality:#?}"
+        );
     }
 
     #[test]
@@ -1754,7 +2732,8 @@ mod tests {
                 }]
             }]
         });
-        let retrieval_quality = retrieval_provider_quality(&payload);
+        let retrieval_quality =
+            retrieval_provider_quality(&payload, "research agent workflow evidence");
         let behavior = citation_behavior(
             &payload,
             "The answer gives a recommendation without naming supporting material.",
@@ -1773,6 +2752,50 @@ mod tests {
                 .get("synthesis_ignored_citable_evidence")
                 .and_then(Value::as_bool),
             Some(true)
+        );
+    }
+
+    #[test]
+    fn citation_behavior_accepts_final_package_source_refs() {
+        let payload = json!({
+            "response": "The answer gives a recommendation while citations are carried as final-package metadata.",
+            "response_finalization": {
+                "source_refs": [{
+                    "citation_id": "source_1",
+                    "title": "Usable source",
+                    "locator": "https://example.test/source"
+                }]
+            },
+            "tools": [{
+                "name": "web_search",
+                "status": "ok",
+                "candidate_count": 1,
+                "content_rich_candidate_count": 1,
+                "claim_hint_count": 1,
+                "evidence_refs": [{
+                    "title": "Usable source",
+                    "locator": "https://example.test/source",
+                    "snippet": "This source has enough content to be usable evidence for a research answer and includes concrete findings that should be cited.",
+                    "claim_hints": ["A concrete source-backed claim."]
+                }]
+            }]
+        });
+        let retrieval_quality =
+            retrieval_provider_quality(&payload, "research agent workflow evidence");
+        let behavior = citation_behavior(
+            &payload,
+            "The answer gives a recommendation while citations are carried as final-package metadata.",
+            &retrieval_quality,
+        );
+        assert_eq!(
+            behavior.get("citation_signal").and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            behavior
+                .get("synthesis_ignored_citable_evidence")
+                .and_then(Value::as_bool),
+            Some(false)
         );
     }
 
@@ -1887,5 +2910,109 @@ mod tests {
         assert!(!grade
             .excellent_blockers
             .contains(&"missing_final_citation_or_source_signal".to_string()));
+    }
+
+    #[test]
+    fn grade_case_emits_layered_response_grading_output() {
+        let case = json!({
+            "prompt": "Compare Alpha and Beta for production use.",
+            "expected_gate_path": {
+                "gate_1": "tool_required",
+                "gate_2": "web_research",
+                "gate_3": "web_search",
+                "gate_4_required_fields": ["query", "aperture"]
+            },
+            "required_entities": ["Alpha", "Beta"]
+        });
+        let payload = json!({
+            "response": "According to the docs and release notes, Alpha is the steadier production default, while Beta is stronger for exploration. The practical tradeoff is reliability versus flexibility. My recommendation is Alpha for production and Beta for experiments.",
+            "pending_tool_request": {
+                "status": "pending_confirmation",
+                "selected_tool_family": "web_research",
+                "selected_tool_label": "Web search",
+                "tool_name": "web_search",
+                "tool_key": "web_search",
+                "input": {
+                    "query": "Alpha Beta production comparison",
+                    "aperture": "web"
+                }
+            },
+            "tools": [{
+                "name": "web_search",
+                "status": "ok",
+                "candidate_count": 2,
+                "content_rich_candidate_count": 2,
+                "claim_hint_count": 2,
+                "evidence_refs": [{
+                    "title": "Alpha and Beta production comparison",
+                    "locator": "https://example.test/alpha-beta-production",
+                    "snippet": "A substantive source comparing Alpha and Beta for reliability and flexibility.",
+                    "claim_hints": ["Alpha is steadier for production."]
+                }]
+            }]
+        });
+
+        let grade = grade_case(&case, &payload, 85, 95);
+        assert_eq!(
+            grade
+                .response_grading_layers
+                .pointer("/generic_response_contract/pass")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            grade
+                .response_grading_layers
+                .pointer("/tool_backed_evidence_contract/pass")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            grade
+                .response_grading_layers
+                .pointer("/workflow_specific_rubric/pass")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+    }
+
+    #[test]
+    fn evidence_layer_rejects_claim_that_recorded_evidence_does_not_exist() {
+        let retrieval_quality = json!({
+            "tool_executed": true,
+            "usable_evidence": true,
+            "status": "usable"
+        });
+        let citation_behavior = json!({
+            "evidence_count": 2,
+            "citation_signal": false,
+            "response_source_signal": false,
+            "synthesis_ignored_citable_evidence": true
+        });
+        let query_satisfaction = json!({
+            "scope_covered": true
+        });
+
+        let layer = tool_backed_evidence_contract(
+            &normalize_for_compare(
+                "No source-backed findings are available yet, so I cannot answer this from the recorded state."
+            ),
+            &retrieval_quality,
+            &citation_behavior,
+            true,
+            &query_satisfaction,
+            false,
+        );
+        assert_eq!(layer.get("pass").and_then(Value::as_bool), Some(false));
+        assert_eq!(
+            layer.get("top_blocker").and_then(Value::as_str),
+            Some("recorded_evidence_not_used")
+        );
+        assert_eq!(
+            layer
+                .pointer("/subgates/evidence_4_does_not_overclaim_or_deny_recorded_state")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
     }
 }

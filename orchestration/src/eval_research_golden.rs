@@ -425,7 +425,7 @@ pub fn run_research_golden(args: &[String]) -> i32 {
             &case_failures,
             &case_setup_failures,
         );
-        let case_row = json!({
+        let mut case_row = json!({
             "case_id": case_id,
             "category": str_at(case, &["category"], "unknown"),
             "tags": string_array_at(case, &["tags"]),
@@ -485,6 +485,12 @@ pub fn run_research_golden(args: &[String]) -> i32 {
                 )
             },
         });
+        if let Some(object) = case_row.as_object_mut() {
+            object.insert(
+                "response_grading_layers".to_string(),
+                grade.response_grading_layers,
+            );
+        }
         rows.push(case_row.clone());
         let case_elapsed_ms = case_started.elapsed().as_millis() as u64;
         eprintln!(
@@ -606,7 +612,12 @@ pub fn run_research_golden(args: &[String]) -> i32 {
             "exact_answer_matching": false,
             "score_scale": "0_to_100",
             "pass_score": pass_score,
-            "excellent_score": excellent_score
+            "excellent_score": excellent_score,
+            "response_grading_layers": [
+                "generic_response_contract",
+                "tool_backed_evidence_contract",
+                "workflow_specific_rubric"
+            ]
         },
         "summary": {
             "cases": total_cases,
@@ -1228,6 +1239,48 @@ fn measurement_split_report(
             )
         })
         .count() as u64;
+    let generic_response_contract_pass_cases = rows
+        .iter()
+        .filter(|row| {
+            bool_at(
+                row,
+                &[
+                    "response_grading_layers",
+                    "generic_response_contract",
+                    "pass",
+                ],
+                false,
+            )
+        })
+        .count() as u64;
+    let tool_backed_evidence_contract_pass_cases = rows
+        .iter()
+        .filter(|row| {
+            bool_at(
+                row,
+                &[
+                    "response_grading_layers",
+                    "tool_backed_evidence_contract",
+                    "pass",
+                ],
+                false,
+            )
+        })
+        .count() as u64;
+    let workflow_specific_rubric_pass_cases = rows
+        .iter()
+        .filter(|row| {
+            bool_at(
+                row,
+                &[
+                    "response_grading_layers",
+                    "workflow_specific_rubric",
+                    "pass",
+                ],
+                false,
+            )
+        })
+        .count() as u64;
     let query_satisfaction_total = rows
         .iter()
         .map(|row| u64_at(row, &["query_satisfaction", "score"], 0))
@@ -1305,6 +1358,15 @@ fn measurement_split_report(
             "query_satisfaction_rate": ratio(query_satisfaction_cases, total_cases),
             "query_satisfaction_average": ratio(query_satisfaction_total, total_cases),
             "note": "measures whether the final answer satisfied the original query and exposed compact citation/source signal; retrieval failures remain counted separately in live_retrieval_health"
+        },
+        "response_grading_layers": {
+            "generic_response_contract_pass_cases": generic_response_contract_pass_cases,
+            "generic_response_contract_pass_rate": ratio(generic_response_contract_pass_cases, total_cases),
+            "tool_backed_evidence_contract_pass_cases": tool_backed_evidence_contract_pass_cases,
+            "tool_backed_evidence_contract_pass_rate": ratio(tool_backed_evidence_contract_pass_cases, total_cases),
+            "workflow_specific_rubric_pass_cases": workflow_specific_rubric_pass_cases,
+            "workflow_specific_rubric_pass_rate": ratio(workflow_specific_rubric_pass_cases, total_cases),
+            "note": "Separates general answer quality, evidence-use discipline, and the research-specific rubric so the grader can stay format-flexible while still measuring workflow-specific usefulness."
         },
         "excellent_quality": excellent_quality,
         "end_to_end_golden": {
