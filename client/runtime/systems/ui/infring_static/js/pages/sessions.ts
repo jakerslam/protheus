@@ -83,11 +83,13 @@ function sessionsPage() {
       location.hash = 'agents';
     },
 
-    deleteSession(sessionId) {
+    deleteSession(session) {
       var self = this;
+      var sessionId = session && session.session_id ? String(session.session_id) : '';
+      var agentId = session && session.agent_id ? String(session.agent_id) : '';
       InfringToast.confirm('Delete Session', 'This will permanently remove the session and its messages.', async function() {
         try {
-          await InfringAPI.del('/api/sessions/' + sessionId);
+          await InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(agentId) + '/sessions/' + encodeURIComponent(sessionId) + '/delete', {});
           self.sessions = self.sessions.filter(function(s) { return s.session_id !== sessionId; });
           InfringToast.success('Session deleted');
         } catch(e) {

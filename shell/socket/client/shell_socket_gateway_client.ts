@@ -42,6 +42,7 @@ export type ShellSocketCapabilityId =
   | 'stop_agent'
   | 'create_session'
   | 'switch_session'
+  | 'delete_session'
   | 'list_memory_kv'
   | 'set_memory_kv'
   | 'delete_memory_kv'
@@ -144,6 +145,7 @@ export const SHELL_SOCKET_ROUTES: ReadonlyArray<ShellSocketRouteDefinition> = Ob
   { capabilityId: 'stop_agent', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/stop', pathParams: ['agent_id'] },
   { capabilityId: 'create_session', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/sessions', pathParams: ['agent_id'] },
   { capabilityId: 'switch_session', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/sessions/{session_id}/switch', pathParams: ['agent_id', 'session_id'] },
+  { capabilityId: 'delete_session', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/sessions/{session_id}/delete', pathParams: ['agent_id', 'session_id'] },
   { capabilityId: 'list_memory_kv', method: 'GET', path: '/api/shell-socket/agents/{agent_id}/memory/kv', pathParams: ['agent_id'] },
   { capabilityId: 'set_memory_kv', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/memory/kv/{key}', pathParams: ['agent_id', 'key'] },
   { capabilityId: 'delete_memory_kv', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/memory/kv/{key}/delete', pathParams: ['agent_id', 'key'] },
@@ -433,6 +435,10 @@ export class ShellSocketGatewayClient {
     return this.request<T>('switch_session', { query: { agent_id: agentId, session_id: sessionId }, body: request });
   }
 
+  deleteSession<T = unknown>(agentId: string, sessionId: string, request: unknown = {}): Promise<T> {
+    return this.request<T>('delete_session', { query: { agent_id: agentId, session_id: sessionId }, body: request });
+  }
+
   listMemoryKv<T = unknown>(agentId: string): Promise<T> {
     return this.request<T>('list_memory_kv', { query: { agent_id: agentId } });
   }
@@ -605,7 +611,7 @@ export function shellSocketClientSelfTest(): Record<string, unknown> {
     fetchImpl: async () => ({ ok: true, status: 200, text: async () => '{}' }),
   });
   return {
-    ok: routeIds.length === uniqueRouteIds.size && routeIds.length === 80,
+    ok: routeIds.length === uniqueRouteIds.size && routeIds.length === 81,
     type: 'shell_socket_gateway_client_self_test',
     route_count: routeIds.length,
     unique_route_count: uniqueRouteIds.size,

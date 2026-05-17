@@ -564,6 +564,24 @@
       "implementation_status": "live_gateway_bound"
     },
     {
+      "capability_id": "delete_session",
+      "gateway_route_id": "shell_socket.delete_session",
+      "canonical_route_pattern": "POST /api/shell-socket/agents/{agent_id}/sessions/{session_id}/delete",
+      "route_class": "request_ingress",
+      "source_domain": "shell_plug",
+      "target_domain": "gateway.session_lifecycle_ingress",
+      "owner_of_truth": "kernel_session_store",
+      "backend_owner_path": "core/** session lifecycle authority through Gateway",
+      "payload_budget_ref": "shell/socket/contract/shell_socket_contract.json#/projection_types/SessionLifecycleProjection",
+      "default_response_projection": "SessionLifecycleProjection",
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "detail_ref_behavior": "session deletion returns bounded ids/receipt only; full session store and messages remain prohibited",
+      "implementation_status": "live_gateway_bound"
+    },
+    {
       "capability_id": "list_memory_kv",
       "gateway_route_id": "shell_socket.list_memory_kv",
       "canonical_route_pattern": "GET /api/shell-socket/agents/{agent_id}/memory/kv",

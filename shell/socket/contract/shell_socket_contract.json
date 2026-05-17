@@ -1775,6 +1775,33 @@
       ]
     },
     {
+      "id": "delete_session",
+      "purpose": "Request session deletion through Gateway without shell-owned session-store mutation authority.",
+      "route_class": "request_ingress",
+      "request_shape": "SessionDeleteRequest",
+      "response_shape": "SessionLifecycleProjection",
+      "default_projection": "SessionLifecycleProjection",
+      "cursor_required": false,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "owner_of_truth": "kernel_session_store",
+      "shell_may_hold": [
+        "agent_id",
+        "session_id",
+        "active_session_id",
+        "receipt_ref"
+      ],
+      "shell_must_not_hold": [
+        "session_store_truth",
+        "conversation_tree",
+        "all_messages",
+        "session_mutation_authority"
+      ]
+    },
+    {
       "id": "list_memory_kv",
       "purpose": "Request a bounded agent memory KV projection through Gateway without shell-owned memory-store authority.",
       "route_class": "bounded_search_query",

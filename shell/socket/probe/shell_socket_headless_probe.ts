@@ -513,6 +513,16 @@ function makeHeadlessGatewayFetch(calls: CallRecord[], includeControlledViolatio
         receipt_ref: 'receipt:switch-session:probe',
         correlation_id: 'probe-switch-session',
       };
+    } else if (method === 'POST' && /^\/api\/shell-socket\/agents\/[^/]+\/sessions\/[^/]+\/delete$/.test(pathName)) {
+      capabilityId = 'delete_session';
+      payload = {
+        ok: true,
+        agent_id: decodeURIComponent(pathName.split('/')[4] || 'agent-probe'),
+        session_id: decodeURIComponent(pathName.split('/')[6] || 'session-probe'),
+        active_session_id: 'default',
+        receipt_ref: 'receipt:delete-session:probe',
+        correlation_id: 'probe-delete-session',
+      };
     } else if (method === 'GET' && /^\/api\/shell-socket\/agents\/[^/]+\/memory\/kv$/.test(pathName)) {
       capabilityId = 'list_memory_kv';
       payload = {
@@ -1078,6 +1088,7 @@ async function runProbe(options: ProbeOptions): Promise<Record<string, unknown>>
   const agentStopAck = await client.stopAgent<any>(agentId, { reason: 'headless_probe' });
   const createSessionAck = await client.createSession<any>(agentId, { label: 'Probe Session' });
   const switchSessionAck = await client.switchSession<any>(agentId, sessionId);
+  const deleteSessionAck = await client.deleteSession<any>(agentId, sessionId);
   const memoryKvList = await client.listMemoryKv<any>(agentId);
   const memoryKvSet = await client.setMemoryKv<any>(agentId, 'probe_key', { value: 'probe_value' });
   const memoryKvDelete = await client.deleteMemoryKv<any>(agentId, 'probe_key');
@@ -1194,6 +1205,7 @@ async function runProbe(options: ProbeOptions): Promise<Record<string, unknown>>
       agent_stop_receipt: agentStopAck.receipt_ref,
       create_session_receipt: createSessionAck.receipt_ref,
       switch_session_receipt: switchSessionAck.receipt_ref,
+      delete_session_receipt: deleteSessionAck.receipt_ref,
       memory_kv_count: Array.isArray(memoryKvList.kv_pairs) ? memoryKvList.kv_pairs.length : 0,
       memory_kv_set_receipt: memoryKvSet.receipt_ref,
       memory_kv_delete_receipt: memoryKvDelete.receipt_ref,

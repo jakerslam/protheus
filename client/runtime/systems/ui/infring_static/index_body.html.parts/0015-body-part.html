@@ -289,7 +289,7 @@
                       <td class="text-xs" x-text="s.created_at ? new Date(s.created_at).toLocaleString() : '-'"></td>
                       <td>
                         <button class="btn btn-primary btn-sm" @click="openInChat(s)">Chat</button>
-                        <button class="btn btn-danger btn-sm" @click="deleteSession(s.session_id)">Delete</button>
+                        <button class="btn btn-danger btn-sm" @click="deleteSession(s)">Delete</button>
                       </td>
                     </tr>
                   </template>

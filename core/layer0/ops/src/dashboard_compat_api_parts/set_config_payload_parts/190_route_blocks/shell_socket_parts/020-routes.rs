@@ -616,6 +616,22 @@ fn handle_shell_socket_routes(
         let legacy = handle_agent_scope_routes(root, "POST", &legacy_path, &legacy_path, body, headers, snapshot, requester_agent)?;
         return Some(shell_socket_session_lifecycle_projection("switch_session", legacy));
     }
+    if method == "POST" && parts.len() == 5 && parts[0] == "agents" && parts[2] == "sessions" && parts[4] == "delete" {
+        let agent_id = clean_agent_id(&parts[1]);
+        let session_id = clean_text(&parts[3], 120);
+        let payload = crate::dashboard_agent_state::delete_session(root, &agent_id, &session_id);
+        return Some(shell_socket_session_lifecycle_projection(
+            "delete_session",
+            CompatApiResponse {
+                status: if payload.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+                    200
+                } else {
+                    400
+                },
+                payload,
+            },
+        ));
+    }
     if method == "POST" && parts.len() == 3 && parts[0] == "agents" && parts[2] == "suggestions" {
         let legacy_path = format!("/api/agents/{}/suggestions", clean_agent_id(&parts[1]));
         let legacy = handle_agent_scope_routes(root, "POST", &legacy_path, &legacy_path, body, headers, snapshot, requester_agent)?;
