@@ -53,7 +53,7 @@
         steps.push(step);
       }
       try {
-        var response = await InfringAPI.post('/api/workflows', {
+        var response = await InfringAPI.post('/api/shell-socket/workflows', {
           name: this.workflowName || 'untitled',
           description: this.workflowDescription || '',
           steps: steps,
@@ -154,4 +154,3 @@
       if (!status) status = 'completed';
       return status.replace(/[_-]+/g, ' ');
     },
-

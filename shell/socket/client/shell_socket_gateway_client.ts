@@ -43,6 +43,10 @@ export type ShellSocketCapabilityId =
   | 'request_agent_suggestions'
   | 'read_agent_file_artifact'
   | 'export_agent_folder_artifact'
+  | 'create_workflow'
+  | 'update_workflow'
+  | 'delete_workflow'
+  | 'run_workflow'
   | 'set_git_tree'
   | 'fresh_session'
   | 'compact_session'
@@ -110,6 +114,10 @@ export const SHELL_SOCKET_ROUTES: ReadonlyArray<ShellSocketRouteDefinition> = Ob
   { capabilityId: 'request_agent_suggestions', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/suggestions', pathParams: ['agent_id'] },
   { capabilityId: 'read_agent_file_artifact', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/artifacts/file/read', pathParams: ['agent_id'] },
   { capabilityId: 'export_agent_folder_artifact', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/artifacts/folder/export', pathParams: ['agent_id'] },
+  { capabilityId: 'create_workflow', method: 'POST', path: '/api/shell-socket/workflows' },
+  { capabilityId: 'update_workflow', method: 'POST', path: '/api/shell-socket/workflows/{workflow_id}/update', pathParams: ['workflow_id'] },
+  { capabilityId: 'delete_workflow', method: 'POST', path: '/api/shell-socket/workflows/{workflow_id}/delete', pathParams: ['workflow_id'] },
+  { capabilityId: 'run_workflow', method: 'POST', path: '/api/shell-socket/workflows/{workflow_id}/run', pathParams: ['workflow_id'] },
   { capabilityId: 'set_git_tree', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/git-tree', pathParams: ['agent_id'] },
   { capabilityId: 'fresh_session', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/fresh-session', pathParams: ['agent_id'] },
   { capabilityId: 'compact_session', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/compact-session', pathParams: ['agent_id'] },
@@ -367,6 +375,22 @@ export class ShellSocketGatewayClient {
     return this.request<T>('export_agent_folder_artifact', { query: { agent_id: agentId }, body: request });
   }
 
+  createWorkflow<T = unknown>(request: unknown): Promise<T> {
+    return this.request<T>('create_workflow', { body: request });
+  }
+
+  updateWorkflow<T = unknown>(workflowId: string, request: unknown): Promise<T> {
+    return this.request<T>('update_workflow', { query: { workflow_id: workflowId }, body: request });
+  }
+
+  deleteWorkflow<T = unknown>(workflowId: string, request: unknown = {}): Promise<T> {
+    return this.request<T>('delete_workflow', { query: { workflow_id: workflowId }, body: request });
+  }
+
+  runWorkflow<T = unknown>(workflowId: string, request: unknown = {}): Promise<T> {
+    return this.request<T>('run_workflow', { query: { workflow_id: workflowId }, body: request });
+  }
+
   setGitTree<T = unknown>(agentId: string, treeSelection: unknown): Promise<T> {
     return this.request<T>('set_git_tree', { query: { agent_id: agentId }, body: treeSelection });
   }
@@ -395,7 +419,7 @@ export function shellSocketClientSelfTest(): Record<string, unknown> {
     fetchImpl: async () => ({ ok: true, status: 200, text: async () => '{}' }),
   });
   return {
-    ok: routeIds.length === uniqueRouteIds.size && routeIds.length === 45,
+    ok: routeIds.length === uniqueRouteIds.size && routeIds.length === 49,
     type: 'shell_socket_gateway_client_self_test',
     route_count: routeIds.length,
     unique_route_count: uniqueRouteIds.size,

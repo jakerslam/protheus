@@ -28,6 +28,7 @@ function workflowNormalizeDraft(draft) {
 
 function workflowFormatRunResult(payload) {
   if (payload && typeof payload === 'object' && typeof payload.output === 'string') return payload.output;
+  if (payload && typeof payload === 'object' && typeof payload.output_preview === 'string') return payload.output_preview;
   try { return JSON.stringify(payload || {}, null, 2); } catch(_) {}
   return String(payload || '');
 }
@@ -74,7 +75,7 @@ function workflowsPage() {
       }
       try {
         var wfName = draft.name;
-        await InfringAPI.post('/api/workflows', { name: draft.name, description: draft.description, steps: draft.steps });
+        await InfringAPI.post('/api/shell-socket/workflows', { name: draft.name, description: draft.description, steps: draft.steps });
         this.showCreateModal = false;
         this.newWf = { name: '', description: '', steps: [Object.assign({}, WORKFLOW_DEFAULT_STEP)] };
         InfringToast.success('Workflow "' + wfName + '" created');
@@ -95,7 +96,7 @@ function workflowsPage() {
       this.running = true;
       this.runResult = '';
       try {
-        var res = await InfringAPI.post('/api/workflows/' + this.runModal.id + '/run', { input: this.runInput });
+        var res = await InfringAPI.post('/api/shell-socket/workflows/' + encodeURIComponent(this.runModal.id) + '/run', { input: this.runInput });
         this.runResult = workflowFormatRunResult(res);
         InfringToast.success('Workflow completed');
       } catch(e) {
@@ -119,7 +120,7 @@ function workflowsPage() {
       var self = this;
       InfringToast.confirm('Delete Workflow', 'Delete workflow "' + wf.name + '"? This cannot be undone.', async function() {
         try {
-          await InfringAPI.delete('/api/workflows/' + wf.id);
+          await InfringAPI.post('/api/shell-socket/workflows/' + encodeURIComponent(wf.id) + '/delete', {});
           InfringToast.success('Workflow "' + wf.name + '" deleted');
           await self.loadWorkflows();
         } catch(e) {
@@ -165,7 +166,7 @@ function workflowsPage() {
       }
       try {
         var wfName = draft.name;
-        await InfringAPI.put('/api/workflows/' + this.editModal.id, { name: draft.name, description: draft.description, steps: draft.steps });
+        await InfringAPI.post('/api/shell-socket/workflows/' + encodeURIComponent(this.editModal.id) + '/update', { name: draft.name, description: draft.description, steps: draft.steps });
         this.editModal = null;
         InfringToast.success('Workflow "' + wfName + '" updated');
         await this.loadWorkflows();

@@ -1013,4 +1013,68 @@ fn shell_socket_artifact_projection(capability: &str, legacy: CompatApiResponse)
     }
 }
 
+fn shell_socket_workflow_projection(capability: &str, legacy: CompatApiResponse) -> CompatApiResponse {
+    let payload = legacy.payload;
+    let ok = legacy.status < 400 && payload.get("ok").and_then(Value::as_bool).unwrap_or(true);
+    let workflow = payload.get("workflow").unwrap_or(&Value::Null);
+    let run = payload.get("run").unwrap_or(&Value::Null);
+    let mut out = Map::<String, Value>::new();
+    out.insert("ok".to_string(), json!(ok));
+    for key in ["workflow_id", "run_id", "status", "deleted"] {
+        if let Some(value) = payload.get(key) {
+            out.insert(key.to_string(), value.clone());
+        }
+    }
+    if !out.contains_key("workflow_id") {
+        if let Some(id) = workflow.get("id").and_then(Value::as_str) {
+            out.insert("workflow_id".to_string(), json!(clean_text(id, 120)));
+        }
+    }
+    if !out.contains_key("run_id") {
+        if let Some(id) = run.get("run_id").and_then(Value::as_str) {
+            out.insert("run_id".to_string(), json!(clean_text(id, 120)));
+        }
+    }
+    for key in ["id", "name", "description"] {
+        if let Some(value) = workflow.get(key) {
+            out.insert(key.to_string(), value.clone());
+        }
+    }
+    if let Some(output) = payload.get("output").and_then(Value::as_str) {
+        out.insert("output_preview".to_string(), json!(clean_text(output, 2000)));
+    }
+    if let Some(validation) = payload.get("validation") {
+        out.insert(
+            "validation_status".to_string(),
+            json!({
+                "valid": validation.get("valid").and_then(Value::as_bool).unwrap_or(false),
+                "error_count": validation
+                    .get("errors")
+                    .and_then(Value::as_array)
+                    .map(|rows| rows.len())
+                    .unwrap_or(0)
+            }),
+        );
+    }
+    if let Some(error) = payload.get("error").and_then(Value::as_str) {
+        out.insert("error".to_string(), json!(clean_text(error, 240)));
+    }
+    out.insert(
+        "detail_refs".to_string(),
+        json!({"workflow": shell_socket_receipt_ref("workflow_detail", &payload)}),
+    );
+    out.insert(
+        "receipt_ref".to_string(),
+        json!(shell_socket_receipt_ref(capability, &payload)),
+    );
+    out.insert(
+        "correlation_id".to_string(),
+        json!(format!("shell_socket.{capability}")),
+    );
+    CompatApiResponse {
+        status: if ok { 200 } else { legacy.status.max(400) },
+        payload: Value::Object(out),
+    }
+}
+
 include!("shell_socket_parts/020-routes.rs");

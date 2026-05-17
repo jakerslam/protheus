@@ -607,6 +607,29 @@ fn handle_shell_socket_routes(
         let legacy = handle_agent_scope_routes(root, "POST", &legacy_path, &legacy_path, body, headers, snapshot, requester_agent)?;
         return Some(shell_socket_artifact_projection("export_agent_folder_artifact", legacy));
     }
+    if method == "POST" && parts == ["workflows"] {
+        let legacy_path = "/api/workflows";
+        let legacy = dashboard_compat_api_sidebar_ops::handle(root, "POST", legacy_path, body, snapshot)?;
+        return Some(shell_socket_workflow_projection("create_workflow", legacy));
+    }
+    if method == "POST" && parts.len() == 3 && parts[0] == "workflows" && parts[2] == "update" {
+        let workflow_id = clean_text(&parts[1], 120);
+        let legacy_path = format!("/api/workflows/{workflow_id}");
+        let legacy = dashboard_compat_api_sidebar_ops::handle(root, "PUT", &legacy_path, body, snapshot)?;
+        return Some(shell_socket_workflow_projection("update_workflow", legacy));
+    }
+    if method == "POST" && parts.len() == 3 && parts[0] == "workflows" && parts[2] == "delete" {
+        let workflow_id = clean_text(&parts[1], 120);
+        let legacy_path = format!("/api/workflows/{workflow_id}");
+        let legacy = dashboard_compat_api_sidebar_ops::handle(root, "DELETE", &legacy_path, body, snapshot)?;
+        return Some(shell_socket_workflow_projection("delete_workflow", legacy));
+    }
+    if method == "POST" && parts.len() == 3 && parts[0] == "workflows" && parts[2] == "run" {
+        let workflow_id = clean_text(&parts[1], 120);
+        let legacy_path = format!("/api/workflows/{workflow_id}/run");
+        let legacy = dashboard_compat_api_sidebar_ops::handle(root, "POST", &legacy_path, body, snapshot)?;
+        return Some(shell_socket_workflow_projection("run_workflow", legacy));
+    }
     if method == "POST" && parts.len() == 3 && parts[0] == "agents" && parts[2] == "git-tree" {
         let legacy_path = format!("/api/agents/{}/git-tree/switch", clean_agent_id(&parts[1]));
         let legacy = handle_agent_scope_routes(root, "POST", &legacy_path, &legacy_path, body, headers, snapshot, requester_agent)?;

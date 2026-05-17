@@ -536,6 +536,51 @@ function makeHeadlessGatewayFetch(calls: CallRecord[], includeControlledViolatio
         receipt_ref: 'receipt:folder-artifact:probe',
         correlation_id: 'probe-folder-artifact',
       };
+    } else if (route === 'POST /api/shell-socket/workflows') {
+      capabilityId = 'create_workflow';
+      payload = {
+        ok: true,
+        id: 'workflow-probe',
+        workflow_id: 'workflow-probe',
+        name: String(body.name || 'Probe Workflow'),
+        status: 'created',
+        detail_refs: { workflow: 'detail:workflow:probe' },
+        receipt_ref: 'receipt:workflow-create:probe',
+        correlation_id: 'probe-workflow-create',
+      };
+    } else if (method === 'POST' && /^\/api\/shell-socket\/workflows\/[^/]+\/update$/.test(pathName)) {
+      capabilityId = 'update_workflow';
+      payload = {
+        ok: true,
+        workflow_id: decodeURIComponent(pathName.split('/')[4] || 'workflow-probe'),
+        name: String(body.name || 'Probe Workflow Updated'),
+        status: 'updated',
+        detail_refs: { workflow: 'detail:workflow:probe' },
+        receipt_ref: 'receipt:workflow-update:probe',
+        correlation_id: 'probe-workflow-update',
+      };
+    } else if (method === 'POST' && /^\/api\/shell-socket\/workflows\/[^/]+\/delete$/.test(pathName)) {
+      capabilityId = 'delete_workflow';
+      payload = {
+        ok: true,
+        workflow_id: decodeURIComponent(pathName.split('/')[4] || 'workflow-probe'),
+        deleted: true,
+        detail_refs: { workflow: 'detail:workflow:probe' },
+        receipt_ref: 'receipt:workflow-delete:probe',
+        correlation_id: 'probe-workflow-delete',
+      };
+    } else if (method === 'POST' && /^\/api\/shell-socket\/workflows\/[^/]+\/run$/.test(pathName)) {
+      capabilityId = 'run_workflow';
+      payload = {
+        ok: true,
+        workflow_id: decodeURIComponent(pathName.split('/')[4] || 'workflow-probe'),
+        run_id: 'run-workflow-probe',
+        status: 'completed',
+        output_preview: 'Probe workflow completed.',
+        detail_refs: { workflow_run: 'detail:workflow-run:probe' },
+        receipt_ref: 'receipt:workflow-run:probe',
+        correlation_id: 'probe-workflow-run',
+      };
     } else if (method === 'POST' && /^\/api\/shell-socket\/agents\/[^/]+\/git-tree$/.test(pathName)) {
       capabilityId = 'set_git_tree';
       payload = makeIngressAck('git-tree');
@@ -697,6 +742,10 @@ async function runProbe(options: ProbeOptions): Promise<Record<string, unknown>>
   const suggestionsAck = await client.requestAgentSuggestions<any>(agentId, { user_hint: 'probe' });
   const fileArtifact = await client.readAgentFileArtifact<any>(agentId, { path: 'probe.txt' });
   const folderArtifact = await client.exportAgentFolderArtifact<any>(agentId, { path: 'probe-folder' });
+  const workflowCreateAck = await client.createWorkflow<any>({ name: 'Probe Workflow', steps: [{ name: 'step-1' }] });
+  const workflowUpdateAck = await client.updateWorkflow<any>('workflow-probe', { name: 'Probe Workflow Updated' });
+  const workflowRunAck = await client.runWorkflow<any>('workflow-probe', { input: 'probe' });
+  const workflowDeleteAck = await client.deleteWorkflow<any>('workflow-probe');
   const gitAck = await client.setGitTree<any>(agentId, { tree_ref: 'git-tree:current' });
   const freshSessionAck = await client.freshSession<any>(agentId, { reason: 'headless_probe' });
   const compactSessionAck = await client.compactSession<any>(agentId, { reason: 'headless_probe' });
@@ -754,6 +803,10 @@ async function runProbe(options: ProbeOptions): Promise<Record<string, unknown>>
       suggestions_receipt: suggestionsAck.receipt_ref,
       file_artifact_receipt: fileArtifact.receipt_ref,
       folder_artifact_receipt: folderArtifact.receipt_ref,
+      workflow_create_receipt: workflowCreateAck.receipt_ref,
+      workflow_update_receipt: workflowUpdateAck.receipt_ref,
+      workflow_run_receipt: workflowRunAck.receipt_ref,
+      workflow_delete_receipt: workflowDeleteAck.receipt_ref,
       git_receipt: gitAck.receipt_ref,
       fresh_session_receipt: freshSessionAck.receipt_ref,
       compact_session_receipt: compactSessionAck.receipt_ref,
