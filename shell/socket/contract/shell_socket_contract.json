@@ -1903,6 +1903,31 @@
       ]
     },
     {
+      "id": "save_agent_file_artifact",
+      "purpose": "Submit an agent file save request through Gateway without direct shell access to agent filesystem mutation routes.",
+      "route_class": "request_ingress",
+      "request_shape": "AgentFileArtifactSaveRequest",
+      "response_shape": "ArtifactProjection",
+      "default_projection": "ArtifactProjection",
+      "cursor_required": false,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "owner_of_truth": "kernel_workspace_artifact_authority",
+      "shell_may_hold": [
+        "path",
+        "saved",
+        "receipt_ref"
+      ],
+      "shell_must_not_hold": [
+        "filesystem_authority",
+        "path_policy_truth",
+        "file_mutation_authority"
+      ]
+    },
+    {
       "id": "export_agent_folder_artifact",
       "purpose": "Request a bounded folder artifact projection through Gateway without direct shell access to workspace export routes.",
       "route_class": "detail_fetch",

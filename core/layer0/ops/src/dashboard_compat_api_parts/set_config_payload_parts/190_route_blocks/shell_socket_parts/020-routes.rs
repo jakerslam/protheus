@@ -626,6 +626,16 @@ fn handle_shell_socket_routes(
         let legacy = handle_agent_scope_routes(root, "POST", &legacy_path, &legacy_path, body, headers, snapshot, requester_agent)?;
         return Some(shell_socket_artifact_projection("read_agent_file_artifact", legacy));
     }
+    if method == "POST" && parts.len() == 5 && parts[0] == "agents" && parts[2] == "files" && parts[4] == "save" {
+        let file_name = clean_text(&parts[3], 300);
+        let legacy_path = format!(
+            "/api/agents/{}/files/{}",
+            clean_agent_id(&parts[1]),
+            urlencoding::encode(&file_name)
+        );
+        let legacy = handle_agent_scope_routes(root, "PUT", &legacy_path, &legacy_path, body, headers, snapshot, requester_agent)?;
+        return Some(shell_socket_file_save_projection("save_agent_file_artifact", legacy, &file_name));
+    }
     if method == "POST" && parts.len() == 5 && parts[0] == "agents" && parts[2] == "artifacts" && parts[3] == "folder" && parts[4] == "export" {
         let legacy_path = format!("/api/agents/{}/folder/export", clean_agent_id(&parts[1]));
         let legacy = handle_agent_scope_routes(root, "POST", &legacy_path, &legacy_path, body, headers, snapshot, requester_agent)?;

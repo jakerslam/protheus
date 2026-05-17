@@ -569,6 +569,18 @@ function makeHeadlessGatewayFetch(calls: CallRecord[], includeControlledViolatio
         receipt_ref: 'receipt:file-artifact:probe',
         correlation_id: 'probe-file-artifact',
       };
+    } else if (method === 'POST' && /^\/api\/shell-socket\/agents\/[^/]+\/files\/[^/]+\/save$/.test(pathName)) {
+      capabilityId = 'save_agent_file_artifact';
+      payload = {
+        ok: true,
+        file: {
+          name: decodeURIComponent(pathName.split('/')[6] || 'probe.txt'),
+          saved: true,
+          bytes: String(body.content || '').length,
+        },
+        receipt_ref: 'receipt:file-artifact-save:probe',
+        correlation_id: 'probe-file-artifact-save',
+      };
     } else if (method === 'POST' && /^\/api\/shell-socket\/agents\/[^/]+\/artifacts\/folder\/export$/.test(pathName)) {
       capabilityId = 'export_agent_folder_artifact';
       payload = {
@@ -1071,6 +1083,7 @@ async function runProbe(options: ProbeOptions): Promise<Record<string, unknown>>
   const memoryKvDelete = await client.deleteMemoryKv<any>(agentId, 'probe_key');
   const suggestionsAck = await client.requestAgentSuggestions<any>(agentId, { user_hint: 'probe' });
   const fileArtifact = await client.readAgentFileArtifact<any>(agentId, { path: 'probe.txt' });
+  const fileArtifactSave = await client.saveAgentFileArtifact<any>(agentId, 'probe.txt', { content: 'probe file content' });
   const folderArtifact = await client.exportAgentFolderArtifact<any>(agentId, { path: 'probe-folder' });
   const workflowCreateAck = await client.createWorkflow<any>({ name: 'Probe Workflow', steps: [{ name: 'step-1' }] });
   const workflowUpdateAck = await client.updateWorkflow<any>('workflow-probe', { name: 'Probe Workflow Updated' });
@@ -1186,6 +1199,7 @@ async function runProbe(options: ProbeOptions): Promise<Record<string, unknown>>
       memory_kv_delete_receipt: memoryKvDelete.receipt_ref,
       suggestions_receipt: suggestionsAck.receipt_ref,
       file_artifact_receipt: fileArtifact.receipt_ref,
+      file_artifact_save_receipt: fileArtifactSave.receipt_ref,
       folder_artifact_receipt: folderArtifact.receipt_ref,
       workflow_create_receipt: workflowCreateAck.receipt_ref,
       workflow_update_receipt: workflowUpdateAck.receipt_ref,

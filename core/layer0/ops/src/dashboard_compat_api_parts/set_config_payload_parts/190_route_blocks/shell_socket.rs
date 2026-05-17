@@ -1243,6 +1243,40 @@ fn shell_socket_artifact_projection(capability: &str, legacy: CompatApiResponse)
     }
 }
 
+fn shell_socket_file_save_projection(
+    capability: &str,
+    legacy: CompatApiResponse,
+    file_name: &str,
+) -> CompatApiResponse {
+    let payload = legacy.payload;
+    let ok = legacy.status < 400 && payload.get("ok").and_then(Value::as_bool).unwrap_or(true);
+    let mut out = Map::<String, Value>::new();
+    out.insert("ok".to_string(), json!(ok));
+    out.insert(
+        "file".to_string(),
+        json!({
+            "name": clean_text(file_name, 240),
+            "saved": ok,
+            "agent_id": payload.get("agent_id").cloned().unwrap_or(Value::Null)
+        }),
+    );
+    if let Some(error) = payload.get("error").and_then(Value::as_str) {
+        out.insert("error".to_string(), json!(clean_text(error, 240)));
+    }
+    out.insert(
+        "receipt_ref".to_string(),
+        json!(shell_socket_receipt_ref(capability, &payload)),
+    );
+    out.insert(
+        "correlation_id".to_string(),
+        json!(format!("shell_socket.{capability}")),
+    );
+    CompatApiResponse {
+        status: if ok { 200 } else { legacy.status.max(400) },
+        payload: Value::Object(out),
+    }
+}
+
 fn shell_socket_workflow_projection(capability: &str, legacy: CompatApiResponse) -> CompatApiResponse {
     let payload = legacy.payload;
     let ok = legacy.status < 400 && payload.get("ok").and_then(Value::as_bool).unwrap_or(true);

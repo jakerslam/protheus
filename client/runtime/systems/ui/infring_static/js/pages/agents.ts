@@ -1018,7 +1018,7 @@ function agentsPage() {
         var fileState = this.ensureAgentFileState();
         var name = String(this.editingFile || '');
         var content = String(this.fileContent || '');
-        await InfringAPI.put('/api/agents/' + agentId + '/files/' + encodeURIComponent(name), { content: content });
+        await InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(agentId) + '/files/' + encodeURIComponent(name) + '/save', { content: content });
         fileState.base[name] = content;
         fileState.drafts[name] = content;
         this.mergeAgentFileEntry({ name: name, exists: true, updated_at: new Date().toISOString() });

@@ -47,6 +47,7 @@ export type ShellSocketCapabilityId =
   | 'delete_memory_kv'
   | 'request_agent_suggestions'
   | 'read_agent_file_artifact'
+  | 'save_agent_file_artifact'
   | 'export_agent_folder_artifact'
   | 'create_workflow'
   | 'update_workflow'
@@ -148,6 +149,7 @@ export const SHELL_SOCKET_ROUTES: ReadonlyArray<ShellSocketRouteDefinition> = Ob
   { capabilityId: 'delete_memory_kv', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/memory/kv/{key}/delete', pathParams: ['agent_id', 'key'] },
   { capabilityId: 'request_agent_suggestions', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/suggestions', pathParams: ['agent_id'] },
   { capabilityId: 'read_agent_file_artifact', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/artifacts/file/read', pathParams: ['agent_id'] },
+  { capabilityId: 'save_agent_file_artifact', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/files/{file_name}/save', pathParams: ['agent_id', 'file_name'] },
   { capabilityId: 'export_agent_folder_artifact', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/artifacts/folder/export', pathParams: ['agent_id'] },
   { capabilityId: 'create_workflow', method: 'POST', path: '/api/shell-socket/workflows' },
   { capabilityId: 'update_workflow', method: 'POST', path: '/api/shell-socket/workflows/{workflow_id}/update', pathParams: ['workflow_id'] },
@@ -451,6 +453,10 @@ export class ShellSocketGatewayClient {
     return this.request<T>('read_agent_file_artifact', { query: { agent_id: agentId }, body: request });
   }
 
+  saveAgentFileArtifact<T = unknown>(agentId: string, fileName: string, request: unknown): Promise<T> {
+    return this.request<T>('save_agent_file_artifact', { query: { agent_id: agentId, file_name: fileName }, body: request });
+  }
+
   exportAgentFolderArtifact<T = unknown>(agentId: string, request: unknown): Promise<T> {
     return this.request<T>('export_agent_folder_artifact', { query: { agent_id: agentId }, body: request });
   }
@@ -599,7 +605,7 @@ export function shellSocketClientSelfTest(): Record<string, unknown> {
     fetchImpl: async () => ({ ok: true, status: 200, text: async () => '{}' }),
   });
   return {
-    ok: routeIds.length === uniqueRouteIds.size && routeIds.length === 79,
+    ok: routeIds.length === uniqueRouteIds.size && routeIds.length === 80,
     type: 'shell_socket_gateway_client_self_test',
     route_count: routeIds.length,
     unique_route_count: uniqueRouteIds.size,
