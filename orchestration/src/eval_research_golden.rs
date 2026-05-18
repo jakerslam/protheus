@@ -490,6 +490,7 @@ pub fn run_research_golden(args: &[String]) -> i32 {
                 "response_grading_layers".to_string(),
                 grade.response_grading_layers,
             );
+            object.insert("soft_quality_smoke".to_string(), grade.soft_quality_smoke);
         }
         rows.push(case_row.clone());
         let case_elapsed_ms = case_started.elapsed().as_millis() as u64;
@@ -1281,6 +1282,36 @@ fn measurement_split_report(
             )
         })
         .count() as u64;
+    let soft_quality_smoke_pass_cases = rows
+        .iter()
+        .filter(|row| bool_at(row, &["soft_quality_smoke", "pass"], false))
+        .count() as u64;
+    let soft_quality_smoke_flagged_cases = total_cases.saturating_sub(soft_quality_smoke_pass_cases);
+    let mut soft_quality_smoke_blockers = BTreeMap::<String, u64>::new();
+    for row in rows {
+        for blocker in row
+            .pointer("/soft_quality_smoke/blockers")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+            .filter_map(Value::as_str)
+        {
+            *soft_quality_smoke_blockers
+                .entry(blocker.to_string())
+                .or_insert(0) += 1;
+        }
+    }
+    let top_soft_quality_smoke_blocker = soft_quality_smoke_blockers
+        .iter()
+        .max_by_key(|(_, count)| **count)
+        .map(|(blocker, count)| json!({
+            "name": blocker,
+            "count": count
+        }))
+        .unwrap_or_else(|| json!({
+            "name": "none",
+            "count": 0
+        }));
     let query_satisfaction_total = rows
         .iter()
         .map(|row| u64_at(row, &["query_satisfaction", "score"], 0))
@@ -1367,6 +1398,15 @@ fn measurement_split_report(
             "workflow_specific_rubric_pass_cases": workflow_specific_rubric_pass_cases,
             "workflow_specific_rubric_pass_rate": ratio(workflow_specific_rubric_pass_cases, total_cases),
             "note": "Separates general answer quality, evidence-use discipline, and the research-specific rubric so the grader can stay format-flexible while still measuring workflow-specific usefulness."
+        },
+        "soft_quality_smoke": {
+            "pass_cases": soft_quality_smoke_pass_cases,
+            "pass_rate": ratio(soft_quality_smoke_pass_cases, total_cases),
+            "flagged_cases": soft_quality_smoke_flagged_cases,
+            "flagged_rate": ratio(soft_quality_smoke_flagged_cases, total_cases),
+            "top_blocker": top_soft_quality_smoke_blocker,
+            "blocker_counts": soft_quality_smoke_blockers,
+            "note": "A non-authoritative UX smoke lane that flags obviously bad answers for manual review even when structural metrics look healthy."
         },
         "excellent_quality": excellent_quality,
         "end_to_end_golden": {

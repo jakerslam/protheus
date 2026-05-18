@@ -21,6 +21,7 @@ pub(super) struct CaseGrade {
     pub(super) citation_behavior: Value,
     pub(super) query_satisfaction: Value,
     pub(super) response_grading_layers: Value,
+    pub(super) soft_quality_smoke: Value,
 }
 
 pub(super) fn grade_case(
@@ -100,6 +101,16 @@ pub(super) fn grade_case(
         "workflow_specific_rubric": workflow_specific_rubric,
         "note": "Separates general answer quality, evidence-use discipline, and research-specific rubric checks so format flexibility and workflow-specific semantics can evolve independently."
     });
+    let soft_quality_smoke = soft_quality_smoke_check(
+        &response_text,
+        &normalized,
+        final_answer_present,
+        &query_satisfaction,
+        source_summary_without_answer,
+        raw_tool_leak,
+        internal_leak,
+        tool_choice_final_response,
+    );
 
     let workflow_score = gates.values().filter(|ok| **ok).count() as u64 * 5;
     let evidence_score = (if source_signal { 6 } else { 0 })
@@ -209,6 +220,7 @@ pub(super) fn grade_case(
         citation_behavior,
         query_satisfaction,
         response_grading_layers,
+        soft_quality_smoke,
     }
 }
 
@@ -909,6 +921,142 @@ fn research_workflow_specific_rubric(
         "top_blocker": top_blocker,
         "note": "This layer is intentionally workflow-specific. It captures research-answer usefulness without requiring any fixed visible format."
     })
+}
+
+fn soft_quality_smoke_check(
+    response_text: &str,
+    normalized_response: &str,
+    final_answer_present: bool,
+    query_satisfaction: &Value,
+    source_summary_without_answer: bool,
+    raw_tool_leak: bool,
+    internal_leak: bool,
+    tool_choice_final_response: bool,
+) -> Value {
+    let intent_answered = query_satisfaction
+        .get("intent_answered")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let decision_value = query_satisfaction
+        .get("decision_value")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let direct_user_help = final_answer_present && intent_answered;
+    let meta_process_talk =
+        response_has_meta_process_talk(normalized_response) && (!direct_user_help || source_summary_without_answer);
+    let delegates_research_back_to_user =
+        response_delegates_research_back_to_user(normalized_response) && !intent_answered;
+    let obviously_bad_shape = raw_tool_leak
+        || internal_leak
+        || tool_choice_final_response
+        || source_summary_without_answer
+        || !normal_prose_signal(response_text);
+
+    let mut subgates = serde_json::Map::new();
+    subgates.insert(
+        "smoke_1_no_meta_process_talk".to_string(),
+        json!(!meta_process_talk),
+    );
+    subgates.insert(
+        "smoke_2_not_source_dump_without_answer".to_string(),
+        json!(!source_summary_without_answer),
+    );
+    subgates.insert(
+        "smoke_3_not_delegating_research_back_to_user".to_string(),
+        json!(!delegates_research_back_to_user),
+    );
+    subgates.insert(
+        "smoke_4_direct_user_help_present".to_string(),
+        json!(direct_user_help),
+    );
+    subgates.insert(
+        "smoke_5_projection_not_obviously_bad".to_string(),
+        json!(!obviously_bad_shape),
+    );
+    subgates.insert(
+        "smoke_6_decision_or_explanatory_value_present".to_string(),
+        json!(decision_value || has_tradeoff_or_structure(normalized_response)),
+    );
+    let ordered = [
+        ("smoke_1_no_meta_process_talk", "meta_process_talk_visible"),
+        (
+            "smoke_2_not_source_dump_without_answer",
+            "source_dump_without_answer",
+        ),
+        (
+            "smoke_3_not_delegating_research_back_to_user",
+            "delegates_research_back_to_user",
+        ),
+        ("smoke_4_direct_user_help_present", "direct_answer_missing"),
+        (
+            "smoke_5_projection_not_obviously_bad",
+            "projection_shape_obviously_bad",
+        ),
+        (
+            "smoke_6_decision_or_explanatory_value_present",
+            "decision_or_explanatory_value_missing",
+        ),
+    ];
+    let blockers = ordered
+        .iter()
+        .filter_map(|(gate, blocker)| {
+            (!subgates
+                .get(*gate)
+                .and_then(Value::as_bool)
+                .unwrap_or(false))
+            .then(|| (*blocker).to_string())
+        })
+        .collect::<Vec<_>>();
+    let score = subgates
+        .values()
+        .filter(|value| value.as_bool().unwrap_or(false))
+        .count() as u64;
+    json!({
+        "schema_version": 1,
+        "lane_id": "soft_quality_smoke_v1",
+        "pass": blockers.is_empty(),
+        "score": score,
+        "max_score": 6,
+        "subgates": Value::Object(subgates),
+        "blockers": blockers,
+        "top_blocker": blockers.first().cloned().unwrap_or_else(|| "none".to_string()),
+        "note": "This is a soft UX smoke lane, not an authoritative grading contract. It flags answers that would likely feel obviously bad to a real user even if structural gates passed."
+    })
+}
+
+fn response_has_meta_process_talk(normalized_response: &str) -> bool {
+    contains_any(
+        normalized_response,
+        &[
+            "recorded evidence so far",
+            "the current turn does not yet support",
+            "the current turn",
+            "recorded state",
+            "research workflow",
+            "structured workflow",
+            "prompt chain",
+            "i m operating within",
+            "i am operating within",
+            "tools actually executed",
+            "no tools actually executed",
+            "tool trace complete",
+        ],
+    )
+}
+
+fn response_delegates_research_back_to_user(normalized_response: &str) -> bool {
+    contains_any(
+        normalized_response,
+        &[
+            "try a narrower query",
+            "retry with a narrower query",
+            "check directly",
+            "provide sources directly",
+            "you can attempt the search again",
+            "you could try again",
+            "narrow the query",
+        ],
+    )
 }
 
 fn response_denies_recorded_evidence(normalized_response: &str, evidence_count: u64) -> bool {
@@ -2648,6 +2796,20 @@ mod tests {
             .failures
             .iter()
             .any(|failure| failure == "source_summary_without_user_answer"));
+        assert_eq!(
+            grade
+                .soft_quality_smoke
+                .get("pass")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            grade
+                .soft_quality_smoke
+                .get("top_blocker")
+                .and_then(Value::as_str),
+            Some("meta_process_talk_visible")
+        );
     }
 
     #[test]
@@ -3005,6 +3167,62 @@ mod tests {
             grade
                 .response_grading_layers
                 .pointer("/workflow_specific_rubric/pass")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            grade
+                .soft_quality_smoke
+                .get("pass")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+    }
+
+    #[test]
+    fn soft_quality_smoke_allows_mild_evidence_caveat_when_answer_is_still_direct() {
+        let case = json!({
+            "prompt": "Compare Alpha and Beta for production use.",
+            "expected_gate_path": {
+                "gate_1": "tool_required",
+                "gate_2": "web_research",
+                "gate_3": "web_search",
+                "gate_4_required_fields": ["query", "aperture"]
+            },
+            "required_entities": ["Alpha", "Beta"]
+        });
+        let payload = json!({
+            "response": "Based on the limited evidence retrieved and the coverage gaps noted in the state, Alpha is still the safer production default, while Beta is better for exploratory work. The practical tradeoff is reliability versus flexibility, so I would choose Alpha for production and Beta for experiments.",
+            "pending_tool_request": {
+                "status": "executed",
+                "selected_tool_family": "web_research",
+                "tool_name": "web_search",
+                "tool_key": "web_search",
+                "input": {
+                    "query": "Alpha Beta production comparison",
+                    "aperture": "web"
+                }
+            },
+            "tools": [{
+                "name": "web_search",
+                "status": "ok",
+                "candidate_count": 2,
+                "content_rich_candidate_count": 2,
+                "claim_hint_count": 2,
+                "evidence_refs": [{
+                    "title": "Alpha and Beta production comparison",
+                    "locator": "https://example.test/alpha-beta-production",
+                    "snippet": "A substantive source comparing Alpha and Beta for reliability and flexibility.",
+                    "claim_hints": ["Alpha is steadier for production."]
+                }]
+            }]
+        });
+
+        let grade = grade_case(&case, &payload, 85, 95);
+        assert_eq!(
+            grade
+                .soft_quality_smoke
+                .get("pass")
                 .and_then(Value::as_bool),
             Some(true)
         );

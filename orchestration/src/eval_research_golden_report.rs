@@ -223,6 +223,16 @@ pub(super) fn markdown_report(report: &Value) -> String {
             0.0
         )
     ));
+    out.push_str(&format!(
+        "- soft_quality_smoke: pass={}/{} ({:.3}) flagged={}/{} ({:.3}) top_blocker={}\n",
+        u64_at(split, &["soft_quality_smoke", "pass_cases"], 0),
+        u64_at(summary, &["cases"], 0),
+        f64_at(split, &["soft_quality_smoke", "pass_rate"], 0.0),
+        u64_at(split, &["soft_quality_smoke", "flagged_cases"], 0),
+        u64_at(summary, &["cases"], 0),
+        f64_at(split, &["soft_quality_smoke", "flagged_rate"], 0.0),
+        str_at(split, &["soft_quality_smoke", "top_blocker", "name"], "none")
+    ));
     let excellent_quality = split.get("excellent_quality").unwrap_or(&Value::Null);
     out.push_str(&format!(
         "- excellent_quality: excellent={}/{} ({:.3}) top_blocker={}\n",
