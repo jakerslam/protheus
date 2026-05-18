@@ -866,12 +866,27 @@ fn web_tooling_measured_rows(rows: &[Value]) -> Vec<&Value> {
 }
 
 fn web_tooling_measurement_exclusion_reason_row(row: &Value) -> Option<&'static str> {
+    if let Some(explicit) = row
+        .get("web_tooling_measurement_exclusion")
+        .and_then(Value::as_str)
+    {
+        return match explicit {
+            "" | "none" => None,
+            "transport_failure" => Some("transport_failure"),
+            "post_tool_context_not_seeded" => Some("post_tool_context_not_seeded"),
+            _ => None,
+        };
+    }
     if bool_at(row, &["transport_failure"], false) {
         return Some("transport_failure");
     }
+    let retrieval_quality = row
+        .get("web_tooling_retrieval_quality")
+        .or_else(|| row.get("retrieval_quality"))
+        .unwrap_or(&Value::Null);
     if str_at(row, &["category"], "") == "post_tool_synthesis"
-        && !bool_at(row, &["retrieval_quality", "tool_executed"], false)
-        && str_at(row, &["retrieval_quality", "status"], "") == "not_attempted"
+        && !bool_at(retrieval_quality, &["tool_executed"], false)
+        && str_at(retrieval_quality, &["status"], "") == "not_attempted"
     {
         return Some("post_tool_context_not_seeded");
     }
@@ -1228,7 +1243,7 @@ fn top_count_row(counts: &BTreeMap<String, u64>) -> Value {
     })
 }
 
-fn web_failure_boundary(gate: &str) -> &'static str {
+pub(super) fn web_failure_boundary(gate: &str) -> &'static str {
     match gate {
         "" | "none" => "no_web_tooling_failure_detected",
         "web_1_request_shape_present" => "web_request_shape_missing",
@@ -1940,10 +1955,7 @@ fn scan_access_blocker_text(
             "unfortunately bots use duckduckgo too",
             "human_verification",
         ),
-        (
-            "select all squares containing a duck",
-            "human_verification",
-        ),
+        ("select all squares containing a duck", "human_verification"),
         ("unusual traffic", "bot_detection"),
         ("automated queries", "bot_detection"),
     ];

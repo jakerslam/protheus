@@ -1,0 +1,32 @@
+{
+  "type": "research_eval_upstream_failure_localization_contract",
+  "schema_version": 1,
+  "domain": "research",
+  "purpose": "Define the enforced upstream-first failure localization fields for research eval artifacts.",
+  "layer_order": [
+    "run_stability",
+    "workflow_path",
+    "retrieval_mechanics",
+    "evidence_carrythrough",
+    "synthesis_quality",
+    "ux_smoke",
+    "none"
+  ],
+  "case_required_fields": [
+    "upstream_failure_localization.earliest_failure_layer",
+    "upstream_failure_localization.earliest_failure_boundary",
+    "upstream_failure_localization.hardness",
+    "upstream_failure_localization.authoritative_contract_failures",
+    "upstream_failure_localization.soft_smoke_flags"
+  ],
+  "summary_required_fields": [
+    "measurement_split.upstream_failure_localization.layer_counts",
+    "measurement_split.upstream_failure_localization.boundary_counts",
+    "measurement_split.upstream_failure_localization.top_layer"
+  ],
+  "policy": {
+    "debug_from_earliest_failure_layer": true,
+    "ux_smoke_is_non_authoritative": true,
+    "do_not_optimize_downstream_while_upstream_is_unstable": true
+  }
+}

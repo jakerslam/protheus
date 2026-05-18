@@ -21,7 +21,7 @@ use eval_research_golden_scoring::{
 };
 use eval_research_golden_utils::*;
 use eval_web_retrieval_gate_diagnostics::{
-    record_web_retrieval_gate_counts, web_retrieval_gate_diagnostics,
+    record_web_retrieval_gate_counts, web_failure_boundary, web_retrieval_gate_diagnostics,
     web_retrieval_gate_metric_rows, web_retrieval_gate_rate_rows, web_retrieval_measurement_report,
     web_tooling_measurement_eligible_case, web_tooling_measurement_exclusion_reason_case,
 };
@@ -491,6 +491,10 @@ pub fn run_research_golden(args: &[String]) -> i32 {
                 grade.response_grading_layers,
             );
             object.insert("soft_quality_smoke".to_string(), grade.soft_quality_smoke);
+        }
+        let localization = upstream_failure_localization(&case_row);
+        if let Some(object) = case_row.as_object_mut() {
+            object.insert("upstream_failure_localization".to_string(), localization);
         }
         rows.push(case_row.clone());
         let case_elapsed_ms = case_started.elapsed().as_millis() as u64;
@@ -1286,7 +1290,8 @@ fn measurement_split_report(
         .iter()
         .filter(|row| bool_at(row, &["soft_quality_smoke", "pass"], false))
         .count() as u64;
-    let soft_quality_smoke_flagged_cases = total_cases.saturating_sub(soft_quality_smoke_pass_cases);
+    let soft_quality_smoke_flagged_cases =
+        total_cases.saturating_sub(soft_quality_smoke_pass_cases);
     let mut soft_quality_smoke_blockers = BTreeMap::<String, u64>::new();
     for row in rows {
         for blocker in row
@@ -1304,14 +1309,18 @@ fn measurement_split_report(
     let top_soft_quality_smoke_blocker = soft_quality_smoke_blockers
         .iter()
         .max_by_key(|(_, count)| **count)
-        .map(|(blocker, count)| json!({
-            "name": blocker,
-            "count": count
-        }))
-        .unwrap_or_else(|| json!({
-            "name": "none",
-            "count": 0
-        }));
+        .map(|(blocker, count)| {
+            json!({
+                "name": blocker,
+                "count": count
+            })
+        })
+        .unwrap_or_else(|| {
+            json!({
+                "name": "none",
+                "count": 0
+            })
+        });
     let query_satisfaction_total = rows
         .iter()
         .map(|row| u64_at(row, &["query_satisfaction", "score"], 0))
@@ -1321,6 +1330,7 @@ fn measurement_split_report(
         .filter(|row| u64_at(row, &["query_satisfaction", "score"], 0) >= 7)
         .count() as u64;
     let excellent_quality = excellent_quality_report(rows);
+    let upstream_failure_localization = upstream_failure_localization_report(rows);
     let retrieval_status = if !live {
         "not_live"
     } else if transport_failure_cases > 0 {
@@ -1408,6 +1418,7 @@ fn measurement_split_report(
             "blocker_counts": soft_quality_smoke_blockers,
             "note": "A non-authoritative UX smoke lane that flags obviously bad answers for manual review even when structural metrics look healthy."
         },
+        "upstream_failure_localization": upstream_failure_localization,
         "excellent_quality": excellent_quality,
         "end_to_end_golden": {
             "ok": research_success_rate >= research_success_min,
@@ -1502,6 +1513,284 @@ fn excellent_quality_report(rows: &[Value]) -> Value {
         "top_blocker_counts": top_blocker_rows,
         "top_blocker": top_blocker,
         "note": "Excellent diagnostics isolate generic quality blockers after workflow and tooling gates pass."
+    })
+}
+
+const UPSTREAM_FAILURE_LAYER_ORDER: &[&str] = &[
+    "run_stability",
+    "workflow_path",
+    "retrieval_mechanics",
+    "evidence_carrythrough",
+    "synthesis_quality",
+    "ux_smoke",
+    "none",
+];
+
+fn upstream_failure_localization(row: &Value) -> Value {
+    let case_pass = bool_at(row, &["pass"], false);
+    let failure_classification = str_at(row, &["failure_classification"], "");
+    let transport_failure = bool_at(row, &["transport_failure"], false);
+    let response_error = str_at(row, &["response_diagnostics", "error"], "");
+    let transport_error = str_at(row, &["response_diagnostics", "transport_error"], "");
+    let first_failed_checkpoint = str_at(
+        row,
+        &["gate_transition_diagnostics", "first_failed_checkpoint"],
+        "",
+    );
+    let workflow_boundary = str_at(
+        row,
+        &["gate_transition_diagnostics", "inferred_failure_boundary"],
+        "",
+    );
+    let web_first_failed_gate =
+        str_at(row, &["web_tool_gate_diagnostics", "first_failed_gate"], "");
+    let web_boundary = str_at(
+        row,
+        &["web_tool_gate_diagnostics", "inferred_failure_boundary"],
+        "",
+    );
+    let evidence_top_blocker = str_at(
+        row,
+        &[
+            "response_grading_layers",
+            "tool_backed_evidence_contract",
+            "top_blocker",
+        ],
+        "",
+    );
+    let rubric_top_blocker = str_at(
+        row,
+        &[
+            "response_grading_layers",
+            "workflow_specific_rubric",
+            "top_blocker",
+        ],
+        "",
+    );
+    let smoke_top_blocker = str_at(row, &["soft_quality_smoke", "top_blocker"], "");
+    let evidence_layer_failed = !bool_at(
+        row,
+        &[
+            "response_grading_layers",
+            "tool_backed_evidence_contract",
+            "pass",
+        ],
+        true,
+    );
+    let rubric_failed = !bool_at(
+        row,
+        &[
+            "response_grading_layers",
+            "workflow_specific_rubric",
+            "pass",
+        ],
+        true,
+    );
+    let smoke_failed = !bool_at(row, &["soft_quality_smoke", "pass"], true);
+    let authoritative_contract_failures = collect_authoritative_contract_failures(row);
+    let soft_smoke_flags = string_array_at(row, &["soft_quality_smoke", "blockers"]);
+
+    let (earliest_failure_layer, earliest_failure_boundary) = if case_pass && !smoke_failed {
+        ("none".to_string(), "none".to_string())
+    } else if transport_failure
+        || !transport_error.is_empty()
+        || response_error == "agent_not_found"
+        || failure_classification == "transport"
+    {
+        let boundary = if !response_error.is_empty() {
+            response_error
+        } else if !transport_error.is_empty() {
+            transport_error
+        } else {
+            "transport_or_agent_lifecycle_failure".to_string()
+        };
+        ("run_stability".to_string(), boundary)
+    } else if workflow_path_failed(row, &first_failed_checkpoint) {
+        let boundary = if !workflow_boundary.is_empty() {
+            workflow_boundary
+        } else if !first_failed_checkpoint.is_empty() {
+            failure_boundary(&first_failed_checkpoint).to_string()
+        } else {
+            "workflow_path_failure".to_string()
+        };
+        ("workflow_path".to_string(), boundary)
+    } else if retrieval_mechanics_failed(row, &web_first_failed_gate, &first_failed_checkpoint) {
+        let boundary = if !web_boundary.is_empty() {
+            web_boundary
+        } else if !web_first_failed_gate.is_empty() {
+            web_failure_boundary(&web_first_failed_gate).to_string()
+        } else if !first_failed_checkpoint.is_empty() {
+            failure_boundary(&first_failed_checkpoint).to_string()
+        } else {
+            "retrieval_mechanics_failure".to_string()
+        };
+        ("retrieval_mechanics".to_string(), boundary)
+    } else if evidence_layer_failed
+        || matches!(
+            first_failed_checkpoint.as_str(),
+            "5e_agent_received_evidence_context"
+        )
+    {
+        let boundary = if !evidence_top_blocker.is_empty() && evidence_top_blocker != "none" {
+            evidence_top_blocker
+        } else if !first_failed_checkpoint.is_empty() {
+            failure_boundary(&first_failed_checkpoint).to_string()
+        } else {
+            "evidence_carrythrough_failure".to_string()
+        };
+        ("evidence_carrythrough".to_string(), boundary)
+    } else if rubric_failed
+        || matches!(
+            first_failed_checkpoint.as_str(),
+            "6a_synthesis_uses_evidence_or_low_evidence_fallback"
+        )
+    {
+        let boundary = if !rubric_top_blocker.is_empty() && rubric_top_blocker != "none" {
+            rubric_top_blocker
+        } else if !first_failed_checkpoint.is_empty() {
+            str_at(
+                row,
+                &["gate_transition_diagnostics", "synthesis_failure_class"],
+                &failure_boundary(&first_failed_checkpoint),
+            )
+        } else {
+            "synthesis_quality_failure".to_string()
+        };
+        ("synthesis_quality".to_string(), boundary)
+    } else if smoke_failed {
+        let boundary = if !smoke_top_blocker.is_empty() && smoke_top_blocker != "none" {
+            smoke_top_blocker
+        } else {
+            "soft_quality_smoke_flagged".to_string()
+        };
+        ("ux_smoke".to_string(), boundary)
+    } else {
+        ("none".to_string(), "none".to_string())
+    };
+
+    json!({
+        "schema_version": 1,
+        "layer_order": UPSTREAM_FAILURE_LAYER_ORDER,
+        "earliest_failure_layer": earliest_failure_layer,
+        "earliest_failure_boundary": earliest_failure_boundary,
+        "hardness": if failure_classification.is_empty() { "none" } else { &failure_classification },
+        "authoritative_contract_failures": authoritative_contract_failures,
+        "soft_smoke_flags": soft_smoke_flags,
+        "note": "Earliest broken layer is the canonical debugging entrypoint. Work this layer to stability before moving downstream."
+    })
+}
+
+fn workflow_path_failed(row: &Value, first_failed_checkpoint: &str) -> bool {
+    if row
+        .get("gates")
+        .and_then(Value::as_object)
+        .map(|gates| gates.values().any(|value| value.as_bool() == Some(false)))
+        .unwrap_or(false)
+    {
+        return true;
+    }
+    matches!(
+        first_failed_checkpoint,
+        "4a_request_template_signaled"
+            | "4b_tool_request_candidate_present"
+            | "4c_candidate_payload_object"
+            | "4d_candidate_schema_fields_present"
+            | "4e_pending_request_promoted"
+            | "5a_tool_execution_recorded"
+    )
+}
+
+fn retrieval_mechanics_failed(
+    row: &Value,
+    web_first_failed_gate: &str,
+    first_failed_checkpoint: &str,
+) -> bool {
+    !web_first_failed_gate.is_empty()
+        || matches!(
+            first_failed_checkpoint,
+            "5b_raw_provider_result_present"
+                | "5c_packaged_tool_result_present"
+                | "5d_evidence_refs_extracted"
+        )
+        || matches!(
+            str_at(row, &["retrieval_quality", "status"], "").as_str(),
+            "low_relevance"
+                | "low_signal"
+                | "provider_degraded"
+                | "no_results"
+                | "raw_provider_absent"
+        )
+}
+
+fn collect_authoritative_contract_failures(row: &Value) -> Vec<String> {
+    let mut failures = string_array_at(row, &["failures"]);
+    for path in [
+        &[
+            "response_grading_layers",
+            "generic_response_contract",
+            "blockers",
+        ][..],
+        &[
+            "response_grading_layers",
+            "tool_backed_evidence_contract",
+            "blockers",
+        ][..],
+        &[
+            "response_grading_layers",
+            "workflow_specific_rubric",
+            "blockers",
+        ][..],
+    ] {
+        failures.extend(string_array_at(row, path));
+    }
+    failures.sort();
+    failures.dedup();
+    failures
+}
+
+fn upstream_failure_localization_report(rows: &[Value]) -> Value {
+    let mut layer_counts = BTreeMap::<String, u64>::new();
+    let mut boundary_counts = BTreeMap::<String, u64>::new();
+    for row in rows {
+        let layer = str_at(
+            row,
+            &["upstream_failure_localization", "earliest_failure_layer"],
+            "none",
+        );
+        let boundary = str_at(
+            row,
+            &["upstream_failure_localization", "earliest_failure_boundary"],
+            "none",
+        );
+        *layer_counts.entry(layer).or_insert(0) += 1;
+        *boundary_counts.entry(boundary).or_insert(0) += 1;
+    }
+    let mut layer_rows = UPSTREAM_FAILURE_LAYER_ORDER
+        .iter()
+        .map(|layer| {
+            let count = *layer_counts.get(*layer).unwrap_or(&0);
+            json!({
+                "layer": layer,
+                "count": count,
+                "rate": ratio(count, rows.len() as u64)
+            })
+        })
+        .collect::<Vec<_>>();
+    layer_rows.retain(|row| u64_at(row, &["count"], 0) > 0);
+    let top_layer = layer_rows
+        .iter()
+        .find(|row| str_at(row, &["layer"], "") != "none")
+        .and_then(|row| row.get("layer"))
+        .and_then(Value::as_str)
+        .unwrap_or("none")
+        .to_string();
+    json!({
+        "schema_version": 1,
+        "layer_order": UPSTREAM_FAILURE_LAYER_ORDER,
+        "layer_counts": layer_rows,
+        "boundary_counts": map_count_rows(&boundary_counts, "boundary"),
+        "top_layer": top_layer,
+        "note": "Use the earliest broken layer as the only authorized starting point for fixes. Do not optimize downstream layers while an upstream layer is unstable."
     })
 }
 

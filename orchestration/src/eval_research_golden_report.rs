@@ -231,7 +231,21 @@ pub(super) fn markdown_report(report: &Value) -> String {
         u64_at(split, &["soft_quality_smoke", "flagged_cases"], 0),
         u64_at(summary, &["cases"], 0),
         f64_at(split, &["soft_quality_smoke", "flagged_rate"], 0.0),
-        str_at(split, &["soft_quality_smoke", "top_blocker", "name"], "none")
+        str_at(
+            split,
+            &["soft_quality_smoke", "top_blocker", "name"],
+            "none"
+        )
+    ));
+    out.push_str(&format!(
+        "- upstream_failure_localization: top_layer={} run_stability={} workflow_path={} retrieval_mechanics={} evidence_carrythrough={} synthesis_quality={} ux_smoke={}\n",
+        str_at(split, &["upstream_failure_localization", "top_layer"], "none"),
+        layer_count(split, "run_stability"),
+        layer_count(split, "workflow_path"),
+        layer_count(split, "retrieval_mechanics"),
+        layer_count(split, "evidence_carrythrough"),
+        layer_count(split, "synthesis_quality"),
+        layer_count(split, "ux_smoke")
     ));
     let excellent_quality = split.get("excellent_quality").unwrap_or(&Value::Null);
     out.push_str(&format!(
@@ -301,4 +315,16 @@ pub(super) fn markdown_report(report: &Value) -> String {
         ));
     }
     out
+}
+
+fn layer_count(split: &Value, layer: &str) -> u64 {
+    split
+        .pointer("/upstream_failure_localization/layer_counts")
+        .and_then(Value::as_array)
+        .and_then(|rows| {
+            rows.iter()
+                .find(|row| row.get("layer").and_then(Value::as_str) == Some(layer))
+        })
+        .and_then(|row| row.get("count").and_then(Value::as_u64))
+        .unwrap_or(0)
 }

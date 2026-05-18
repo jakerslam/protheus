@@ -142,6 +142,26 @@ fn research_cross_domain_fixture_declares_general_other_and_shape_tags() {
 }
 
 #[test]
+fn research_upstream_failure_localization_contract_declares_expected_layers() {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join(
+        "../validation/evals/fixtures/research_eval_upstream_failure_localization_contract.json",
+    );
+    let contract = read_json(path.to_str().unwrap());
+    assert_eq!(
+        string_array_at(&contract, &["layer_order"]),
+        vec![
+            "run_stability".to_string(),
+            "workflow_path".to_string(),
+            "retrieval_mechanics".to_string(),
+            "evidence_carrythrough".to_string(),
+            "synthesis_quality".to_string(),
+            "ux_smoke".to_string(),
+            "none".to_string()
+        ]
+    );
+}
+
+#[test]
 fn research_golden_scores_evidenced_final_answer() {
     let root = temp_path("research_golden_pass");
     let cases = root.join("cases.json");
@@ -210,6 +230,14 @@ fn research_golden_scores_evidenced_final_answer() {
     assert_eq!(
         report.pointer("/measurement_split/deterministic_workflow_path/ok"),
         Some(&Value::Bool(true))
+    );
+    assert_eq!(
+        report.pointer("/cases/0/upstream_failure_localization/earliest_failure_layer"),
+        Some(&Value::String("none".to_string()))
+    );
+    assert_eq!(
+        report.pointer("/measurement_split/upstream_failure_localization/top_layer"),
+        Some(&Value::String("none".to_string()))
     );
     assert_eq!(
         report.pointer("/measurement_split/end_to_end_golden/mode"),
@@ -301,6 +329,14 @@ fn research_golden_separates_gate_progress_from_research_success() {
             .pointer("/measurement_split/failure_classification/hard_failure_cases")
             .and_then(Value::as_u64),
         Some(1)
+    );
+    assert_eq!(
+        report.pointer("/cases/0/upstream_failure_localization/earliest_failure_layer"),
+        Some(&Value::String("workflow_path".to_string()))
+    );
+    assert_eq!(
+        report.pointer("/measurement_split/upstream_failure_localization/top_layer"),
+        Some(&Value::String("workflow_path".to_string()))
     );
 }
 
