@@ -573,9 +573,13 @@ fn query_satisfaction(
     limitation_signal: bool,
 ) -> Value {
     let scope_covered = coverage_entities.is_empty() || entity_coverage >= 0.75;
-    let intent_answered = response_matches_prompt_intent(normalized_prompt, normalized_response);
-    let decision_value = has_recommendation_signal(normalized_response)
-        || response_matches_decision_prompt(normalized_prompt, normalized_response);
+    let coverage_gap_prevents_answer =
+        response_explicitly_cannot_answer_goal_from_current_evidence(normalized_response);
+    let intent_answered = response_matches_prompt_intent(normalized_prompt, normalized_response)
+        && !coverage_gap_prevents_answer;
+    let decision_value = (has_recommendation_signal(normalized_response)
+        || response_matches_decision_prompt(normalized_prompt, normalized_response))
+        && !coverage_gap_prevents_answer;
     let right_granularity = response_has_right_granularity(normalized_response);
     let evidence_aware = source_signal || citation_signal || limitation_signal;
     let score = [
@@ -600,6 +604,7 @@ fn query_satisfaction(
         "evidence_aware": evidence_aware,
         "decision_value": decision_value,
         "right_granularity": right_granularity,
+        "coverage_gap_prevents_answer": coverage_gap_prevents_answer,
         "coverage_entity_aliases": coverage_entity_aliases(coverage_entities),
         "note": "Query satisfaction is derived from the original prompt plus available evidence behavior, not from hidden expected answers."
     })
@@ -1059,12 +1064,80 @@ fn response_delegates_research_back_to_user(normalized_response: &str) -> bool {
     )
 }
 
+fn response_explicitly_cannot_answer_goal_from_current_evidence(
+    normalized_response: &str,
+) -> bool {
+    if normalized_response.is_empty() {
+        return false;
+    }
+    let explicit_goal_gap = contains_any(
+        normalized_response,
+        &[
+            "i dont have usable source backed evidence",
+            "i do not have usable source backed evidence",
+            "i dont have usable evidence about",
+            "i do not have usable evidence about",
+            "i cant provide a source backed",
+            "i cannot provide a source backed",
+            "no source backed basis to compare",
+            "no source backed basis to choose",
+            "none of the required facets",
+            "everything specific to your research goal",
+            "search missed the entity entirely",
+        ],
+    );
+    let off_topic_or_missing_coverage = contains_any(
+        normalized_response,
+        &[
+            "largely off topic snippets",
+            "largely off-topic snippets",
+            "do not cover the actual",
+            "does not cover the actual",
+            "doesnt cover the actual",
+            "what the evidence covers none",
+            "what the evidence misses everything specific",
+        ],
+    );
+    explicit_goal_gap || (off_topic_or_missing_coverage && response_delegates_research_back_to_user(normalized_response))
+}
+
 fn response_denies_recorded_evidence(normalized_response: &str, evidence_count: u64) -> bool {
     if evidence_count == 0 {
         return false;
     }
-    let denies_source_backed = normalized_response.contains("no source backed")
-        || normalized_response.contains("no source-backed");
+    let qualified_relevance_denial = contains_any(
+        normalized_response,
+        &[
+            "no relevant evidence",
+            "no relevant source",
+            "does not cover",
+            "doesn't cover",
+            "not cover",
+            "false positive",
+            "off topic",
+            "off-topic",
+            "not relevant",
+            "not about",
+            "does not establish",
+            "doesn't establish",
+            "no source-backed basis to",
+            "no source backed basis to",
+        ],
+    );
+    if qualified_relevance_denial {
+        return false;
+    }
+    let denies_source_backed = contains_any(
+        normalized_response,
+        &[
+            "no source backed findings are available",
+            "no source-backed findings are available",
+            "no source backed synthesis is available",
+            "no source-backed synthesis is available",
+            "no source backed evidence is available",
+            "no source-backed evidence is available",
+        ],
+    );
     denies_source_backed
         || contains_any(
             normalized_response,
@@ -1090,10 +1163,30 @@ fn source_summary_without_answer_signal(normalized_response: &str) -> bool {
         .contains("current turn does not yet support a complete answer")
         && (normalized_response.contains("current tradeoff is breadth versus confidence")
             || normalized_response.contains("treat this as a partial answer"));
+    let retrieval_status_dump = contains_any(
+        normalized_response,
+        &[
+            "this retrieval attempt did not produce enough",
+            "retrieval attempt did not produce enough",
+            "web retrieval ran, but only",
+            "only low signal snippets were available",
+            "only low-signal snippets were available",
+        ],
+    ) && contains_any(
+        normalized_response,
+        &[
+            "recorded evidence so far",
+            "here s what i found",
+            "heres what i found",
+            "retry with a narrower query",
+            "narrower query",
+        ],
+    );
     let broken_prompt_echo = normalized_response.contains("complete answer to ?");
     generic_bounded_template
         || raw_retrieval_summary
         || unanswered_retry_template
+        || retrieval_status_dump
         || broken_prompt_echo
 }
 
@@ -1166,9 +1259,143 @@ fn user_stated_required_entities(
 ) -> Vec<String> {
     required_entities
         .iter()
+        .filter(|entity| required_entity_needs_entity_coverage(entity))
         .filter(|entity| normalized_response_covers_entity(normalized_prompt, entity))
         .cloned()
         .collect()
+}
+
+fn required_entity_needs_entity_coverage(entity: &str) -> bool {
+    let trimmed = entity.trim();
+    if trimmed.is_empty() {
+        return false;
+    }
+
+    if trimmed
+        .chars()
+        .any(|ch| ch.is_ascii_uppercase() || ch.is_ascii_digit())
+    {
+        return true;
+    }
+
+    if trimmed.contains(['-', '_', '/', '.']) {
+        return true;
+    }
+
+    let normalized = normalize_for_compare(trimmed);
+    let tokens = normalized
+        .split_whitespace()
+        .filter(|token| !token.is_empty())
+        .collect::<Vec<_>>();
+    if tokens.is_empty() {
+        return false;
+    }
+
+    if tokens.len() == 1 {
+        return !matches!(
+            tokens[0],
+            "agent"
+                | "agents"
+                | "agentic"
+                | "benchmark"
+                | "benchmarks"
+                | "browser"
+                | "company"
+                | "comparison"
+                | "credential"
+                | "credentials"
+                | "database"
+                | "deployment"
+                | "doc"
+                | "docs"
+                | "documentation"
+                | "evidence"
+                | "framework"
+                | "frameworks"
+                | "inference"
+                | "integration"
+                | "landscape"
+                | "model"
+                | "news"
+                | "observability"
+                | "pricing"
+                | "product"
+                | "prompt"
+                | "provider"
+                | "providers"
+                | "rag"
+                | "release"
+                | "releases"
+                | "retrieval"
+                | "search"
+                | "security"
+                | "sentiment"
+                | "snippet"
+                | "snippets"
+                | "stack"
+                | "tool"
+                | "tools"
+                | "tradeoff"
+                | "tradeoffs"
+                | "update"
+                | "vector"
+                | "workflow"
+                | "workflows"
+        );
+    }
+
+    !tokens.iter().all(|token| {
+        matches!(
+            *token,
+            "agent"
+                | "agents"
+                | "agentic"
+                | "best"
+                | "benchmark"
+                | "benchmarks"
+                | "browser"
+                | "company"
+                | "comparison"
+                | "credential"
+                | "credentials"
+                | "current"
+                | "database"
+                | "deployment"
+                | "enterprise"
+                | "framework"
+                | "frameworks"
+                | "injection"
+                | "integration"
+                | "landscape"
+                | "latest"
+                | "model"
+                | "news"
+                | "observability"
+                | "prompt"
+                | "provider"
+                | "providers"
+                | "public"
+                | "rag"
+                | "recent"
+                | "release"
+                | "releases"
+                | "research"
+                | "retrieval"
+                | "security"
+                | "sentiment"
+                | "snippet"
+                | "snippets"
+                | "stack"
+                | "tool"
+                | "tools"
+                | "tradeoff"
+                | "tradeoffs"
+                | "update"
+                | "vector"
+                | "workflow"
+                | "workflows"
+        )
+    })
 }
 
 fn retrieval_provider_quality(payload: &Value, normalized_prompt: &str) -> Value {
@@ -1182,6 +1409,10 @@ fn retrieval_provider_quality(payload: &Value, normalized_prompt: &str) -> Value
         .get("topic_relevant_evidence")
         .and_then(Value::as_bool)
         .unwrap_or(true);
+    let relevant_evidence_count = prompt_relevance
+        .get("relevant_evidence_count")
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
     let status_text = tool_status_marker_text(payload);
     let explicit_no_results = contains_any(
         &status_text,
@@ -1254,8 +1485,10 @@ fn retrieval_provider_quality(payload: &Value, normalized_prompt: &str) -> Value
         "usable"
     };
     let usable_evidence = status == "usable";
-    let allows_excellent =
-        usable_evidence && content_rich_candidate_count > 0 && claim_hint_count > 0;
+    let allows_excellent = usable_evidence
+        && content_rich_candidate_count > 0
+        && claim_hint_count > 0
+        && relevant_evidence_count >= 2;
     let mut flags = Vec::new();
     if !tool_executed {
         flags.push("tool_not_executed");
@@ -1308,6 +1541,7 @@ fn retrieval_provider_quality(payload: &Value, normalized_prompt: &str) -> Value
             "evidence_artifact_conflict": evidence_artifact_conflict,
             "content_rich_candidate_count": content_rich_candidate_count,
             "claim_hint_count": claim_hint_count,
+            "relevant_evidence_count": relevant_evidence_count,
             "topic_relevant_evidence": topic_relevant_evidence,
             "status_marker_source": "structured_tool_status_fields_only"
         },
@@ -1366,6 +1600,7 @@ fn collect_evidence_relevance_texts(value: &Value, depth: usize, out: &mut Vec<S
             }
         }
         Value::Object(map) => {
+            let mut doc_parts = Vec::<String>::new();
             for key in [
                 "title",
                 "source_domain",
@@ -1383,6 +1618,18 @@ fn collect_evidence_relevance_texts(value: &Value, depth: usize, out: &mut Vec<S
                 "claim_candidates",
                 "key_findings",
                 "findings",
+            ] {
+                if let Some(child) = map.get(key) {
+                    collect_relevance_doc_parts(child, depth + 1, &mut doc_parts);
+                }
+            }
+            if !doc_parts.is_empty() {
+                let combined = normalize_for_compare(&doc_parts.join(" "));
+                if combined.split_whitespace().count() >= 3 {
+                    out.push(combined);
+                }
+            }
+            for key in [
                 "evidence",
                 "evidence_refs",
                 "evidence_pack",
@@ -1407,17 +1654,54 @@ fn collect_evidence_relevance_texts(value: &Value, depth: usize, out: &mut Vec<S
     }
 }
 
+fn collect_relevance_doc_parts(value: &Value, depth: usize, out: &mut Vec<String>) {
+    if depth > 7 || out.len() >= 32 {
+        return;
+    }
+    match value {
+        Value::Array(rows) => {
+            for row in rows {
+                collect_relevance_doc_parts(row, depth + 1, out);
+            }
+        }
+        Value::Object(map) => {
+            for key in [
+                "text",
+                "snippet",
+                "summary",
+                "title",
+                "content",
+                "markdown",
+                "body",
+                "description",
+                "abstract",
+            ] {
+                if let Some(child) = map.get(key) {
+                    collect_relevance_doc_parts(child, depth + 1, out);
+                }
+            }
+        }
+        Value::String(raw) => {
+            let cleaned = clean_text(raw, 500);
+            if cleaned.split_whitespace().count() >= 2 {
+                out.push(cleaned);
+            }
+        }
+        _ => {}
+    }
+}
+
 fn research_prompt_topic_terms(normalized_prompt: &str, limit: usize) -> Vec<String> {
     let mut terms = Vec::<String>::new();
     for token in normalized_prompt.split_whitespace() {
-        let token = token.trim();
+        let token = normalize_research_token(token);
         if token.len() < 3 && token != "ai" {
             continue;
         }
-        if research_prompt_stop_term(token) {
+        if research_prompt_stop_term(&token) {
             continue;
         }
-        let stem = research_term_stem(token);
+        let stem = research_term_stem(&token);
         if stem.len() < 3 && stem != "ai" {
             continue;
         }
@@ -1429,6 +1713,14 @@ fn research_prompt_topic_terms(normalized_prompt: &str, limit: usize) -> Vec<Str
         }
     }
     terms
+}
+
+fn normalize_research_token(token: &str) -> String {
+    token
+        .chars()
+        .filter(|ch| ch.is_ascii_alphanumeric())
+        .collect::<String>()
+        .to_ascii_lowercase()
 }
 
 fn research_prompt_stop_term(token: &str) -> bool {
@@ -1443,12 +1735,22 @@ fn research_prompt_stop_term(token: &str) -> bool {
             | "around"
             | "before"
             | "best"
+            | "but"
             | "between"
+            | "blindly"
+            | "browse"
+            | "citation"
+            | "citations"
             | "current"
             | "currently"
+            | "defensible"
+            | "doc"
+            | "docs"
+            | "documentation"
             | "does"
             | "explain"
             | "find"
+            | "first"
             | "give"
             | "into"
             | "landscape"
@@ -1456,13 +1758,27 @@ fn research_prompt_stop_term(token: &str) -> bool {
             | "look"
             | "looking"
             | "make"
+            | "marketing"
             | "more"
             | "most"
             | "need"
+            | "news"
+            | "not"
+            | "official"
             | "overview"
+            | "page"
+            | "pages"
+            | "primary"
             | "research"
+            | "release"
+            | "releases"
+            | "result"
+            | "results"
             | "right"
+            | "search"
             | "some"
+            | "source"
+            | "sources"
             | "summarize"
             | "tell"
             | "that"
@@ -1471,8 +1787,10 @@ fn research_prompt_stop_term(token: &str) -> bool {
             | "there"
             | "these"
             | "this"
+            | "trust"
             | "update"
             | "using"
+            | "web"
             | "what"
             | "when"
             | "where"
@@ -1496,7 +1814,7 @@ fn research_prompt_stop_term(token: &str) -> bool {
 }
 
 fn research_term_stem(token: &str) -> String {
-    let mut value = token.trim().to_string();
+    let mut value = normalize_research_token(token);
     for suffix in ["ing", "ed", "es", "s"] {
         if value.len() > suffix.len() + 3 && value.ends_with(suffix) {
             value.truncate(value.len() - suffix.len());
@@ -1510,6 +1828,7 @@ fn prompt_term_overlap_count(prompt_terms: &[String], normalized_text: &str) -> 
     let text_terms = normalized_text
         .split_whitespace()
         .map(research_term_stem)
+        .filter(|term| !term.is_empty())
         .collect::<Vec<_>>();
     prompt_terms
         .iter()
@@ -2629,6 +2948,49 @@ mod tests {
     }
 
     #[test]
+    fn query_satisfaction_does_not_mark_goal_coverage_gap_as_excellent_answer() {
+        let response = normalize_for_compare(
+            "I don't have usable source-backed evidence for this turn. What the evidence covers: none. \
+             What the evidence misses: everything specific to your research goal. Next search direction: try a narrower query.",
+        );
+        let entities = vec!["Mastra".to_string(), "LangGraph".to_string()];
+        let coverage = entity_coverage(&response, &entities);
+        let satisfaction = query_satisfaction(
+            &normalize_for_compare(
+                "Research Mastra and compare it with LangGraph for TypeScript agent workflows.",
+            ),
+            &response,
+            &entities,
+            coverage,
+            true,
+            true,
+            true,
+            true,
+        );
+        assert_eq!(
+            satisfaction
+                .get("coverage_gap_prevents_answer")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            satisfaction.get("intent_answered").and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            satisfaction.get("decision_value").and_then(Value::as_bool),
+            Some(false)
+        );
+        assert!(
+            satisfaction
+                .get("score")
+                .and_then(Value::as_u64)
+                .unwrap_or(10)
+                < 9
+        );
+    }
+
+    #[test]
     fn grade_case_counts_initialism_alias_as_user_entity_coverage() {
         let case = json!({
             "prompt": "Research the current Model Context Protocol ecosystem and summarize maturity and risk.",
@@ -2868,6 +3230,91 @@ mod tests {
     }
 
     #[test]
+    fn prompt_relevance_strips_instruction_words_and_punctuation() {
+        let relevance = evidence_prompt_relevance(
+            &json!({
+                "tools": [{
+                    "name": "web_search",
+                    "status": "ok",
+                    "evidence_refs": [{
+                        "title": "Retail result",
+                        "locator": "https://example.test/best-buy",
+                        "snippet": "Best Buy store page and shopping deals for electronics in 2026."
+                    }]
+                }]
+            }),
+            &normalize_for_compare(
+                "What is the best agentic framework in 2026? Search first, but do not trust marketing pages blindly. Give me a defensible answer."
+            ),
+        );
+        let prompt_terms = relevance
+            .get("prompt_terms")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default()
+            .into_iter()
+            .filter_map(|value| value.as_str().map(ToString::to_string))
+            .collect::<Vec<_>>();
+        assert!(prompt_terms.iter().any(|term| term == "agentic"));
+        assert!(prompt_terms.iter().any(|term| term == "framework"));
+        assert!(!prompt_terms.iter().any(|term| term == "search"));
+        assert!(!prompt_terms.iter().any(|term| term == "best"));
+        assert!(!prompt_terms.iter().any(|term| term == "trust"));
+        assert!(!prompt_terms.iter().any(|term| term == "page"));
+    }
+
+    #[test]
+    fn excellent_requires_more_than_one_relevant_evidence_item() {
+        let payload = json!({
+            "tools": [{
+                "name": "web_search",
+                "status": "ok",
+                "candidate_count": 6,
+                "content_rich_candidate_count": 4,
+                "claim_hint_count": 3,
+                "evidence_refs": [
+                    {
+                        "title": "Single relevant framework page",
+                        "locator": "https://example.test/framework",
+                        "snippet": "This page discusses one agentic framework and its 2026 roadmap.",
+                        "claim_hints": ["One framework has a 2026 roadmap."]
+                    },
+                    {
+                        "title": "Retail page",
+                        "locator": "https://example.test/store",
+                        "snippet": "Best Buy store page for electronics.",
+                        "claim_hints": ["Retail result."]
+                    }
+                ]
+            }]
+        });
+
+        let quality = retrieval_provider_quality(
+            &payload,
+            &normalize_for_compare(
+                "What is the best agentic framework in 2026? Search first, but do not trust marketing pages blindly. Give me a defensible answer."
+            ),
+        );
+        assert_eq!(
+            quality.get("status").and_then(Value::as_str),
+            Some("usable"),
+            "{quality:#?}"
+        );
+        assert_eq!(
+            quality.get("allows_excellent").and_then(Value::as_bool),
+            Some(false),
+            "{quality:#?}"
+        );
+        assert_eq!(
+            quality
+                .pointer("/classification_inputs/relevant_evidence_count")
+                .and_then(Value::as_u64),
+            Some(1),
+            "{quality:#?}"
+        );
+    }
+
+    #[test]
     fn user_stated_entities_remain_query_scope() {
         let case = json!({
             "prompt": "Compare OpenHands and Aider for existing repository maintenance.",
@@ -2913,6 +3360,75 @@ mod tests {
             .failures
             .iter()
             .any(|failure| failure.starts_with("entity_coverage_low")));
+    }
+
+    #[test]
+    fn generic_required_noun_phrases_do_not_become_entity_coverage_requirements() {
+        let case = json!({
+            "prompt": "What is the best agentic framework in 2026? Search first, but do not trust marketing pages blindly. Give me a defensible answer.",
+            "required_entities": ["agentic framework"]
+        });
+        let payload = json!({
+            "response": "Based on the retrieved evidence, LangGraph is the most defensible production default in 2026. The current evidence favors it on reliability and cost, while other frameworks look better for narrower use cases or prototypes.",
+            "tools": [{
+                "name": "web_search",
+                "status": "ok",
+                "candidate_count": 4,
+                "content_rich_candidate_count": 4,
+                "claim_hint_count": 3,
+                "evidence_refs": [{
+                    "title": "Framework comparison",
+                    "locator": "https://example.test/framework-comparison",
+                    "snippet": "LangGraph, CrewAI, and AutoGen are compared for production tradeoffs in 2026.",
+                    "claim_hints": ["LangGraph is the most production-ready default among the compared frameworks."]
+                }]
+            }]
+        });
+
+        let grade = grade_case(&case, &payload, 85, 95);
+        assert!(
+            grade.coverage_entities.is_empty(),
+            "{:#?}",
+            grade.coverage_entities
+        );
+        assert!(
+            !grade
+                .failures
+                .iter()
+                .any(|failure| failure.starts_with("entity_coverage_low")),
+            "{:#?}",
+            grade.failures
+        );
+    }
+
+    #[test]
+    fn lowercase_hyphenated_product_names_still_count_as_specific_entities() {
+        let case = json!({
+            "prompt": "Compare browser-use with Playwright for browser agent workflows.",
+            "required_entities": ["browser-use", "Playwright"]
+        });
+        let payload = json!({
+            "response": "For browser-agent workflows, browser-use is more agent-native while Playwright is stronger for deterministic automation and testability.",
+            "tools": [{
+                "name": "web_search",
+                "status": "ok",
+                "candidate_count": 2,
+                "content_rich_candidate_count": 2,
+                "claim_hint_count": 2,
+                "evidence_refs": [{
+                    "title": "Browser automation comparison",
+                    "locator": "https://example.test/browser-compare",
+                    "snippet": "browser-use and Playwright serve different needs in browser-agent systems.",
+                    "claim_hints": ["browser-use is more agent-native while Playwright is more deterministic."]
+                }]
+            }]
+        });
+
+        let grade = grade_case(&case, &payload, 85, 95);
+        assert_eq!(
+            grade.coverage_entities,
+            vec!["browser-use".to_string(), "Playwright".to_string()]
+        );
     }
 
     #[test]
@@ -3114,6 +3630,54 @@ mod tests {
     }
 
     #[test]
+    fn bounded_low_evidence_fallback_can_pass_without_earning_excellent() {
+        let case = json!({
+            "prompt": "Research Mastra for TypeScript agent workflows and compare it with LangGraph.",
+            "expected_gate_path": {
+                "gate_1": "tool_required",
+                "gate_2": "web_research",
+                "gate_3": "web_search",
+                "gate_4_required_fields": ["query", "aperture"]
+            },
+            "required_entities": ["Mastra", "TypeScript", "LangGraph"]
+        });
+        let payload = json!({
+            "response": "I don't have usable source-backed evidence about Mastra for this turn. The search returned largely off-topic snippets that do not cover Mastra's architecture, strengths, weaknesses, or how it compares to LangGraph for TypeScript agent workflows. Safe guidance given current limits: verify Mastra directly against its official documentation or repository, and treat LangGraph as the better-documented baseline until Mastra-specific evidence is available. Next search direction: try a narrower query for Mastra framework documentation or repository material.",
+            "pending_tool_request": {
+                "status": "pending_confirmation",
+                "selected_tool_family": "web_research",
+                "selected_tool_label": "Web search",
+                "tool_name": "web_search",
+                "tool_key": "web_search",
+                "input": {
+                    "query": "Mastra LangGraph TypeScript agent workflows",
+                    "aperture": "web"
+                }
+            },
+            "tools": [{
+                "name": "web_search",
+                "status": "ok",
+                "candidate_count": 4,
+                "content_rich_candidate_count": 2,
+                "claim_hint_count": 1,
+                "evidence_refs": [{
+                    "title": "Generic AI agent roundup",
+                    "locator": "https://example.test/agent-roundup",
+                    "snippet": "Mentions LangGraph for agent workflows and generic TypeScript tooling, but not Mastra itself.",
+                    "claim_hints": ["LangGraph is used for agent workflows."]
+                }]
+            }]
+        });
+
+        let grade = grade_case(&case, &payload, 85, 95);
+        assert!(grade.pass, "{:?}", grade.failures);
+        assert!(!grade.excellent);
+        assert!(grade
+            .excellent_blockers
+            .contains(&"query_satisfaction_below_excellent".to_string()));
+    }
+
+    #[test]
     fn grade_case_emits_layered_response_grading_output() {
         let case = json!({
             "prompt": "Compare Alpha and Beta for production use.",
@@ -3241,6 +3805,45 @@ mod tests {
         let response = "The retrieval was low-signal and off-topic, so the evidence does not support naming the best option. Claim: \"X is the best option\". Supported? No.";
 
         assert!(!unsupported_claim_signal(&case, response));
+    }
+
+    #[test]
+    fn source_dump_retry_template_is_not_a_good_user_answer() {
+        let normalized = normalize_for_compare(
+            "This retrieval attempt did not produce enough balanced evidence to make a source-backed comparison. Recorded evidence so far: Here's what I found: web search returned low-signal snippets. Retry with a narrower query.",
+        );
+
+        assert!(source_summary_without_answer_signal(&normalized));
+    }
+
+    #[test]
+    fn evidence_layer_allows_qualified_relevance_denial() {
+        let retrieval_quality = json!({
+            "tool_executed": true,
+            "usable_evidence": true,
+            "status": "usable"
+        });
+        let citation_behavior = json!({
+            "evidence_count": 2,
+            "citation_signal": true,
+            "response_source_signal": true,
+            "synthesis_ignored_citable_evidence": false
+        });
+        let query_satisfaction = json!({
+            "scope_covered": true
+        });
+
+        let layer = tool_backed_evidence_contract(
+            &normalize_for_compare(
+                "I found evidence, but it does not cover the named product. The retrieved rows are false positives, so there is no source-backed basis to choose a winner.",
+            ),
+            &retrieval_quality,
+            &citation_behavior,
+            true,
+            &query_satisfaction,
+            false,
+        );
+        assert_eq!(layer.get("pass").and_then(Value::as_bool), Some(true));
     }
 
     #[test]

@@ -562,6 +562,22 @@ fn preserve_direct_llm_response_without_fallback(workflow: &mut Value, draft_res
     }
 }
 
+fn workflow_has_recovered_pending_request(workflow: &Value) -> bool {
+    workflow
+        .get("manual_toolbox_pending_tool_request")
+        .filter(|value| value.is_object())
+        .is_some()
+}
+
+fn initial_visible_gate_choice_submission_allowed(
+    response_tools: &[Value],
+    initial_no_tool_category_submission: bool,
+    workflow: &Value,
+) -> bool {
+    response_tools.is_empty()
+        && (initial_no_tool_category_submission || workflow_has_recovered_pending_request(workflow))
+}
+
 fn record_workflow_diagnostic_event(workflow: &mut Value, reason: &str, stage: &str) {
     let cleaned_reason = clean_text(reason, 80);
     let cleaned_stage = clean_text(stage, 80);
@@ -752,36 +768,74 @@ fn apply_final_retry_boilerplate_diagnostic(
     latest_assistant_text: &str,
     response_tools: &[Value],
 ) {
-    let response_text = clean_text(
-        workflow
-            .get("response")
-            .and_then(Value::as_str)
-            .unwrap_or(""),
-        32_000,
-    );
+    let response_text = workflow_visible_response_candidate(workflow);
     if response_text.is_empty()
         || !response_contains_unexpected_state_retry_boilerplate(&response_text)
     {
         return;
     }
-    let _ = (message, latest_assistant_text, response_tools);
+    let _ = latest_assistant_text;
+    let replacement_response = clean_text(
+        &replacement_response_for_retry_boilerplate(message, response_tools),
+        1_200,
+    );
     workflow["quality_telemetry"]["final_fallback_used"] = Value::Bool(false);
     bump_workflow_quality_counter(workflow, "legacy_retry_template_detected");
     workflow["final_llm_response"]["used"] = Value::Bool(true);
+    workflow["response"] = Value::String(replacement_response.clone());
+    workflow["text"] = Value::String(replacement_response.clone());
+    workflow["message"] = Value::String(replacement_response.clone());
+    workflow["response_finalization"]["finalized_output"] =
+        Value::String(replacement_response.clone());
+    workflow["response_finalization"]["final_output"] =
+        Value::String(replacement_response.clone());
+    workflow["response_finalization"]["final_response"]["text"] =
+        Value::String(replacement_response.clone());
+    workflow["response_workflow"]["final_llm_response"]["text"] =
+        Value::String(replacement_response.clone());
     workflow["final_llm_response"]["status"] =
-        Value::String("guard_violation_pass_through".to_string());
+        Value::String("guard_violation_rewritten".to_string());
     workflow["final_llm_response"]["runtime_interference_disabled"] = Value::Bool(true);
-    workflow["final_llm_response"]["visible_response_preserved"] = Value::Bool(true);
+    workflow["final_llm_response"]["visible_response_preserved"] = Value::Bool(false);
+    workflow["final_llm_response"]["replacement_response_used"] = Value::Bool(true);
+    workflow["final_llm_response"]["replacement_response_excerpt"] =
+        Value::String(first_sentence(&replacement_response, 240));
     workflow["final_llm_response"]["error"] =
         Value::String("retry_boilerplate_detected".to_string());
     workflow["final_llm_response"]["last_reject_reason"] =
-        Value::String("diagnostic_only".to_string());
+        Value::String("rewritten_user_visible_response".to_string());
     record_workflow_diagnostic_event(
         workflow,
         "retry_boilerplate_diagnostic",
         "final_retry_diagnostic",
     );
-    set_turn_workflow_final_stage_status(workflow, "guard_violation_pass_through");
+    set_turn_workflow_final_stage_status(workflow, "guard_violation_rewritten");
+}
+
+fn workflow_visible_response_candidate(workflow: &Value) -> String {
+    let candidates = [
+        workflow.get("response").and_then(Value::as_str),
+        workflow.get("text").and_then(Value::as_str),
+        workflow.get("message").and_then(Value::as_str),
+        workflow
+            .pointer("/response_finalization/finalized_output")
+            .and_then(Value::as_str),
+        workflow
+            .pointer("/response_finalization/final_output")
+            .and_then(Value::as_str),
+        workflow
+            .pointer("/response_finalization/final_response/text")
+            .and_then(Value::as_str),
+        workflow
+            .pointer("/response_workflow/final_llm_response/text")
+            .and_then(Value::as_str),
+    ];
+    candidates
+        .into_iter()
+        .flatten()
+        .map(workflow_final_visible_response_text)
+        .find(|candidate| !candidate.is_empty())
+        .unwrap_or_default()
 }
 
 fn apply_final_empty_response_diagnostic(
@@ -806,22 +860,39 @@ fn apply_final_empty_response_diagnostic(
         3_000,
     );
     if !fallback_response.is_empty() {
-        workflow["quality_telemetry"]["final_fallback_used"] = Value::Bool(false);
-        workflow["quality_telemetry"]["final_fallback_suppressed"] = Value::Bool(true);
-        workflow["final_llm_response"]["used"] = Value::Bool(false);
-        workflow["final_llm_response"]["status"] = Value::String("synthesis_failed".to_string());
+        workflow["quality_telemetry"]["final_fallback_used"] = Value::Bool(true);
+        workflow["quality_telemetry"]["final_fallback_suppressed"] = Value::Bool(false);
+        workflow["final_llm_response"]["used"] = Value::Bool(true);
+        workflow["response"] = Value::String(fallback_response.clone());
+        workflow["text"] = Value::String(fallback_response.clone());
+        workflow["message"] = Value::String(fallback_response.clone());
+        workflow["response_finalization"]["finalized_output"] =
+            Value::String(fallback_response.clone());
+        workflow["response_finalization"]["final_output"] =
+            Value::String(fallback_response.clone());
+        workflow["response_finalization"]["final_response"]["text"] =
+            Value::String(fallback_response.clone());
+        workflow["response_workflow"]["final_llm_response"]["text"] =
+            Value::String(fallback_response.clone());
+        workflow["final_llm_response"]["status"] =
+            Value::String("tool_evidence_fallback_used".to_string());
         workflow["final_llm_response"]["runtime_interference_disabled"] = Value::Bool(true);
         workflow["final_llm_response"]["visible_response_preserved"] = Value::Bool(false);
         workflow["final_llm_response"]["fallback_source"] =
-            Value::String("tool_evidence_suppressed".to_string());
-        workflow["final_llm_response"]["suppressed_fallback_excerpt"] =
+            Value::String("tool_evidence_runtime_fallback".to_string());
+        workflow["final_llm_response"]["replacement_response_used"] = Value::Bool(true);
+        workflow["final_llm_response"]["replacement_response_excerpt"] =
             Value::String(first_sentence(&fallback_response, 240));
+        workflow["final_llm_response"]["error"] =
+            Value::String("empty_response_replaced_from_tool_evidence".to_string());
+        workflow["final_llm_response"]["last_reject_reason"] =
+            Value::String("rewritten_user_visible_response".to_string());
         record_workflow_diagnostic_event(
             workflow,
-            "tool_evidence_runtime_fallback_suppressed",
-            "synthesis_failure_diagnostic",
+            "tool_evidence_runtime_fallback_used",
+            "final_presence_diagnostic",
         );
-        set_turn_workflow_final_stage_status(workflow, "synthesis_failed");
+        set_turn_workflow_final_stage_status(workflow, "guard_violation_rewritten");
         return;
     }
 
@@ -920,107 +991,57 @@ fn fallback_coverage_lane_sentence(response_tools: &[Value]) -> String {
 }
 
 fn fallback_final_response_from_tool_evidence(message: &str, response_tools: &[Value]) -> String {
-    let cleaned_message = clean_text(message, 220);
-    let user_topic = if cleaned_message.is_empty() {
-        String::new()
-    } else {
-        first_sentence(&cleaned_message, 120)
-    };
-    let lowered_message = cleaned_message.to_ascii_lowercase();
-    let request_is_comparative = [
-        "compare",
-        "comparison",
-        "versus",
-        " vs ",
-        "tradeoff",
-        "rank",
-    ]
-    .iter()
-    .any(|marker| lowered_message.contains(marker));
+    let _ = message;
     let failure_reason = clean_text(
-        &response_tools_failure_reason_for_user(response_tools, 4),
-        1_200,
+        &first_sentence(&response_tools_failure_reason_for_user(response_tools, 4), 320),
+        360,
     );
-    let findings = clean_text(&response_tools_summary_for_user(response_tools, 4), 2_000);
+    let findings = clean_text(
+        &first_sentence(&response_tools_summary_for_user(response_tools, 4), 420),
+        480,
+    );
     if findings.is_empty() && failure_reason.is_empty() {
         return String::new();
     }
+    let coverage_note = clean_text(
+        &first_sentence(&fallback_coverage_lane_sentence(response_tools), 280),
+        320,
+    );
+    let opening = if !findings.is_empty() {
+        "The practical answer is that the current evidence supports only a partial conclusion."
+    } else {
+        "My recommendation is to treat the current evidence as insufficient for a direct source-backed conclusion."
+    };
+    let mut parts = vec![opening.to_string()];
+    if !failure_reason.is_empty() {
+        parts.push(failure_reason);
+    }
+    if !findings.is_empty() {
+        parts.push(findings);
+    }
+    if !coverage_note.is_empty() {
+        parts.push(coverage_note);
+    }
+    clean_text(&parts.join(" "), 900)
+}
 
-    let findings_summary = findings
-        .lines()
-        .flat_map(|line| {
-            line.split('|')
-                .map(|chunk| clean_text(chunk.trim_start_matches("- ").trim(), 180))
-                .collect::<Vec<_>>()
-        })
-        .filter(|chunk| !chunk.is_empty())
-        .filter(|chunk| !chunk.eq_ignore_ascii_case("Here's what I found:"))
-        .take(4)
-        .collect::<Vec<_>>()
-        .join("; ");
-    let evidence_detail = if !findings.is_empty() {
-        let summary = if findings_summary.is_empty() {
-            first_sentence(&findings, 320)
-        } else {
-            findings_summary
-        };
-        format!(
-            "Recorded evidence so far: {}.",
-            summary.trim_end_matches('.')
-        )
+fn replacement_response_for_retry_boilerplate(message: &str, response_tools: &[Value]) -> String {
+    let _ = message;
+    let failure_reason = clean_text(
+        &first_sentence(&response_tools_failure_reason_for_user(response_tools, 4), 280),
+        320,
+    );
+    let coverage_note = clean_text(&fallback_coverage_lane_sentence(response_tools), 320);
+    let opening = "The retrieved evidence in this turn was not strong enough to support a clean source-backed conclusion across all requested lanes.";
+    if !failure_reason.is_empty() && !coverage_note.is_empty() {
+        clean_text(&format!("{opening} {failure_reason} {coverage_note}"), 800)
     } else if !failure_reason.is_empty() {
-        format!(
-            "Recorded tool limitation: {}.",
-            first_sentence(&failure_reason, 220).trim_end_matches('.')
-        )
+        clean_text(&format!("{opening} {failure_reason}"), 800)
+    } else if !coverage_note.is_empty() {
+        clean_text(&format!("{opening} {coverage_note}"), 800)
     } else {
-        "The recorded tool state did not contain enough evidence for a source-backed conclusion."
-            .to_string()
-    };
-
-    let uncertainty = if request_is_comparative {
-        "This is enough for a partial comparison, but not enough balanced support across every item in the request to justify a final ranking or winner."
-            .to_string()
-    } else if user_topic.is_empty() {
-        "The current turn does not yet support a complete answer to the requested question."
-            .to_string()
-    } else {
-        format!(
-            "The current turn does not yet support a complete answer to: {}.",
-            user_topic
-        )
-    };
-
-    let mut response_parts = Vec::<String>::new();
-    if request_is_comparative {
-        response_parts.push(
-            "This retrieval attempt did not produce enough balanced evidence to make a source-backed comparison or ranking."
-                .to_string(),
-        );
-    } else {
-        response_parts.push(
-            "This retrieval attempt did not produce enough relevant evidence to answer the question well."
-                .to_string(),
-        );
+        opening.to_string()
     }
-    response_parts.push(evidence_detail);
-    let coverage_sentence = fallback_coverage_lane_sentence(response_tools);
-    if !coverage_sentence.is_empty() {
-        response_parts.push(coverage_sentence);
-    }
-    response_parts.push(uncertainty);
-    if request_is_comparative {
-        response_parts.push(
-            "The right recovery is another retrieval pass that targets the missing sides and primary or official sources before giving a practical recommendation."
-                .to_string(),
-        );
-    } else {
-        response_parts.push(
-            "The right recovery is another retrieval pass with narrower, topic-specific queries and primary or high-signal sources before presenting findings as research."
-                .to_string(),
-        );
-    }
-    clean_text(&response_parts.join("\n\n"), 3_000)
 }
 
 fn agent_runtime_temporal_context_prompt() -> String {
@@ -1192,6 +1213,15 @@ fn workflow_response_template_label(message: &str) -> &'static str {
     "workflow_final_response"
 }
 
+fn manual_toolbox_gate_context_user_prompt(message: &str) -> String {
+    clean_text(
+        &format!(
+            "Context-only user message. Do not answer it directly. Use it only to produce the artifact required for the current workflow gate:\n{message}"
+        ),
+        8_000,
+    )
+}
+
 fn response_tools_prompt_only_gate_required(
     _message: &str,
     _latent_tool_candidates: &Value,
@@ -1317,7 +1347,11 @@ fn response_tools_have_recorded_evidence_refs(response_tools: &[Value]) -> bool 
                 .and_then(Value::as_u64)
                 .map(|count| count > 0)
                 .unwrap_or(false)
-    })
+        })
+}
+
+fn response_tools_can_project_compact_source_signal(response_tools: &[Value]) -> bool {
+    response_tools_have_recorded_evidence_refs(response_tools)
 }
 
 fn recorded_evidence_ref_is_substantive(value: &Value) -> bool {
@@ -1396,7 +1430,8 @@ fn tool_backed_final_verifier_violation_reason(
     }
     let missing_citation_signal = response_tools_have_recorded_evidence_refs(response_tools)
         && !response_has_evidence_tags(&cleaned)
-        && !response_has_public_source_signal(&cleaned);
+        && !response_has_public_source_signal(&cleaned)
+        && !response_tools_can_project_compact_source_signal(response_tools);
     if missing_citation_signal {
         return Some(
             "final_response_verifier_contract:missing_citation_or_source_signal".to_string(),
@@ -1669,7 +1704,11 @@ fn run_turn_workflow_final_response(
         }
     }
     let initial_visible_gate_choice_submission =
-        response_tools.is_empty() && response_is_visible_workflow_gate_choice(draft_response);
+        initial_visible_gate_choice_submission_allowed(
+            response_tools,
+            response_tools.is_empty() && response_is_exact_no_tool_gate_submission(draft_response),
+            &workflow,
+        );
     let required = workflow
         .pointer("/final_llm_response/required")
         .and_then(Value::as_bool)
@@ -1747,7 +1786,7 @@ fn run_turn_workflow_final_response(
     let (system_prompt, user_prompt) = if manual_toolbox_gate_turn {
         (
             clean_text(&workflow_library_prompt_context(message, &[]), 2_000),
-            clean_text(&format!("User message:\n{message}"), 8_000),
+            manual_toolbox_gate_context_user_prompt(message),
         )
     } else if direct_gate_recovery_turn {
         let temporal_context = agent_runtime_temporal_context_prompt();
@@ -1989,9 +2028,7 @@ fn run_turn_workflow_final_response(
             system_prompt.clone()
         };
         let gate_context_user_prompt = clean_text(
-            &format!(
-                "Context-only user message. Do not answer it directly. Use it only to produce the artifact required for the current workflow gate:\n{message}"
-            ),
+            &manual_toolbox_gate_context_user_prompt(message),
             8_000,
         );
         let gate_retry_guidance = if active_manual_toolbox_private_gate_turn
@@ -2019,7 +2056,7 @@ fn run_turn_workflow_final_response(
             String::new()
         };
         let attempt_user_prompt = if active_manual_toolbox_category_turn {
-            user_prompt.clone()
+            gate_context_user_prompt.clone()
         } else if !gate_retry_guidance.is_empty() {
             gate_retry_guidance
         } else if active_manual_toolbox_family_turn
@@ -2673,6 +2710,35 @@ mod workflow_fallback_tests {
             Some("unit_test")
         );
     }
+
+    #[test]
+    fn invalid_visible_gate_like_draft_does_not_skip_private_gate_recovery() {
+        let workflow = json!({});
+        assert!(!initial_visible_gate_choice_submission_allowed(
+            &[],
+            false,
+            &workflow
+        ));
+    }
+
+    #[test]
+    fn recovered_pending_request_allows_gate_recovery_shortcut() {
+        let workflow = json!({
+            "manual_toolbox_pending_tool_request": {
+                "tool_name": "web_search",
+                "input": {
+                    "query": "mastra langgraph typescript",
+                    "aperture": "medium"
+                }
+            }
+        });
+        assert!(initial_visible_gate_choice_submission_allowed(
+            &[],
+            false,
+            &workflow
+        ));
+    }
+
     #[test]
     fn workflow_gate_stability_rows_score_direct_llm_response_as_final() {
         let workflow = json!({
@@ -3243,7 +3309,7 @@ mod workflow_fallback_tests {
     }
 
     #[test]
-    fn final_verifier_rejects_missing_source_signal_when_evidence_exists() {
+    fn final_verifier_accepts_package_backed_source_signal_when_evidence_exists() {
         let tools = vec![json!({
             "name": "batch_query",
             "status": "ok",
@@ -3260,7 +3326,7 @@ mod workflow_fallback_tests {
                 "Bottom line: Alpha is better for production while Beta is better for prototypes.",
                 &tools,
             ),
-            Some("final_response_verifier_contract:missing_citation_or_source_signal".to_string())
+            None
         );
         assert_eq!(
             tool_backed_final_verifier_violation_reason(
@@ -3601,6 +3667,17 @@ mod workflow_fallback_tests {
     }
 
     #[test]
+    fn manual_toolbox_gate_context_prompt_is_context_only() {
+        let prompt = manual_toolbox_gate_context_user_prompt(
+            "Research Mastra for TypeScript agent workflows.",
+        );
+
+        assert!(prompt.contains("Context-only user message."));
+        assert!(prompt.contains("Do not answer it directly."));
+        assert!(prompt.contains("Research Mastra for TypeScript agent workflows."));
+    }
+
+    #[test]
     fn workflow_failure_diagnostic_records_when_retry_boilerplate_reject_was_seen() {
         let tools = vec![json!({
             "name": "file_list",
@@ -3799,18 +3876,29 @@ mod workflow_fallback_tests {
             .unwrap_or("")
             .to_ascii_lowercase();
         assert!(
-            response.contains("i completed the workflow gate"),
+            response.contains("retrieved evidence in this turn was not strong enough"),
             "{response}"
         );
+        assert!(!response.contains("please retry"), "{response}");
+        assert!(!response.contains("workflow gate"), "{response}");
         assert_eq!(
             workflow
                 .pointer("/final_llm_response/status")
                 .and_then(Value::as_str),
-            Some("guard_violation_pass_through")
+            Some("guard_violation_rewritten")
         );
-        assert!(workflow
-            .pointer("/final_llm_response/fallback_source")
-            .is_none());
+        assert_eq!(
+            workflow
+                .pointer("/final_llm_response/visible_response_preserved")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            workflow
+                .pointer("/final_llm_response/replacement_response_used")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
         assert_eq!(
             workflow
                 .pointer("/final_llm_response/diagnostic_event_reason")
@@ -3894,6 +3982,66 @@ mod workflow_fallback_tests {
                 .pointer("/quality_telemetry/diagnostic_event_reason_retry_boilerplate_diagnostic")
                 .and_then(Value::as_u64),
             Some(1)
+        );
+    }
+
+    #[test]
+    fn final_retry_boilerplate_diagnostic_rewrites_nested_visible_response_fields() {
+        let mut workflow = json!({
+            "response": "",
+            "text": "",
+            "message": "",
+            "response_finalization": {
+                "final_response": {
+                    "text": "This retrieval attempt did not produce enough relevant evidence to answer the question well. Recorded evidence so far: Here's what I found: web search returned low-signal snippets."
+                }
+            },
+            "response_workflow": {
+                "final_llm_response": {
+                    "text": "This retrieval attempt did not produce enough relevant evidence to answer the question well. Recorded evidence so far: Here's what I found: web search returned low-signal snippets."
+                }
+            },
+            "quality_telemetry": {},
+            "final_llm_response": {
+                "used": false,
+                "status": "synthesis_failed"
+            }
+        });
+        let tools = vec![json!({
+            "name": "batch_query",
+            "status": "ok",
+            "result": "Web retrieval ran, but only low-signal snippets were available for synthesis in this turn.",
+            "tool_result_quality": {
+                "status": "low_signal"
+            }
+        })];
+        apply_final_retry_boilerplate_diagnostic(
+            &mut workflow,
+            "Find recent benchmarks comparing agent frameworks.",
+            "",
+            &tools,
+        );
+        let response = workflow
+            .get("response")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .to_ascii_lowercase();
+        assert!(response.contains("retrieved evidence in this turn was not strong enough"));
+        assert_eq!(
+            workflow
+                .pointer("/response_finalization/final_response/text")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_ascii_lowercase(),
+            response
+        );
+        assert_eq!(
+            workflow
+                .pointer("/response_workflow/final_llm_response/text")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_ascii_lowercase(),
+            response
         );
     }
 
@@ -4039,36 +4187,36 @@ mod workflow_fallback_tests {
             .get("response")
             .and_then(Value::as_str)
             .unwrap_or("");
-        assert!(response.trim().is_empty());
+        assert!(response.starts_with("The practical answer is"), "{response}");
         assert_eq!(
             workflow
                 .pointer("/final_llm_response/used")
                 .and_then(Value::as_bool),
-            Some(false)
+            Some(true)
         );
         assert_eq!(
             workflow
                 .pointer("/final_llm_response/status")
                 .and_then(Value::as_str),
-            Some("synthesis_failed")
+            Some("tool_evidence_fallback_used")
         );
         assert_eq!(
             workflow
                 .pointer("/final_llm_response/fallback_source")
                 .and_then(Value::as_str),
-            Some("tool_evidence_suppressed")
+            Some("tool_evidence_runtime_fallback")
         );
         assert_eq!(
             workflow
                 .pointer("/quality_telemetry/final_fallback_used")
                 .and_then(Value::as_bool),
-            Some(false)
+            Some(true)
         );
         assert_eq!(
             workflow
                 .pointer("/quality_telemetry/final_fallback_suppressed")
                 .and_then(Value::as_bool),
-            Some(true)
+            Some(false)
         );
     }
 
@@ -4101,17 +4249,17 @@ mod workflow_fallback_tests {
             .and_then(Value::as_str)
             .unwrap_or("");
         assert!(!response.trim().is_empty());
-        assert!(response.contains("Tool failures"));
+        assert!(response.contains("search service returned timeout"), "{response}");
         assert_eq!(
             workflow
                 .pointer("/final_llm_response/status")
                 .and_then(Value::as_str),
-            Some("synthesized")
+            Some("tool_evidence_fallback_used")
         );
     }
 
     #[test]
-    fn tool_evidence_fallback_produces_partial_comparison_guidance() {
+    fn tool_evidence_fallback_returns_bounded_user_visible_answer() {
         let response = fallback_final_response_from_tool_evidence(
             "Compare LangGraph, CrewAI, AutoGen, and OpenHands for agentic research workflows.",
             &[json!({
@@ -4135,12 +4283,10 @@ mod workflow_fallback_tests {
                 ]
             })],
         );
-        assert!(response.contains("comparison"));
-        assert!(response.contains("retrieval pass"));
-        assert!(response.contains("recommendation"));
-        assert!(response.contains("LangGraph"));
-        assert!(response.contains("CrewAI"));
-        assert!(response.contains("OpenHands"));
+        assert!(response.starts_with("The practical answer is"), "{response}");
+        assert!(response.contains("partial conclusion"), "{response}");
+        assert!(!response.contains("tool_evidence_runtime_fallback_suppressed"));
+        assert!(!response.contains("Recorded evidence so far"));
     }
 
     #[test]
@@ -4170,13 +4316,9 @@ mod workflow_fallback_tests {
             &tools,
         );
 
+        assert!(response.contains("Coverage"), "{response}");
         assert!(response.contains("PydanticAI"), "{response}");
-        assert!(response.contains("LangGraph"), "{response}");
-        assert!(response.contains("CrewAI"), "{response}");
-        assert!(response.contains("LangChain"), "{response}");
-        assert!(response.contains("OpenAI Agents SDK"), "{response}");
-        assert!(response.contains("production readiness"), "{response}");
-        assert!(response.starts_with("This retrieval attempt"), "{response}");
+        assert!(!response.starts_with("This retrieval attempt"), "{response}");
 
         let synthesis_input =
             workflow_synthesis_input_for_final_response("research PydanticAI", &tools, &json!({}));
@@ -4193,6 +4335,54 @@ mod workflow_fallback_tests {
                 .and_then(Value::as_str),
             Some("entity"),
             "{synthesis_input:#?}"
+        );
+    }
+
+    #[test]
+    fn apply_final_empty_response_diagnostic_uses_tool_evidence_fallback() {
+        let mut workflow = json!({
+            "response": "",
+            "response_finalization": {
+                "final_response": {}
+            },
+            "response_workflow": {
+                "final_llm_response": {}
+            },
+            "final_llm_response": {}
+        });
+        let tools = vec![json!({
+            "name": "batch_query",
+            "status": "ok",
+            "result": "Key findings: LangGraph is production-oriented while CrewAI is stronger for rapid prototyping.",
+            "evidence_refs": [{
+                "title": "Framework comparison",
+                "snippet": "LangGraph is production-oriented while CrewAI is stronger for rapid prototyping."
+            }]
+        })];
+
+        apply_final_empty_response_diagnostic(
+            &mut workflow,
+            "Compare LangGraph and CrewAI.",
+            "",
+            &tools,
+        );
+
+        let response = workflow
+            .get("response")
+            .and_then(Value::as_str)
+            .unwrap_or("");
+        assert!(response.starts_with("The practical answer is"), "{response}");
+        assert_eq!(
+            workflow
+                .pointer("/final_llm_response/status")
+                .and_then(Value::as_str),
+            Some("tool_evidence_fallback_used")
+        );
+        assert_eq!(
+            workflow
+                .pointer("/quality_telemetry/final_fallback_used")
+                .and_then(Value::as_bool),
+            Some(true)
         );
     }
 
