@@ -860,39 +860,16 @@ fn apply_final_empty_response_diagnostic(
         3_000,
     );
     if !fallback_response.is_empty() {
-        workflow["quality_telemetry"]["final_fallback_used"] = Value::Bool(true);
-        workflow["quality_telemetry"]["final_fallback_suppressed"] = Value::Bool(false);
-        workflow["final_llm_response"]["used"] = Value::Bool(true);
-        workflow["response"] = Value::String(fallback_response.clone());
-        workflow["text"] = Value::String(fallback_response.clone());
-        workflow["message"] = Value::String(fallback_response.clone());
-        workflow["response_finalization"]["finalized_output"] =
-            Value::String(fallback_response.clone());
-        workflow["response_finalization"]["final_output"] =
-            Value::String(fallback_response.clone());
-        workflow["response_finalization"]["final_response"]["text"] =
-            Value::String(fallback_response.clone());
-        workflow["response_workflow"]["final_llm_response"]["text"] =
-            Value::String(fallback_response.clone());
-        workflow["final_llm_response"]["status"] =
-            Value::String("tool_evidence_fallback_used".to_string());
-        workflow["final_llm_response"]["runtime_interference_disabled"] = Value::Bool(true);
-        workflow["final_llm_response"]["visible_response_preserved"] = Value::Bool(false);
-        workflow["final_llm_response"]["fallback_source"] =
-            Value::String("tool_evidence_runtime_fallback".to_string());
-        workflow["final_llm_response"]["replacement_response_used"] = Value::Bool(true);
-        workflow["final_llm_response"]["replacement_response_excerpt"] =
-            Value::String(first_sentence(&fallback_response, 240));
-        workflow["final_llm_response"]["error"] =
-            Value::String("empty_response_replaced_from_tool_evidence".to_string());
-        workflow["final_llm_response"]["last_reject_reason"] =
-            Value::String("rewritten_user_visible_response".to_string());
-        record_workflow_diagnostic_event(
+        apply_tool_evidence_fallback_response(
             workflow,
+            &fallback_response,
+            "tool_evidence_runtime_fallback",
+            "empty_response_replaced_from_tool_evidence",
+            None,
+            None,
             "tool_evidence_runtime_fallback_used",
             "final_presence_diagnostic",
         );
-        set_turn_workflow_final_stage_status(workflow, "guard_violation_rewritten");
         return;
     }
 
@@ -1023,6 +1000,90 @@ fn fallback_final_response_from_tool_evidence(message: &str, response_tools: &[V
         parts.push(coverage_note);
     }
     clean_text(&parts.join(" "), 900)
+}
+
+fn apply_tool_evidence_fallback_response(
+    workflow: &mut Value,
+    fallback_response: &str,
+    fallback_source: &str,
+    error_code: &str,
+    original_reject_reason: Option<&str>,
+    original_reject_excerpt: Option<&str>,
+    diagnostic_reason: &str,
+    diagnostic_stage: &str,
+) {
+    let cleaned_response = clean_text(fallback_response, 3_000);
+    if cleaned_response.is_empty() {
+        return;
+    }
+    workflow["quality_telemetry"]["final_fallback_used"] = Value::Bool(true);
+    workflow["quality_telemetry"]["final_fallback_suppressed"] = Value::Bool(false);
+    workflow["final_llm_response"]["used"] = Value::Bool(true);
+    workflow["response"] = Value::String(cleaned_response.clone());
+    workflow["text"] = Value::String(cleaned_response.clone());
+    workflow["message"] = Value::String(cleaned_response.clone());
+    workflow["response_finalization"]["finalized_output"] = Value::String(cleaned_response.clone());
+    workflow["response_finalization"]["final_output"] = Value::String(cleaned_response.clone());
+    workflow["response_finalization"]["final_response"]["text"] =
+        Value::String(cleaned_response.clone());
+    workflow["response_workflow"]["final_llm_response"]["text"] =
+        Value::String(cleaned_response.clone());
+    workflow["final_llm_response"]["status"] =
+        Value::String("tool_evidence_fallback_used".to_string());
+    workflow["final_llm_response"]["runtime_interference_disabled"] = Value::Bool(true);
+    workflow["final_llm_response"]["visible_response_preserved"] = Value::Bool(false);
+    workflow["final_llm_response"]["fallback_source"] =
+        Value::String(clean_text(fallback_source, 120));
+    workflow["final_llm_response"]["replacement_response_used"] = Value::Bool(true);
+    workflow["final_llm_response"]["replacement_response_excerpt"] =
+        Value::String(first_sentence(&cleaned_response, 240));
+    workflow["final_llm_response"]["error"] = Value::String(clean_text(error_code, 160));
+    workflow["final_llm_response"]["last_reject_reason"] =
+        Value::String("rewritten_user_visible_response".to_string());
+    if let Some(reason) = original_reject_reason {
+        let cleaned = clean_text(reason, 240);
+        if !cleaned.is_empty() {
+            workflow["final_llm_response"]["original_reject_reason"] = Value::String(cleaned);
+        }
+    }
+    if let Some(excerpt) = original_reject_excerpt {
+        let cleaned = clean_text(excerpt, 600);
+        if !cleaned.is_empty() {
+            workflow["final_llm_response"]["original_reject_excerpt"] = Value::String(cleaned);
+        }
+    }
+    record_workflow_diagnostic_event(workflow, diagnostic_reason, diagnostic_stage);
+    set_turn_workflow_final_stage_status(workflow, "guard_violation_rewritten");
+}
+
+fn maybe_apply_rejected_tool_evidence_fallback(
+    workflow: &mut Value,
+    message: &str,
+    response_tools: &[Value],
+    last_invalid_excerpt: &str,
+    last_reject_reason: &str,
+) -> bool {
+    if response_tools.is_empty() || last_invalid_excerpt.trim().is_empty() {
+        return false;
+    }
+    let fallback_response = clean_text(
+        &fallback_final_response_from_tool_evidence(message, response_tools),
+        3_000,
+    );
+    if fallback_response.is_empty() {
+        return false;
+    }
+    apply_tool_evidence_fallback_response(
+        workflow,
+        &fallback_response,
+        "tool_evidence_runtime_fallback_after_verifier_reject",
+        "rejected_response_replaced_from_tool_evidence",
+        Some(last_reject_reason),
+        Some(last_invalid_excerpt),
+        "tool_evidence_verifier_reject_rewritten",
+        "synthesis_failure_diagnostic",
+    );
+    true
 }
 
 fn replacement_response_for_retry_boilerplate(message: &str, response_tools: &[Value]) -> String {
@@ -2440,6 +2501,15 @@ fn run_turn_workflow_final_response(
             "invalid_gate_draft_diagnostic_only",
             max_attempts,
         );
+        return finalize_workflow_gate_stability(root, workflow, message);
+    }
+    if maybe_apply_rejected_tool_evidence_fallback(
+        &mut workflow,
+        message,
+        response_tools,
+        &last_invalid_excerpt,
+        &last_reject_reason,
+    ) {
         return finalize_workflow_gate_stability(root, workflow, message);
     }
     workflow["final_llm_response"]["used"] = Value::Bool(false);
@@ -4383,6 +4453,62 @@ mod workflow_fallback_tests {
                 .pointer("/quality_telemetry/final_fallback_used")
                 .and_then(Value::as_bool),
             Some(true)
+        );
+    }
+
+    #[test]
+    fn rejected_tool_backed_response_prefers_bounded_fallback() {
+        let mut workflow = json!({
+            "response": "",
+            "quality_telemetry": {},
+            "final_llm_response": {
+                "used": false,
+                "status": "synthesis_failed"
+            }
+        });
+        let tools = vec![json!({
+            "name": "batch_query",
+            "status": "ok",
+            "result": "Top findings: pgvector is simple for small teams; Weaviate is a managed vector database with additional operational surface.",
+            "evidence_refs": [{
+                "title": "pgvector",
+                "snippet": "pgvector is simple for small teams."
+            }],
+            "query_metadata": {
+                "required_coverage": {
+                    "entities": ["LlamaIndex", "LangChain", "pgvector", "Weaviate", "Chroma"]
+                }
+            }
+        })];
+
+        let rewritten = maybe_apply_rejected_tool_evidence_fallback(
+            &mut workflow,
+            "Research current RAG stack options for a small team.",
+            &tools,
+            "Based on the available evidence, here's a pragmatic recommendation for a small team's RAG stack.",
+            "final_response_verifier_contract:missing_coverage_lanes=Weaviate, Chroma",
+        );
+
+        assert!(rewritten);
+        let response = workflow
+            .get("response")
+            .and_then(Value::as_str)
+            .unwrap_or("");
+        assert!(response.contains("partial conclusion"), "{response}");
+        assert!(response.contains("Coverage"), "{response}");
+        assert!(response.contains("Weaviate"), "{response}");
+        assert!(response.contains("Chroma"), "{response}");
+        assert_eq!(
+            workflow
+                .pointer("/final_llm_response/status")
+                .and_then(Value::as_str),
+            Some("tool_evidence_fallback_used")
+        );
+        assert_eq!(
+            workflow
+                .pointer("/final_llm_response/original_reject_reason")
+                .and_then(Value::as_str),
+            Some("final_response_verifier_contract:missing_coverage_lanes=Weaviate, Chroma")
         );
     }
 
