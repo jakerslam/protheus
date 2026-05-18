@@ -806,15 +806,22 @@ fn apply_final_empty_response_diagnostic(
         3_000,
     );
     if !fallback_response.is_empty() {
-        workflow["response"] = Value::String(fallback_response);
-        workflow["quality_telemetry"]["final_fallback_used"] = Value::Bool(true);
-        workflow["final_llm_response"]["used"] = Value::Bool(true);
-        workflow["final_llm_response"]["status"] = Value::String("synthesized".to_string());
+        workflow["quality_telemetry"]["final_fallback_used"] = Value::Bool(false);
+        workflow["quality_telemetry"]["final_fallback_suppressed"] = Value::Bool(true);
+        workflow["final_llm_response"]["used"] = Value::Bool(false);
+        workflow["final_llm_response"]["status"] = Value::String("synthesis_failed".to_string());
         workflow["final_llm_response"]["runtime_interference_disabled"] = Value::Bool(true);
-        workflow["final_llm_response"]["visible_response_preserved"] = Value::Bool(true);
+        workflow["final_llm_response"]["visible_response_preserved"] = Value::Bool(false);
         workflow["final_llm_response"]["fallback_source"] =
-            Value::String("tool_evidence".to_string());
-        set_turn_workflow_final_stage_status(workflow, "synthesized");
+            Value::String("tool_evidence_suppressed".to_string());
+        workflow["final_llm_response"]["suppressed_fallback_excerpt"] =
+            Value::String(first_sentence(&fallback_response, 240));
+        record_workflow_diagnostic_event(
+            workflow,
+            "tool_evidence_runtime_fallback_suppressed",
+            "synthesis_failure_diagnostic",
+        );
+        set_turn_workflow_final_stage_status(workflow, "synthesis_failed");
         return;
     }
 
@@ -842,7 +849,9 @@ fn fallback_coverage_lane_sentence(response_tools: &[Value]) -> String {
     let lane_label = |row: &Value| -> String {
         let kind = clean_text(row.get("kind").and_then(Value::as_str).unwrap_or(""), 80);
         let requested = clean_text(
-            row.get("requested_text").and_then(Value::as_str).unwrap_or(""),
+            row.get("requested_text")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
             180,
         );
         if requested.is_empty() {
@@ -896,7 +905,10 @@ fn fallback_coverage_lane_sentence(response_tools: &[Value]) -> String {
             weak_or_missing.join(", ")
         )
     } else if !covered.is_empty() {
-        format!("Coverage state: usable evidence is present for {}.", covered.join(", "))
+        format!(
+            "Coverage state: usable evidence is present for {}.",
+            covered.join(", ")
+        )
     } else if !weak_or_missing.is_empty() {
         format!(
             "Coverage gaps still matter for: {}.",
@@ -915,9 +927,16 @@ fn fallback_final_response_from_tool_evidence(message: &str, response_tools: &[V
         first_sentence(&cleaned_message, 120)
     };
     let lowered_message = cleaned_message.to_ascii_lowercase();
-    let request_is_comparative = ["compare", "comparison", "versus", " vs ", "tradeoff", "rank"]
-        .iter()
-        .any(|marker| lowered_message.contains(marker));
+    let request_is_comparative = [
+        "compare",
+        "comparison",
+        "versus",
+        " vs ",
+        "tradeoff",
+        "rank",
+    ]
+    .iter()
+    .any(|marker| lowered_message.contains(marker));
     let failure_reason = clean_text(
         &response_tools_failure_reason_for_user(response_tools, 4),
         1_200,
@@ -1302,7 +1321,8 @@ fn response_tools_have_recorded_evidence_refs(response_tools: &[Value]) -> bool 
 }
 
 fn recorded_evidence_ref_is_substantive(value: &Value) -> bool {
-    if value.get("error").is_some() || value.get("status").and_then(Value::as_str) == Some("error") {
+    if value.get("error").is_some() || value.get("status").and_then(Value::as_str) == Some("error")
+    {
         return false;
     }
     let locator = clean_text(
@@ -1317,8 +1337,11 @@ fn recorded_evidence_ref_is_substantive(value: &Value) -> bool {
     if locator.starts_with("tool:no-results") || locator.starts_with("tool:low-signal") {
         return false;
     }
-    let title = clean_text(value.get("title").and_then(Value::as_str).unwrap_or(""), 200)
-        .to_ascii_lowercase();
+    let title = clean_text(
+        value.get("title").and_then(Value::as_str).unwrap_or(""),
+        200,
+    )
+    .to_ascii_lowercase();
     if title.contains("no usable result") || title.contains("no results") {
         return false;
     }
@@ -1367,13 +1390,17 @@ fn tool_backed_final_verifier_violation_reason(
             &full,
         );
     if claims_missing_evidence {
-        return Some("final_response_verifier_contract:claims_missing_recorded_evidence".to_string());
+        return Some(
+            "final_response_verifier_contract:claims_missing_recorded_evidence".to_string(),
+        );
     }
     let missing_citation_signal = response_tools_have_recorded_evidence_refs(response_tools)
         && !response_has_evidence_tags(&cleaned)
         && !response_has_public_source_signal(&cleaned);
     if missing_citation_signal {
-        return Some("final_response_verifier_contract:missing_citation_or_source_signal".to_string());
+        return Some(
+            "final_response_verifier_contract:missing_citation_or_source_signal".to_string(),
+        );
     }
     if status_first && !bounded_answer_first {
         return Some("final_response_verifier_contract:status_before_answer".to_string());
@@ -1465,11 +1492,15 @@ fn response_missing_required_entity_lanes(
             continue;
         }
         let requested = clean_text(
-            lane.get("requested_text").and_then(Value::as_str).unwrap_or(""),
+            lane.get("requested_text")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
             120,
         );
         if requested.is_empty()
-            || missing.iter().any(|row| row.eq_ignore_ascii_case(&requested))
+            || missing
+                .iter()
+                .any(|row| row.eq_ignore_ascii_case(&requested))
         {
             continue;
         }
@@ -1678,12 +1709,9 @@ fn run_turn_workflow_final_response(
     }
     let tool_rows_json = serde_json::to_string(&tool_rows_for_llm_recovery(response_tools, 6))
         .unwrap_or_else(|_| "[]".to_string());
-    let synthesis_input_json = serde_json::to_string(
-        workflow
-            .get("synthesis_input")
-            .unwrap_or(&Value::Null),
-    )
-    .unwrap_or_else(|_| "{}".to_string());
+    let synthesis_input_json =
+        serde_json::to_string(workflow.get("synthesis_input").unwrap_or(&Value::Null))
+            .unwrap_or_else(|_| "{}".to_string());
     let tool_state_summary = workflow_tool_state_prompt_context(response_tools);
     let missing_turn_tool_context_block = if missing_turn_tool_context_prompt.is_empty() {
         String::new()
@@ -1867,7 +1895,9 @@ fn run_turn_workflow_final_response(
     workflow["final_llm_response"]["max_attempts"] = json!(max_attempts);
     workflow["final_llm_response"]["attempt_budget_source"] = if !response_tools.is_empty()
         && workflow
-            .pointer("/selected_workflow/tool_menu_interface_contract/final_synthesis_attempt_limit")
+            .pointer(
+                "/selected_workflow/tool_menu_interface_contract/final_synthesis_attempt_limit",
+            )
             .is_some()
     {
         Value::String("workflow_cd_final_synthesis_attempt_limit".to_string())
@@ -3326,8 +3356,14 @@ mod workflow_fallback_tests {
             Some("compare retrieval tools")
         );
         assert!(pending.pointer("/input/keywords").is_none(), "{pending:?}");
-        assert!(pending.pointer("/input/required_coverage").is_none(), "{pending:?}");
-        assert!(pending.pointer("/input/query_metadata_policy").is_none(), "{pending:?}");
+        assert!(
+            pending.pointer("/input/required_coverage").is_none(),
+            "{pending:?}"
+        );
+        assert!(
+            pending.pointer("/input/query_metadata_policy").is_none(),
+            "{pending:?}"
+        );
     }
 
     #[test]
@@ -3344,11 +3380,16 @@ mod workflow_fallback_tests {
             }
         }]);
 
-        let pending =
-            manual_toolbox_pending_request_from_latent_candidates(&candidates, "weather in Denver today")
-                .expect("single valid latent candidate");
+        let pending = manual_toolbox_pending_request_from_latent_candidates(
+            &candidates,
+            "weather in Denver today",
+        )
+        .expect("single valid latent candidate");
 
-        assert!(pending.pointer("/input/query_metadata_policy").is_none(), "{pending:?}");
+        assert!(
+            pending.pointer("/input/query_metadata_policy").is_none(),
+            "{pending:?}"
+        );
     }
 
     #[test]
@@ -3383,10 +3424,12 @@ mod workflow_fallback_tests {
             "input": {"source": "web", "query": "compare retrieval tools", "aperture": "medium"}
         }]);
 
-        assert!(workflow_latent_candidate_recovery_required_by_terminal_invariant(
-            &workflow,
-            &candidates
-        ));
+        assert!(
+            workflow_latent_candidate_recovery_required_by_terminal_invariant(
+                &workflow,
+                &candidates
+            )
+        );
     }
 
     #[test]
@@ -3996,35 +4039,34 @@ mod workflow_fallback_tests {
             .get("response")
             .and_then(Value::as_str)
             .unwrap_or("");
-        assert!(!response.trim().is_empty());
-        assert!(response.contains("did not produce enough"));
-        assert!(response.contains("Recorded evidence so far"));
-        assert!(!response.contains("What we know:"));
-        assert!(response.contains("another retrieval pass"));
-        assert!(!response.contains("Tool findings from this turn"));
-        assert!(!response.contains("agentic framework"));
-        assert!(!response.contains("benchmark"));
+        assert!(response.trim().is_empty());
         assert_eq!(
             workflow
                 .pointer("/final_llm_response/used")
                 .and_then(Value::as_bool),
-            Some(true)
+            Some(false)
         );
         assert_eq!(
             workflow
                 .pointer("/final_llm_response/status")
                 .and_then(Value::as_str),
-            Some("synthesized")
+            Some("synthesis_failed")
         );
         assert_eq!(
             workflow
                 .pointer("/final_llm_response/fallback_source")
                 .and_then(Value::as_str),
-            Some("tool_evidence")
+            Some("tool_evidence_suppressed")
         );
         assert_eq!(
             workflow
                 .pointer("/quality_telemetry/final_fallback_used")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            workflow
+                .pointer("/quality_telemetry/final_fallback_suppressed")
                 .and_then(Value::as_bool),
             Some(true)
         );
@@ -4196,13 +4238,11 @@ mod workflow_fallback_tests {
 
         let missing = response_missing_required_entity_lanes("AlphaTool has evidence.", &tools);
         assert!(missing.iter().any(|row| row == "BetaTool"), "{missing:#?}");
-        assert!(
-            response_missing_required_entity_lanes(
-                "AlphaTool and BetaTool both need source-backed treatment.",
-                &tools
-            )
-            .is_empty()
-        );
+        assert!(response_missing_required_entity_lanes(
+            "AlphaTool and BetaTool both need source-backed treatment.",
+            &tools
+        )
+        .is_empty());
     }
 
     #[test]

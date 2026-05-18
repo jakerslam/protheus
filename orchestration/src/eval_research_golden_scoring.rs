@@ -942,8 +942,8 @@ fn soft_quality_smoke_check(
         .and_then(Value::as_bool)
         .unwrap_or(false);
     let direct_user_help = final_answer_present && intent_answered;
-    let meta_process_talk =
-        response_has_meta_process_talk(normalized_response) && (!direct_user_help || source_summary_without_answer);
+    let meta_process_talk = response_has_meta_process_talk(normalized_response)
+        && (!direct_user_help || source_summary_without_answer);
     let delegates_research_back_to_user =
         response_delegates_research_back_to_user(normalized_response) && !intent_answered;
     let obviously_bad_shape = raw_tool_leak
@@ -2128,6 +2128,11 @@ fn has_limitation_signal(normalized: &str) -> bool {
         "missing",
         "unknown",
         "not enough",
+        "low signal",
+        "low-signal",
+        "off topic",
+        "off-topic",
+        "no substantive",
         "not clear",
         "does not establish",
         "doesn't establish",
@@ -3226,6 +3231,16 @@ mod tests {
                 .and_then(Value::as_bool),
             Some(true)
         );
+    }
+
+    #[test]
+    fn unsupported_claim_signal_allows_explicit_low_signal_rejection_of_best_claim() {
+        let case = json!({
+            "prompt": "What is the best option for this research task?"
+        });
+        let response = "The retrieval was low-signal and off-topic, so the evidence does not support naming the best option. Claim: \"X is the best option\". Supported? No.";
+
+        assert!(!unsupported_claim_signal(&case, response));
     }
 
     #[test]
