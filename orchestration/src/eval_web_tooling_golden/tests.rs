@@ -37,6 +37,24 @@ fn extracts_request_pack_from_research_report_case() {
 }
 
 #[test]
+fn ignores_null_pending_tool_request_in_research_report() {
+    let path = std::env::temp_dir().join("web_tooling_request_pack_ignore_null.json");
+    let report = json!({
+        "cases": [
+            {
+                "case_id": "case_a",
+                "response_diagnostics": {
+                    "pending_tool_request": null
+                }
+            }
+        ]
+    });
+    std::fs::write(&path, serde_json::to_vec(&report).unwrap()).expect("write report");
+    let index = load_request_pack_index(path.to_str().expect("utf8"));
+    assert!(index.get("case_a").is_none());
+}
+
+#[test]
 fn synthetic_payload_exposes_direct_tool_artifacts_to_retrieval_grader() {
     let case = json!({
         "id": "case_a",

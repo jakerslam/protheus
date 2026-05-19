@@ -10,7 +10,7 @@ pub(super) fn request_pack_for_case(
     report_request: Option<&Value>,
     default_tool: &str,
 ) -> Value {
-    if let Some(request) = report_request {
+    if let Some(request) = report_request.filter(report_request_usable) {
         return json!({
             "request_pack_source": "research_report_pending_tool_request",
             "tool_name": str_at(request, &["tool_name"], default_tool),
@@ -117,10 +117,26 @@ pub(super) fn load_request_pack_index(path: &str) -> BTreeMap<String, Value> {
                                 "/turn_sequence/initial_response_diagnostics/pending_tool_request",
                             )
                         })
+                        .filter(report_request_usable)
                         .cloned()?;
                     Some((case_id, request))
                 })
                 .collect::<BTreeMap<_, _>>()
         })
         .unwrap_or_default()
+}
+
+fn report_request_usable(request: &&Value) -> bool {
+    let Some(request_obj) = request.as_object() else {
+        return false;
+    };
+    if let Some(input_obj) = request.get("input").and_then(Value::as_object) {
+        if !input_obj.is_empty() {
+            return true;
+        }
+    }
+    request_obj.contains_key("query")
+        || request_obj.contains_key("queries")
+        || request_obj.contains_key("url")
+        || request_obj.contains_key("locator")
 }
