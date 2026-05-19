@@ -587,7 +587,7 @@ fn workflow_tool_state_prompt_context(response_tools: &[Value]) -> String {
         serde_json::to_string(&summary).unwrap_or_else(|_| "{\"recorded_tool_outcome_count\":0}".to_string());
     clean_text(
         &format!(
-            "Recorded tool/evidence state for this turn:\n{summary_json}\n\nOnly use tool or evidence details that are explicitly present in this recorded state and the recorded tool outcomes below. Treat `recorded_tool_result_quality`, `recorded_quality_flags`, and `recorded_retry_recommended_count` as the tool boundary signals: retry recommendations, low-signal flags, errors, or no evidence mean the workflow ran but evidence may be insufficient. If evidence counts are zero, do not claim returned snippets, evidence refs, or source-backed findings for this turn."
+            "Recorded tool/evidence state for this turn:\n{summary_json}\n\nOnly use tool or evidence details that are explicitly present in this recorded state and the recorded tool outcomes below. Treat `recorded_tool_result_quality`, `recorded_quality_flags`, and `recorded_retry_recommended_count` as the tool boundary signals: retry recommendations, low-signal flags, errors, or no evidence mean the workflow ran but evidence may be insufficient. Choose exactly one internal outcome posture before answering: `supported_answer` when usable evidence is strong enough to answer directly, `bounded_partial_answer` when some usable evidence supports part of the request but meaningful gaps remain, or `evidence_insufficient_answer` when no usable evidence supports a direct source-backed answer. If evidence counts are zero, do not claim returned snippets, evidence refs, or source-backed findings for this turn. Evidence being insufficient does not prove that the underlying fact, source surface, or entity does not exist."
         ),
         2_000,
     )
@@ -633,7 +633,7 @@ fn workflow_missing_turn_tool_context_prompt(message: &str, response_tools: &[Va
         return String::new();
     }
     clean_text(
-        "No returned tool result is available in this turn, so no source-backed synthesis is available yet. Begin the answer with that exact sentence. Then answer briefly using only the available limits, current uncertainty, and one bounded next search step. Any clear format is acceptable. Example formats include a short paragraph, brief bullets, or a compact mixed structure, but none is required. Do not claim returned snippets, evidence refs, low-signal results, or source-backed findings for this turn.",
+        "No returned tool result is available in this turn, so no source-backed synthesis is available yet. Begin the answer with that exact sentence. Then answer briefly using only the available limits, current uncertainty, and one bounded next search step. Any clear format is acceptable. Example formats include a short paragraph, brief bullets, or a compact mixed structure, but none is required. Do not claim returned snippets, evidence refs, low-signal results, or source-backed findings for this turn. Do not treat this missing turn state as proof that the underlying information or source surface does not exist.",
         800,
     )
 }
@@ -651,7 +651,7 @@ fn workflow_missing_turn_tool_context_fallback(message: &str, response_tools: &[
             request_summary
         )
     };
-    let unknowns = "What we do not know is which source-backed findings, low-signal results, tradeoffs, or evidence refs the missing tool result would have supported, so no source-backed conclusion is justified yet.";
+    let unknowns = "What we do not know is which source-backed findings, low-signal results, tradeoffs, or evidence refs the missing tool result would have supported, so no source-backed conclusion is justified yet. This missing turn state does not establish that the underlying information, source surface, or entity is absent.";
     clean_text(
         &format!(
             "No returned tool result is available in this turn, so no source-backed synthesis is available yet. {knowns} {unknowns} My recommendation is to rerun one focused source-evidence query before making a conclusion. The next best search query is `focused query for the requested topic with one named entity, one source family, and one time window`."
@@ -1033,6 +1033,10 @@ mod tool_turn_response_text_tests {
             ),
             "{prompt}"
         );
+        assert!(
+            prompt.contains("does not exist"),
+            "{prompt}"
+        );
     }
 
     #[test]
@@ -1047,6 +1051,7 @@ mod tool_turn_response_text_tests {
             "What we do not know",
             "My recommendation",
             "next best search query",
+            "does not establish",
         ] {
             assert!(response.contains(needle), "{response}");
         }
@@ -1065,6 +1070,7 @@ mod tool_turn_response_text_tests {
             "source-backed",
             "What we know",
             "My recommendation",
+            "does not establish",
         ] {
             assert!(response.contains(needle), "{response}");
         }

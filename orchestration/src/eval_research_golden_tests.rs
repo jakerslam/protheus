@@ -636,6 +636,46 @@ fn research_golden_sanitizes_backend_key_errors() {
 }
 
 #[test]
+fn research_golden_reports_evidence_outcome_posture_in_diagnostics() {
+    let root = temp_path("research_golden_evidence_outcome_posture");
+    let cases = root.join("cases.json");
+    let responses = root.join("responses.json");
+    write_json_file(&cases, &dataset());
+    write_json_file(
+        &responses,
+        &json!({
+            "responses": [{
+                "case_id": "research_gold_test",
+                "response_payload": {
+                    "response": "Based on the retrieved evidence, LangGraph is better documented, while Infring remains partially covered.",
+                    "provider": "openai",
+                    "model": "gpt-5",
+                    "runtime_model": "gpt-5",
+                    "tools": [{
+                        "name": "web_search",
+                        "status": "ok",
+                        "result": "LangGraph docs are clear; Infring coverage is sparse."
+                    }],
+                    "response_workflow": {
+                        "final_llm_response": {
+                            "status": "synthesized",
+                            "evidence_outcome_posture": "bounded_partial_answer"
+                        }
+                    }
+                }
+            }]
+        }),
+    );
+    let code = run_research_golden(&runner_args(&root, &cases, &responses, false));
+    assert_eq!(code, 0);
+    let report = read_json(root.join("out.json").to_str().unwrap());
+    let posture = report
+        .pointer("/cases/0/response_diagnostics/evidence_outcome_posture")
+        .and_then(Value::as_str);
+    assert_eq!(posture, Some("bounded_partial_answer"));
+}
+
+#[test]
 fn research_golden_reports_transport_timeout_outside_gate_denominators() {
     let root = temp_path("research_golden_transport_timeout");
     let cases = root.join("cases.json");

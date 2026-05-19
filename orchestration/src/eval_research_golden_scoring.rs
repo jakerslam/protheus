@@ -250,6 +250,10 @@ pub(super) fn response_diagnostics(payload: &Value, response_text: &str) -> Valu
         "final_llm_status": payload
             .pointer("/response_workflow/final_llm_response/status")
             .and_then(Value::as_str),
+        "evidence_outcome_posture": payload
+            .pointer("/response_workflow/final_llm_response/evidence_outcome_posture")
+            .or_else(|| payload.pointer("/response_finalization/final_llm_response/evidence_outcome_posture"))
+            .and_then(Value::as_str),
     })
 }
 

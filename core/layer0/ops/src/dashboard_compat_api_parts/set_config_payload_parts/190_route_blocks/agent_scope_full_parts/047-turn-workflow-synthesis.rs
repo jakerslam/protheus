@@ -862,6 +862,7 @@ fn apply_final_empty_response_diagnostic(
     if !fallback_response.is_empty() {
         apply_tool_evidence_fallback_response(
             workflow,
+            response_tools,
             &fallback_response,
             "tool_evidence_runtime_fallback",
             "empty_response_replaced_from_tool_evidence",
@@ -967,6 +968,63 @@ fn fallback_coverage_lane_sentence(response_tools: &[Value]) -> String {
     }
 }
 
+fn response_tools_have_recorded_material(response_tools: &[Value]) -> bool {
+    response_tools.iter().any(|tool| {
+        !clean_text(tool.get("result").and_then(Value::as_str).unwrap_or(""), 240).is_empty()
+            || tool_hidden_array_len(tool, "search_results") > 0
+            || tool_hidden_array_len(tool, "provider_results") > 0
+            || tool_hidden_array_len(tool, "evidence_refs") > 0
+            || tool_hidden_array_len(tool, "evidence_pack") > 0
+            || tool_hidden_array_len(tool, "evidence_pack_candidates") > 0
+    })
+}
+
+fn tool_evidence_outcome_posture(response_tools: &[Value]) -> &'static str {
+    if response_tools.is_empty() || !response_tools_have_recorded_material(response_tools) {
+        return "evidence_insufficient_answer";
+    }
+    let weak_or_missing_lane_count = synthesis_coverage_lanes_for_tools(response_tools, 16)
+        .iter()
+        .filter(|row| {
+            !matches!(
+                row.get("status").and_then(Value::as_str),
+                Some("covered") | Some("usable")
+            )
+        })
+        .count();
+    let has_low_signal_or_failure = response_tools.iter().any(|tool| {
+        let status = tool.get("status").and_then(Value::as_str).unwrap_or("");
+        let quality_flags = tool_result_quality_object(tool)
+            .map(|quality| tool_quality_string_array(quality, "/flags", 16))
+            .unwrap_or_default();
+        matches!(status, "low_signal" | "no_results" | "error" | "failed" | "timeout" | "blocked")
+            || tool_quality_retry_recommended(tool)
+            || quality_flags.iter().any(|flag| {
+                matches!(
+                    flag.as_str(),
+                    "insufficient_evidence"
+                        | "low_signal"
+                        | "low_relevance_filtered"
+                        | "comparison_evidence_insufficient"
+                        | "weak_single_source"
+                )
+            })
+    });
+    if has_low_signal_or_failure || weak_or_missing_lane_count > 0 {
+        "bounded_partial_answer"
+    } else {
+        "supported_answer"
+    }
+}
+
+fn annotate_final_evidence_outcome_posture(workflow: &mut Value, response_tools: &[Value]) {
+    let posture = tool_evidence_outcome_posture(response_tools);
+    workflow["final_llm_response"]["evidence_outcome_posture"] =
+        Value::String(posture.to_string());
+    workflow["quality_telemetry"]["evidence_outcome_posture"] =
+        Value::String(posture.to_string());
+}
+
 fn fallback_final_response_from_tool_evidence(message: &str, response_tools: &[Value]) -> String {
     let _ = message;
     let failure_reason = clean_text(
@@ -1004,6 +1062,7 @@ fn fallback_final_response_from_tool_evidence(message: &str, response_tools: &[V
 
 fn apply_tool_evidence_fallback_response(
     workflow: &mut Value,
+    response_tools: &[Value],
     fallback_response: &str,
     fallback_source: &str,
     error_code: &str,
@@ -1040,6 +1099,7 @@ fn apply_tool_evidence_fallback_response(
     workflow["final_llm_response"]["error"] = Value::String(clean_text(error_code, 160));
     workflow["final_llm_response"]["last_reject_reason"] =
         Value::String("rewritten_user_visible_response".to_string());
+    annotate_final_evidence_outcome_posture(workflow, response_tools);
     if let Some(reason) = original_reject_reason {
         let cleaned = clean_text(reason, 240);
         if !cleaned.is_empty() {
@@ -1075,6 +1135,7 @@ fn maybe_apply_rejected_tool_evidence_fallback(
     }
     apply_tool_evidence_fallback_response(
         workflow,
+        response_tools,
         &fallback_response,
         "tool_evidence_runtime_fallback_after_verifier_reject",
         "rejected_response_replaced_from_tool_evidence",
@@ -2428,6 +2489,7 @@ fn run_turn_workflow_final_response(
                 workflow["final_llm_response"]["model"] = Value::String(response_model.clone());
                 workflow["final_llm_response"]["runtime_model"] =
                     Value::String(response_model.clone());
+                annotate_final_evidence_outcome_posture(&mut workflow, response_tools);
                 workflow["provider"] = Value::String(response_provider);
                 workflow["model"] = Value::String(response_model.clone());
                 workflow["runtime_model"] = Value::String(response_model);
@@ -4405,6 +4467,101 @@ mod workflow_fallback_tests {
                 .and_then(Value::as_str),
             Some("entity"),
             "{synthesis_input:#?}"
+        );
+    }
+
+    #[test]
+    fn tool_evidence_outcome_posture_distinguishes_supported_partial_and_insufficient() {
+        let supported = vec![json!({
+            "name": "batch_query",
+            "status": "ok",
+            "result": "Key findings: LangGraph and CrewAI differ in orchestration style.",
+            "evidence_refs": [{
+                "title": "LangGraph docs",
+                "locator": "https://example.com/langgraph",
+                "score": 0.9
+            }]
+        })];
+        assert_eq!(tool_evidence_outcome_posture(&supported), "supported_answer");
+
+        let partial = vec![json!({
+            "name": "batch_query",
+            "status": "ok",
+            "result": "Search returned some findings but facet coverage is incomplete.",
+            "query_metadata": {
+                "required_coverage": {
+                    "entities": ["LangGraph", "CrewAI"]
+                }
+            },
+            "evidence_refs": [{
+                "title": "LangGraph docs",
+                "locator": "https://example.com/langgraph",
+                "score": 0.9
+            }],
+            "tool_result_quality": {
+                "status": "low_signal",
+                "flags": ["insufficient_evidence"]
+            }
+        })];
+        assert_eq!(
+            tool_evidence_outcome_posture(&partial),
+            "bounded_partial_answer"
+        );
+
+        let insufficient = vec![json!({
+            "name": "batch_query",
+            "status": "error",
+            "error": "provider timeout"
+        })];
+        assert_eq!(
+            tool_evidence_outcome_posture(&insufficient),
+            "evidence_insufficient_answer"
+        );
+    }
+
+    #[test]
+    fn tool_evidence_fallback_records_evidence_outcome_posture() {
+        let mut workflow = json!({
+            "response": "",
+            "quality_telemetry": {},
+            "final_llm_response": {
+                "used": false,
+                "status": "synthesis_failed"
+            }
+        });
+        let tools = vec![json!({
+            "name": "batch_query",
+            "status": "ok",
+            "result": "Search returned some findings but major coverage gaps remain.",
+            "query_metadata": {
+                "required_coverage": {
+                    "entities": ["AlphaTool", "BetaTool"]
+                }
+            },
+            "evidence_refs": [{
+                "title": "AlphaTool docs",
+                "locator": "https://example.com/alpha",
+                "score": 0.8
+            }],
+            "tool_result_quality": {
+                "status": "low_signal",
+                "flags": ["insufficient_evidence"]
+            }
+        })];
+
+        apply_final_empty_response_diagnostic(&mut workflow, "Compare AlphaTool and BetaTool.", "", &tools);
+
+        assert_eq!(
+            workflow
+                .pointer("/final_llm_response/evidence_outcome_posture")
+                .and_then(Value::as_str),
+            Some("bounded_partial_answer")
+        );
+        assert_eq!(
+            workflow
+                .pointer("/quality_telemetry/evidence_outcome_posture")
+                .and_then(Value::as_str),
+            Some("bounded_partial_answer")
         );
     }
 
