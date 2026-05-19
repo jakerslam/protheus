@@ -5,7 +5,12 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Stdio};
+use std::thread;
+use std::time::Duration;
+
+const LEVEL8_WORKER_TIMEOUT_SECONDS: u64 = 900;
+const LEVEL8_WORKER_HEARTBEAT_SECONDS: u64 = 30;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LiveLevel8SeedBatchReport {
@@ -41,16 +46,46 @@ pub struct LiveLevel8JudgeReport {
     pub ok: bool,
     pub batch_root: String,
     pub attempt_count: usize,
+    pub scored_attempt_count: usize,
     pub pass_count: usize,
     pub fail_count: usize,
+    pub infra_failure_count: usize,
+    pub coding_failure_count: usize,
     pub attempts: Vec<LiveLevel8AttemptJudge>,
     pub failures: Vec<String>,
+    pub infra_failures: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct LiveLevel8RunReport {
+    pub harness_kind: &'static str,
+    pub ok: bool,
+    pub batch_root: String,
+    pub attempt_count: usize,
+    pub jobs: Vec<LiveLevel8Job>,
+    pub worker_runs: Vec<LiveLevel8WorkerRun>,
+    pub judge: LiveLevel8JudgeReport,
+    pub failures: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct LiveLevel8WorkerRun {
+    pub attempt_id: String,
+    pub ok: bool,
+    pub output_path: String,
+    pub timeout_seconds: u64,
+    pub timeout_count: usize,
+    pub duration_seconds: u64,
+    pub run_count: usize,
+    pub retried_infra_failure: bool,
+    pub final_infra_failure: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
 pub struct LiveLevel8AttemptJudge {
     pub attempt_id: String,
     pub ok: bool,
+    pub classification: &'static str,
     pub checks: Vec<LiveLevel8Check>,
     pub failures: Vec<String>,
 }
@@ -162,6 +197,7 @@ pub fn seed_live_level8_batch(attempt_count: usize) -> LiveLevel8SeedBatchReport
 
 pub fn judge_live_level8_batch(batch_root: &Path) -> LiveLevel8JudgeReport {
     let mut failures = Vec::new();
+    let mut infra_failures = Vec::new();
     let jobs_path = batch_root.join("jobs.json");
     let seed_report = fs::read_to_string(&jobs_path)
         .ok()
@@ -177,25 +213,358 @@ pub fn judge_live_level8_batch(batch_root: &Path) -> LiveLevel8JudgeReport {
     let attempts = jobs.iter().map(judge_live_attempt).collect::<Vec<_>>();
     for attempt in &attempts {
         if !attempt.ok {
-            failures.extend(
-                attempt
-                    .failures
-                    .iter()
-                    .map(|failure| format!("{}:{failure}", attempt.attempt_id)),
-            );
+            let target = if attempt.classification == "infra_failure" {
+                &mut infra_failures
+            } else {
+                &mut failures
+            };
+            target.extend(
+                    attempt
+                        .failures
+                        .iter()
+                        .map(|failure| format!("{}:{failure}", attempt.attempt_id)),
+                );
         }
     }
     let pass_count = attempts.iter().filter(|attempt| attempt.ok).count();
-    let fail_count = attempts.len().saturating_sub(pass_count);
+    let infra_failure_count = attempts
+        .iter()
+        .filter(|attempt| attempt.classification == "infra_failure")
+        .count();
+    let coding_failure_count = attempts
+        .iter()
+        .filter(|attempt| attempt.classification == "coding_failure")
+        .count();
+    let scored_attempt_count = attempts.len().saturating_sub(infra_failure_count);
+    let fail_count = coding_failure_count;
     LiveLevel8JudgeReport {
         harness_kind: "coding_memory_live_level8_judge_v1",
-        ok: failures.is_empty() && !attempts.is_empty(),
+        ok: failures.is_empty() && scored_attempt_count > 0,
         batch_root: batch_root.display().to_string(),
         attempt_count: attempts.len(),
+        scored_attempt_count,
         pass_count,
         fail_count,
+        infra_failure_count,
+        coding_failure_count,
         attempts,
         failures,
+        infra_failures,
+    }
+}
+
+pub fn run_live_level8_batch(attempt_count: usize, infra_retries: usize) -> LiveLevel8RunReport {
+    let seed = seed_live_level8_batch(attempt_count);
+    let batch_root = PathBuf::from(&seed.batch_root);
+    let outputs_root = batch_root.join("agent_outputs");
+    let mut worker_runs = Vec::new();
+    let mut failures = seed.failures.clone();
+    if let Err(error) = fs::create_dir_all(&outputs_root) {
+        failures.push(format!("create_agent_outputs_failed:{}:{error}", outputs_root.display()));
+    }
+    eprintln!(
+        "level8_batch_start attempts={} infra_retries={} batch_root={}",
+        seed.jobs.len(),
+        infra_retries,
+        seed.batch_root
+    );
+    for (index, job) in seed.jobs.iter().enumerate() {
+        eprintln!(
+            "level8_worker_queue ordinal={}/{} attempt={}",
+            index + 1,
+            seed.jobs.len(),
+            job.attempt_id
+        );
+        let worker = run_live_level8_worker(job, &outputs_root, index + 1, infra_retries);
+        if !worker.ok {
+            if let Some(kind) = &worker.final_infra_failure {
+                failures.push(format!("{}:infra_failure:{kind}", job.attempt_id));
+            }
+        }
+        eprintln!(
+            "level8_worker_done attempt={} ok={} runs={} duration_seconds={} timeout_count={} final_infra_failure={}",
+            worker.attempt_id,
+            worker.ok,
+            worker.run_count,
+            worker.duration_seconds,
+            worker.timeout_count,
+            worker
+                .final_infra_failure
+                .clone()
+                .unwrap_or_else(|| "none".to_string())
+        );
+        worker_runs.push(worker);
+    }
+    let judge = judge_live_level8_batch(&batch_root);
+    LiveLevel8RunReport {
+        harness_kind: "coding_memory_live_level8_run_v1",
+        ok: seed.ok && judge.ok,
+        batch_root: seed.batch_root.clone(),
+        attempt_count: seed.jobs.len(),
+        jobs: seed.jobs,
+        worker_runs,
+        judge,
+        failures,
+    }
+}
+
+fn run_live_level8_worker(
+    job: &LiveLevel8Job,
+    outputs_root: &Path,
+    ordinal: usize,
+    infra_retries: usize,
+) -> LiveLevel8WorkerRun {
+    let output_path = outputs_root.join(format!("{}.json", job.attempt_id));
+    let mut run_count = 0usize;
+    let mut timeout_count = 0usize;
+    let mut duration_seconds = 0u64;
+    let mut retried_infra_failure = false;
+    let mut final_infra_failure = None;
+    let mut ok = false;
+    let timeout_seconds = level8_worker_timeout_seconds();
+    for retry_index in 0..=infra_retries {
+        run_count += 1;
+        let start = millis_now();
+        let stdout_path = outputs_root.join(format!("{}.try{}.stdout.log", job.attempt_id, run_count));
+        let stderr_path = outputs_root.join(format!("{}.try{}.stderr.log", job.attempt_id, run_count));
+        eprintln!(
+            "level8_worker_start attempt={} try={}/{} timeout_seconds={} stdout={} stderr={}",
+            job.attempt_id,
+            run_count,
+            infra_retries + 1,
+            timeout_seconds,
+            stdout_path.display(),
+            stderr_path.display()
+        );
+        let output = run_level8_worker_command(
+            job,
+            ordinal,
+            run_count,
+            timeout_seconds,
+            &stdout_path,
+            &stderr_path,
+        );
+        duration_seconds = duration_seconds
+            .saturating_add(((millis_now().saturating_sub(start)) / 1000) as u64);
+        if output.timed_out {
+            timeout_count += 1;
+        }
+        let artifact = match output {
+            Level8WorkerCommandOutput {
+                status,
+                stdout,
+                stderr,
+                timed_out,
+                spawn_error: None,
+            } => {
+                let infra_marker = if timed_out || status.starts_with("try_wait_failed:") {
+                    "worker_infra_failure=provider_timeout_or_spawn_failure\n"
+                } else {
+                    ""
+                };
+                let text = format!(
+                    "status={status}\ntimed_out={timed_out}\ntimeout_seconds={timeout_seconds}\n{infra_marker}stdout_path={}\nstderr_path={}\nstdout:\n{stdout}\nstderr:\n{stderr}",
+                    stdout_path.display(),
+                    stderr_path.display()
+                );
+                ok = status.starts_with("exit status: 0") && !timed_out;
+                text
+            }
+            Level8WorkerCommandOutput {
+                status,
+                stdout,
+                stderr,
+                timed_out,
+                spawn_error: Some(error),
+            } => {
+                ok = false;
+                format!(
+                    "status={status}\ntimed_out={timed_out}\ntimeout_seconds={timeout_seconds}\nworker_infra_failure=provider_timeout_or_spawn_failure\nworker_spawn_failed:{error}\nstdout_path={}\nstderr_path={}\nstdout:\n{stdout}\nstderr:\n{stderr}",
+                    stdout_path.display(),
+                    stderr_path.display()
+                )
+            }
+        };
+        let _ = write_file(&output_path, &artifact);
+        final_infra_failure = if artifact.contains("timed_out=true")
+            || artifact.contains("worker_spawn_failed:")
+            || artifact.contains("try_wait_failed:")
+        {
+            Some("provider_timeout_or_spawn_failure".to_string())
+        } else {
+            classify_worker_infra_failure_text(&artifact)
+        };
+        if final_infra_failure.is_some() && retry_index < infra_retries {
+            retried_infra_failure = true;
+            let retry_path = outputs_root.join(format!("{}.infra_try{}.log", job.attempt_id, run_count));
+            let _ = fs::rename(&output_path, retry_path);
+            eprintln!(
+                "level8_worker_retry attempt={} completed_try={} reason={} next_try={}",
+                job.attempt_id,
+                run_count,
+                final_infra_failure
+                    .clone()
+                    .unwrap_or_else(|| "unknown_infra_failure".to_string()),
+                run_count + 1
+            );
+            ok = false;
+            continue;
+        }
+        if final_infra_failure.is_some() {
+            ok = false;
+        }
+        eprintln!(
+            "level8_worker_try_done attempt={} try={} ok={} elapsed_seconds={} timed_out={} infra_failure={}",
+            job.attempt_id,
+            run_count,
+            ok,
+            ((millis_now().saturating_sub(start)) / 1000),
+            artifact.contains("timed_out=true"),
+            final_infra_failure
+                .clone()
+                .unwrap_or_else(|| "none".to_string())
+        );
+        break;
+    }
+    LiveLevel8WorkerRun {
+        attempt_id: job.attempt_id.clone(),
+        ok,
+        output_path: output_path.display().to_string(),
+        timeout_seconds,
+        timeout_count,
+        duration_seconds,
+        run_count,
+        retried_infra_failure,
+        final_infra_failure,
+    }
+}
+
+struct Level8WorkerCommandOutput {
+    status: String,
+    stdout: String,
+    stderr: String,
+    timed_out: bool,
+    spawn_error: Option<String>,
+}
+
+fn level8_worker_timeout_seconds() -> u64 {
+    std::env::var("INFRING_LEVEL8_WORKER_TIMEOUT_SECONDS")
+        .ok()
+        .and_then(|raw| raw.parse::<u64>().ok())
+        .filter(|seconds| *seconds > 0)
+        .unwrap_or(LEVEL8_WORKER_TIMEOUT_SECONDS)
+}
+
+fn run_level8_worker_command(
+    job: &LiveLevel8Job,
+    ordinal: usize,
+    run_count: usize,
+    timeout_seconds: u64,
+    stdout_path: &Path,
+    stderr_path: &Path,
+) -> Level8WorkerCommandOutput {
+    let stdout_file = match fs::File::create(stdout_path) {
+        Ok(file) => file,
+        Err(error) => {
+            return Level8WorkerCommandOutput {
+                status: "spawn_not_attempted".to_string(),
+                stdout: String::new(),
+                stderr: String::new(),
+                timed_out: false,
+                spawn_error: Some(format!("worker_stdout_log_create_failed:{error}")),
+            };
+        }
+    };
+    let stderr_file = match fs::File::create(stderr_path) {
+        Ok(file) => file,
+        Err(error) => {
+            return Level8WorkerCommandOutput {
+                status: "spawn_not_attempted".to_string(),
+                stdout: String::new(),
+                stderr: String::new(),
+                timed_out: false,
+                spawn_error: Some(format!("worker_stderr_log_create_failed:{error}")),
+            };
+        }
+    };
+    let mut command = Command::new("cargo");
+    command
+        .arg("run")
+        .arg("-p")
+        .arg("xtask")
+        .arg("--")
+        .arg("infring-agent-run")
+        .arg(format!("--name=level8-native-{ordinal}-try{run_count}"))
+        .arg("--workflow=coding_project_operator")
+        .arg("--provider=ollama")
+        .arg("--model=kimi-k2.6:cloud")
+        .arg(format!("--prompt=@{}", job.prompt_path))
+        .current_dir(workspace_root())
+        .stdout(Stdio::from(stdout_file))
+        .stderr(Stdio::from(stderr_file));
+    let mut child = match command.spawn() {
+        Ok(child) => child,
+        Err(error) => {
+            return Level8WorkerCommandOutput {
+                status: "spawn_failed".to_string(),
+                stdout: read_to_string(stdout_path),
+                stderr: read_to_string(stderr_path),
+                timed_out: false,
+                spawn_error: Some(error.to_string()),
+            };
+        }
+    };
+    let start = millis_now();
+    let mut last_heartbeat = start;
+    let mut timed_out = false;
+    let status = loop {
+        match child.try_wait() {
+            Ok(Some(status)) => break status.to_string(),
+            Ok(None) => {
+                let now = millis_now();
+                let elapsed_seconds = ((now.saturating_sub(start)) / 1000) as u64;
+                if elapsed_seconds >= timeout_seconds {
+                    timed_out = true;
+                    eprintln!(
+                        "level8_worker_timeout attempt={} try={} elapsed_seconds={} timeout_seconds={}",
+                        job.attempt_id,
+                        run_count,
+                        elapsed_seconds,
+                        timeout_seconds
+                    );
+                    let _ = child.kill();
+                    break child
+                        .wait()
+                        .map(|status| status.to_string())
+                        .unwrap_or_else(|error| format!("wait_after_kill_failed:{error}"));
+                }
+                if ((now.saturating_sub(last_heartbeat)) / 1000) as u64
+                    >= LEVEL8_WORKER_HEARTBEAT_SECONDS
+                {
+                    eprintln!(
+                        "level8_worker_heartbeat attempt={} try={} elapsed_seconds={} timeout_seconds={}",
+                        job.attempt_id,
+                        run_count,
+                        elapsed_seconds,
+                        timeout_seconds
+                    );
+                    last_heartbeat = now;
+                }
+                thread::sleep(Duration::from_secs(1));
+            }
+            Err(error) => {
+                break format!("try_wait_failed:{error}");
+            }
+        }
+    };
+    let stdout = read_to_string(stdout_path);
+    let stderr = read_to_string(stderr_path);
+    Level8WorkerCommandOutput {
+        status,
+        stdout,
+        stderr,
+        timed_out,
+        spawn_error: None,
     }
 }
 
@@ -220,7 +589,10 @@ fn seed_live_attempt(
 
     let validation = run_python_validation(&project_root);
     if !validation.ok {
-        return Err(format!("{attempt_id}:seed_validation_failed:{}", validation.detail));
+        return Err(format!(
+            "{attempt_id}:seed_validation_failed:{}",
+            validation.detail
+        ));
     }
 
     let architecture_text = read_to_string(&project_root.join("ARCHITECTURE.md"));
@@ -332,7 +704,10 @@ fn seed_python_project(spec: &DomainSpec, root: &Path) -> Result<(), String> {
     )?;
     write_file(
         &root.join(format!("src/{}/__init__.py", spec.package)),
-        &format!("\"\"\"{} live Level 8 probe package.\"\"\"\n", spec.architecture_name),
+        &format!(
+            "\"\"\"{} live Level 8 probe package.\"\"\"\n",
+            spec.architecture_name
+        ),
     )?;
     write_file(
         &root.join(format!("src/{}/models.py", spec.package)),
@@ -401,6 +776,22 @@ fn worker_prompt(job: &LiveLevel8Job) -> String {
 fn judge_live_attempt(job: &LiveLevel8Job) -> LiveLevel8AttemptJudge {
     let mut checks = Vec::new();
     let mut failures = Vec::new();
+    if let Some(infra_failure) = classify_worker_infra_failure(job) {
+        push_check(
+            &mut checks,
+            &mut failures,
+            "worker_infra_failure",
+            false,
+            infra_failure,
+        );
+        return LiveLevel8AttemptJudge {
+            attempt_id: job.attempt_id.clone(),
+            ok: false,
+            classification: "infra_failure",
+            checks,
+            failures,
+        };
+    }
     let project_root = PathBuf::from(&job.project_root);
     let receipt_path = PathBuf::from(&job.receipts_root).join("checkpoint_002_handoff.json");
 
@@ -481,7 +872,9 @@ fn judge_live_attempt(job: &LiveLevel8Job) -> LiveLevel8AttemptJudge {
         "cli_import_export_or_roundtrip_surface_present",
         lower.contains("argparse")
             && lower.contains("report")
-            && (lower.contains("export") || lower.contains("import") || lower.contains("roundtrip")),
+            && (lower.contains("export")
+                || lower.contains("import")
+                || lower.contains("roundtrip")),
         "CLI source exposes report plus import/export or round-trip behavior".to_string(),
     );
 
@@ -515,9 +908,44 @@ fn judge_live_attempt(job: &LiveLevel8Job) -> LiveLevel8AttemptJudge {
     LiveLevel8AttemptJudge {
         attempt_id: job.attempt_id.clone(),
         ok: failures.is_empty(),
+        classification: if failures.is_empty() {
+            "pass"
+        } else {
+            "coding_failure"
+        },
         checks,
         failures,
     }
+}
+
+fn classify_worker_infra_failure(job: &LiveLevel8Job) -> Option<String> {
+    let run_root = PathBuf::from(&job.run_root);
+    let batch_root = run_root.parent()?;
+    let output_path = batch_root
+        .join("agent_outputs")
+        .join(format!("{}.json", job.attempt_id));
+    let text = fs::read_to_string(&output_path).ok()?;
+    classify_worker_infra_failure_text(&text)
+}
+
+fn classify_worker_infra_failure_text(text: &str) -> Option<String> {
+    let lower = text.to_ascii_lowercase();
+    if lower.contains("503 service unavailable")
+        || lower.contains("temporarily overloaded")
+        || lower.contains("model is temporarily overloaded")
+    {
+        return Some("provider_overloaded".to_string());
+    }
+    if lower.contains("internal server error") {
+        return Some("provider_internal_server_error".to_string());
+    }
+    if lower.contains("provider:ollama_run_timeout")
+        || lower.contains("ollama_run_timeout:timeout_seconds")
+        || lower.contains("worker_spawn_failed")
+    {
+        return Some("provider_timeout_or_spawn_failure".to_string());
+    }
+    None
 }
 
 fn push_check(
@@ -603,5 +1031,6 @@ fn write_file(path: &Path, content: &str) -> Result<(), String> {
         fs::create_dir_all(parent)
             .map_err(|error| format!("create_parent_failed:{}:{error}", parent.display()))?;
     }
-    fs::write(path, content).map_err(|error| format!("write_file_failed:{}:{error}", path.display()))
+    fs::write(path, content)
+        .map_err(|error| format!("write_file_failed:{}:{error}", path.display()))
 }
