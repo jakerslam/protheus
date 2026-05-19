@@ -54,8 +54,16 @@ mod eval_metamorphic_guard;
 mod eval_multiturn_simulation;
 #[path = "../eval_production_workflow_guard.rs"]
 mod eval_production_workflow_guard;
+#[path = "../eval_research_gate_diagnostics.rs"]
+mod eval_research_gate_diagnostics;
 #[path = "../eval_research_golden.rs"]
 mod eval_research_golden;
+#[path = "../eval_research_golden_report.rs"]
+mod eval_research_golden_report;
+#[path = "../eval_research_golden_scoring.rs"]
+mod eval_research_golden_scoring;
+#[path = "../eval_research_golden_utils.rs"]
+mod eval_research_golden_utils;
 #[path = "../eval_rsi_promotion_guard.rs"]
 mod eval_rsi_promotion_guard;
 #[path = "../eval_synthetic_user_chat_harness.rs"]
@@ -64,6 +72,10 @@ mod eval_synthetic_user_chat_harness;
 mod eval_trace_localization;
 #[path = "../eval_trajectory_scoring.rs"]
 mod eval_trajectory_scoring;
+#[path = "../eval_web_retrieval_gate_diagnostics.rs"]
+mod eval_web_retrieval_gate_diagnostics;
+#[path = "../eval_web_tooling_golden/mod.rs"]
+mod eval_web_tooling_golden;
 
 const DEFAULT_QUALITY_PATH: &str = "artifacts/eval_quality_metrics_latest.json";
 const DEFAULT_MONITOR_PATH: &str = "local/state/ops/eval_agent_chat_monitor/latest.json";
@@ -1057,7 +1069,7 @@ fn run_judge_human_agreement(args: &[String]) -> i32 {
 
 fn usage() {
     eprintln!(
-        "usage: cargo run --manifest-path orchestration/Cargo.toml --bin eval_runtime -- <reviewer-feedback|quality-gate|judge-human-agreement|authority-calibration|feedback-router|agent-feedback|agent-self-diagnosis|issue-authority|grader-hacking-guard|trace-localization-guard|trajectory-scoring-guard|multiturn-simulation-guard|synthetic-user-chat-harness|research-golden|misty-live-health-gate|contamination-guard|action-economy-guard|production-workflow-guard|learning-loop-ingest|learning-loop-issues|learning-loop-review|learning-loop-policy|learning-loop-version|learning-loop-rsi-handoff|metamorphic-guard|rsi-promotion-ladder|issue-drafts|replay|fix-verification|issue-lifecycle|rsi-escalation|phase-trace-persist|adversarial-routing|workflow-selection|runtime-ownership> [--strict=0|1] [args...]"
+        "usage: cargo run --manifest-path orchestration/Cargo.toml --bin eval_runtime -- <reviewer-feedback|quality-gate|judge-human-agreement|authority-calibration|feedback-router|agent-feedback|agent-self-diagnosis|issue-authority|grader-hacking-guard|trace-localization-guard|trajectory-scoring-guard|multiturn-simulation-guard|synthetic-user-chat-harness|research-golden|web-tooling-golden|misty-live-health-gate|contamination-guard|action-economy-guard|production-workflow-guard|learning-loop-ingest|learning-loop-issues|learning-loop-review|learning-loop-policy|learning-loop-version|learning-loop-rsi-handoff|metamorphic-guard|rsi-promotion-ladder|issue-drafts|replay|fix-verification|issue-lifecycle|rsi-escalation|phase-trace-persist|adversarial-routing|workflow-selection|runtime-ownership> [--strict=0|1] [args...]"
     );
 }
 
@@ -1086,6 +1098,7 @@ fn main() -> ExitCode {
             eval_synthetic_user_chat_harness::run_synthetic_user_chat_harness(tail)
         }
         "research-golden" => eval_research_golden::run_research_golden(tail),
+        "web-tooling-golden" => eval_web_tooling_golden::run_web_tooling_golden(tail),
         "misty-live-health-gate" => {
             eval_synthetic_user_chat_harness::run_misty_live_health_gate(tail)
         }

@@ -1,26 +1,15 @@
 use serde_json::{json, Value};
 use std::collections::BTreeMap;
 
-#[path = "eval_research_gate_diagnostics.rs"]
-mod eval_research_gate_diagnostics;
-#[path = "eval_research_golden_report.rs"]
-mod eval_research_golden_report;
-#[path = "eval_research_golden_scoring.rs"]
-mod eval_research_golden_scoring;
-#[path = "eval_research_golden_utils.rs"]
-mod eval_research_golden_utils;
-#[path = "eval_web_retrieval_gate_diagnostics.rs"]
-mod eval_web_retrieval_gate_diagnostics;
-
-use eval_research_gate_diagnostics::{
+use super::eval_research_gate_diagnostics::{
     failure_boundary, gate_transition_diagnostics, gate_transition_rate_rows,
 };
-use eval_research_golden_report::{append_failure_events, markdown_report};
-use eval_research_golden_scoring::{
+use super::eval_research_golden_report::{append_failure_events, markdown_report};
+use super::eval_research_golden_scoring::{
     dimension_average_rows, gate_rate_rows, grade_case, response_diagnostics,
 };
-use eval_research_golden_utils::*;
-use eval_web_retrieval_gate_diagnostics::{
+use super::eval_research_golden_utils::*;
+use super::eval_web_retrieval_gate_diagnostics::{
     record_web_retrieval_gate_counts, web_failure_boundary, web_retrieval_gate_diagnostics,
     web_retrieval_gate_metric_rows, web_retrieval_gate_rate_rows, web_retrieval_measurement_report,
     web_tooling_measurement_eligible_case, web_tooling_measurement_exclusion_reason_case,
@@ -1185,7 +1174,8 @@ fn measurement_split_report(
     let transport_adjusted_pass_cases = rows
         .iter()
         .filter(|row| {
-            bool_at(row, &["pass"], false) && str_at(row, &["failure_classification"], "") != "transport"
+            bool_at(row, &["pass"], false)
+                && str_at(row, &["failure_classification"], "") != "transport"
         })
         .count() as u64;
     let transport_adjusted_research_success_rate =

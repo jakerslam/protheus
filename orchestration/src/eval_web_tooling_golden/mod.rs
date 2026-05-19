@@ -1,0 +1,251 @@
+use serde_json::{json, Value};
+use std::collections::BTreeMap;
+
+use super::eval_research_golden_scoring::{grade_case, response_diagnostics};
+use super::eval_research_golden_utils::{
+    assistant_text, bool_at, clean_text, now_iso_like, ratio, read_json, str_at,
+};
+use super::eval_web_retrieval_gate_diagnostics::{
+    record_web_retrieval_gate_counts, web_retrieval_gate_diagnostics,
+    web_retrieval_gate_metric_rows, web_retrieval_gate_rate_rows, web_retrieval_measurement_report,
+    web_tooling_measurement_eligible_case, web_tooling_measurement_exclusion_reason_case,
+};
+
+mod direct_tool;
+mod report;
+mod request_packs;
+mod synthetic;
+
+#[cfg(test)]
+mod tests;
+
+use direct_tool::{
+    direct_tool_payload_diagnostics, invoke_direct_tool, is_local_dashboard_url,
+    payload_is_transport_failure,
+};
+use report::tooling_markdown_report;
+use request_packs::{load_request_pack_index, request_pack_for_case};
+use synthetic::{
+    query_metadata_diagnostics, synthesize_tooling_eval_payload, synthetic_transition_diagnostics,
+};
+
+const DEFAULT_CASES_PATH: &str = "validation/evals/fixtures/research_golden_dataset_v1.json";
+const DEFAULT_REPORT_REQUEST_PACKS_PATH: &str = "core/local/artifacts/research_golden_current.json";
+const DEFAULT_OUT_PATH: &str = "core/local/artifacts/web_tooling_golden_current.json";
+const DEFAULT_OUT_LATEST_PATH: &str = "artifacts/web_tooling_golden_latest.json";
+const DEFAULT_MARKDOWN_PATH: &str = "local/workspace/reports/WEB_TOOLING_GOLDEN_CURRENT.md";
+const DEFAULT_BASE_URL: &str = "http://127.0.0.1:4173";
+const DEFAULT_TOOLING_SUCCESS_MIN: f64 = 0.95;
+const DEFAULT_WEB_GATE_PASS_MIN: f64 = 0.95;
+
+pub fn run_web_tooling_golden(args: &[String]) -> i32 {
+    let strict = super::parse_bool_flag(args, "strict", false);
+    let live = super::parse_bool_flag(args, "live", true);
+    let allow_remote = super::parse_bool_flag(args, "allow-remote", false);
+    let cases_path =
+        super::parse_flag(args, "cases").unwrap_or_else(|| DEFAULT_CASES_PATH.to_string());
+    let request_packs_path = super::parse_flag(args, "request-packs-from").or_else(|| {
+        std::path::Path::new(DEFAULT_REPORT_REQUEST_PACKS_PATH)
+            .exists()
+            .then_some(DEFAULT_REPORT_REQUEST_PACKS_PATH.to_string())
+    });
+    let out_path = super::parse_flag(args, "out").unwrap_or_else(|| DEFAULT_OUT_PATH.to_string());
+    let out_latest_path = super::parse_flag(args, "out-latest")
+        .unwrap_or_else(|| DEFAULT_OUT_LATEST_PATH.to_string());
+    let markdown_path = super::parse_flag(args, "out-markdown")
+        .unwrap_or_else(|| DEFAULT_MARKDOWN_PATH.to_string());
+    let base_url =
+        super::parse_flag(args, "base-url").unwrap_or_else(|| DEFAULT_BASE_URL.to_string());
+    let timeout_seconds = super::parse_u64_flag(args, "timeout-seconds", 45).clamp(1, 600);
+    let limit = super::parse_u64_flag(args, "limit", u64::MAX) as usize;
+    let default_tool = clean_text(
+        &super::parse_flag(args, "tool").unwrap_or_else(|| "batch_query".to_string()),
+        80,
+    )
+    .to_ascii_lowercase();
+
+    let input = read_json(&cases_path);
+    let cases = input
+        .get("cases")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let thresholds = input
+        .get("reliability_thresholds")
+        .cloned()
+        .unwrap_or_else(|| json!({}));
+    let web_gate_pass_min = thresholds
+        .get("workflow_gate_pass_min")
+        .and_then(Value::as_f64)
+        .unwrap_or(DEFAULT_WEB_GATE_PASS_MIN);
+    let tooling_success_min = thresholds
+        .get("web_tooling_success_min")
+        .and_then(Value::as_f64)
+        .unwrap_or(DEFAULT_TOOLING_SUCCESS_MIN);
+
+    let mut setup_failures = Vec::<String>::new();
+    if live && !allow_remote && !is_local_dashboard_url(&base_url) {
+        setup_failures.push("remote_dashboard_url_requires_allow_remote".to_string());
+    }
+    if !live {
+        setup_failures.push("web_tooling_golden_currently_requires_live=1".to_string());
+    }
+
+    let request_pack_index = request_packs_path
+        .as_deref()
+        .map(load_request_pack_index)
+        .unwrap_or_default();
+
+    let mut rows = Vec::<Value>::new();
+    let mut web_gate_pass_counts: BTreeMap<String, u64> = BTreeMap::new();
+    let mut web_gate_total_counts: BTreeMap<String, u64> = BTreeMap::new();
+    let mut transport_failures = 0_u64;
+    for case in cases.iter().take(limit) {
+        let case_id = str_at(case, &["id"], "unknown_case");
+        let prompt = str_at(case, &["prompt"], "");
+        let request_pack =
+            request_pack_for_case(case, request_pack_index.get(&case_id), &default_tool);
+        let tool_name = str_at(&request_pack, &["tool_name"], "batch_query");
+        let request_input = request_pack
+            .get("input")
+            .cloned()
+            .unwrap_or_else(|| json!({}));
+        let request_source = str_at(&request_pack, &["request_pack_source"], "unknown");
+
+        let direct_payload = if live && setup_failures.is_empty() {
+            invoke_direct_tool(&base_url, &tool_name, &request_input, timeout_seconds)
+        } else {
+            json!({
+                "ok": false,
+                "transport_error": "live_disabled_or_setup_failed",
+                "error": "web_tooling_live_execution_skipped"
+            })
+        };
+        let transport_failure = payload_is_transport_failure(&direct_payload);
+        if transport_failure {
+            transport_failures = transport_failures.saturating_add(1);
+        }
+
+        let synthetic_payload =
+            synthesize_tooling_eval_payload(&tool_name, &request_input, &direct_payload);
+        let grade = grade_case(case, &synthetic_payload, 85, 95);
+        let query_metadata_diagnostics = query_metadata_diagnostics(&synthetic_payload);
+        let transition_diagnostics =
+            synthetic_transition_diagnostics(&synthetic_payload, &grade.retrieval_quality);
+        let web_tool_gate_diagnostics = web_retrieval_gate_diagnostics(
+            &synthetic_payload,
+            &grade.retrieval_quality,
+            &query_metadata_diagnostics,
+            &transition_diagnostics,
+        );
+        if !transport_failure
+            && web_tooling_measurement_eligible_case(
+                case,
+                &synthetic_payload,
+                &grade.retrieval_quality,
+            )
+        {
+            record_web_retrieval_gate_counts(
+                &web_tool_gate_diagnostics,
+                &mut web_gate_total_counts,
+                &mut web_gate_pass_counts,
+            );
+        }
+        let measurement_exclusion = web_tooling_measurement_exclusion_reason_case(
+            case,
+            &synthetic_payload,
+            &grade.retrieval_quality,
+        )
+        .unwrap_or("none");
+        let first_failed_gate = web_tool_gate_diagnostics
+            .get("first_failed_gate")
+            .and_then(Value::as_str)
+            .unwrap_or("");
+        let tooling_pass = !transport_failure
+            && web_tooling_measurement_eligible_case(
+                case,
+                &synthetic_payload,
+                &grade.retrieval_quality,
+            )
+            && first_failed_gate.is_empty();
+        rows.push(json!({
+            "case_id": case_id,
+            "category": str_at(case, &["category"], "unknown"),
+            "prompt_preview": clean_text(&prompt, 320),
+            "tool_name": tool_name,
+            "request_pack_source": request_source,
+            "tooling_request": request_input,
+            "tooling_pass": tooling_pass,
+            "transport_failure": transport_failure,
+            "response_preview": clean_text(&assistant_text(&synthetic_payload), 240),
+            "response_diagnostics": response_diagnostics(&synthetic_payload, &assistant_text(&synthetic_payload)),
+            "retrieval_quality": grade.retrieval_quality,
+            "query_metadata_diagnostics": query_metadata_diagnostics,
+            "web_tool_gate_diagnostics": web_tool_gate_diagnostics,
+            "web_tooling_measurement_exclusion": measurement_exclusion,
+            "gate_transition_diagnostics": transition_diagnostics,
+            "direct_tool_payload_diagnostics": direct_tool_payload_diagnostics(&direct_payload)
+        }));
+    }
+
+    let total_cases = rows.len() as u64;
+    let non_transport_cases = total_cases.saturating_sub(transport_failures);
+    let passed_cases = rows
+        .iter()
+        .filter(|row| bool_at(row, &["tooling_pass"], false))
+        .count() as u64;
+    let success_rate = ratio(passed_cases, total_cases);
+    let transport_adjusted_success_rate = ratio(passed_cases, non_transport_cases);
+    let web_tool_gate_rates =
+        web_retrieval_gate_rate_rows(&web_gate_total_counts, &web_gate_pass_counts);
+    let web_tool_gate_metrics = web_retrieval_gate_metric_rows(&rows, &web_tool_gate_rates);
+    let web_tooling_diagnostics =
+        web_retrieval_measurement_report(&rows, &web_tool_gate_rates, &web_tool_gate_metrics);
+    let ok = setup_failures.is_empty()
+        && transport_adjusted_success_rate >= tooling_success_min
+        && web_tool_gate_rates
+            .iter()
+            .all(|row| row.get("ok").and_then(Value::as_bool).unwrap_or(false));
+    let report = json!({
+        "type": "research_web_tooling_eval",
+        "schema_version": 1,
+        "generated_at": now_iso_like(),
+        "ok": ok,
+        "mode": if live { "live_direct_tool" } else { "offline" },
+        "summary": {
+            "cases": total_cases,
+            "passed_cases": passed_cases,
+            "success_rate": success_rate,
+            "transport_adjusted_success_rate": transport_adjusted_success_rate,
+            "transport_failures": transport_failures,
+            "non_transport_cases": non_transport_cases,
+            "tooling_success_min": tooling_success_min,
+            "web_gate_pass_min": web_gate_pass_min
+        },
+        "measurement_split": {
+            "web_tooling": web_tooling_diagnostics
+        },
+        "web_tool_gate_pass_rates": web_tool_gate_rates,
+        "web_tool_gate_metrics": web_tool_gate_metrics,
+        "cases": rows,
+        "setup_failures": setup_failures,
+        "sources": {
+            "cases": cases_path,
+            "request_packs_from": request_packs_path,
+            "base_url": if live { Some(base_url) } else { None }
+        }
+    });
+    let markdown = tooling_markdown_report(&report);
+    let write_ok = super::write_json(&out_path, &report).is_ok()
+        && super::write_json(&out_latest_path, &report).is_ok()
+        && super::write_text(&markdown_path, &markdown).is_ok();
+    if !write_ok {
+        eprintln!("eval_runtime: failed to write one or more web tooling golden outputs");
+        return 2;
+    }
+    super::print_structured(&report);
+    if strict && !ok {
+        return 1;
+    }
+    0
+}
