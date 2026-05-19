@@ -28,13 +28,14 @@ pub(super) fn append_failure_events(
 pub(super) fn markdown_report(report: &Value) -> String {
     let summary = report.get("summary").unwrap_or(&Value::Null);
     let mut out = format!(
-        "# Research Golden Eval (Current)\n\n- generated_at: {}\n- ok: {}\n- mode: {}\n- cases: {}\n- average_score: {:.3}\n- research_success_rate: {:.3}\n- gate_path_ok: {}\n- gate_transition_path_ok: {}\n- safety_ok: {}\n- failure_count: {}\n\n",
+        "# Research Golden Eval (Current)\n\n- generated_at: {}\n- ok: {}\n- mode: {}\n- cases: {}\n- average_score: {:.3}\n- research_success_rate_raw: {:.3}\n- research_success_rate_transport_adjusted: {:.3}\n- gate_path_ok: {}\n- gate_transition_path_ok: {}\n- safety_ok: {}\n- failure_count: {}\n\n",
         str_at(report, &["generated_at"], ""),
         bool_at(report, &["ok"], false),
         str_at(report, &["mode"], ""),
         u64_at(summary, &["cases"], 0),
         f64_at(summary, &["average_score"], 0.0),
         f64_at(summary, &["research_success_rate"], 0.0),
+        f64_at(summary, &["transport_adjusted_research_success_rate"], 0.0),
         bool_at(summary, &["gate_path_ok"], false),
         bool_at(summary, &["gate_transition_path_ok"], false),
         bool_at(summary, &["safety_ok"], false),
@@ -270,9 +271,15 @@ pub(super) fn markdown_report(report: &Value) -> String {
         }
     }
     out.push_str(&format!(
-        "- end_to_end_golden: mode={} success_rate={:.3} soft_failure_cases={}\n",
+        "- end_to_end_golden: mode={} raw_success_rate={:.3} transport_adjusted_success_rate={:.3} transport_failures={} soft_failure_cases={}\n",
         str_at(split, &["end_to_end_golden", "mode"], "unknown"),
         f64_at(split, &["end_to_end_golden", "research_success_rate"], 0.0),
+        f64_at(
+            split,
+            &["end_to_end_golden", "transport_adjusted_research_success_rate"],
+            0.0
+        ),
+        u64_at(split, &["failure_classification", "transport_failure_cases"], 0),
         u64_at(split, &["failure_classification", "soft_failure_cases"], 0)
     ));
     let lifecycle = report.get("observation_lifecycle").unwrap_or(&Value::Null);

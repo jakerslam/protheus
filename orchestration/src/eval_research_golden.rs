@@ -543,6 +543,15 @@ pub fn run_research_golden(args: &[String]) -> i32 {
     let avg_score = ratio(total_score, total_cases);
     let research_success_rate = ratio(passed_cases, total_cases);
     let excellent_rate = ratio(excellent_cases, total_cases);
+    let non_transport_cases = total_cases.saturating_sub(transport_failures);
+    let transport_adjusted_passed_cases = rows
+        .iter()
+        .filter(|row| {
+            bool_at(row, &["pass"], false) && !bool_at(row, &["transport_failure"], false)
+        })
+        .count() as u64;
+    let transport_adjusted_research_success_rate =
+        ratio(transport_adjusted_passed_cases, non_transport_cases);
     let gate_rates = gate_rate_rows(
         &gate_total_counts,
         &gate_pass_counts,
@@ -633,9 +642,12 @@ pub fn run_research_golden(args: &[String]) -> i32 {
             "min_cases_for_reliability_claim": min_cases,
             "enough_cases_for_reliability_claim": enough_cases,
             "passed_cases": passed_cases,
+            "transport_adjusted_passed_cases": transport_adjusted_passed_cases,
             "excellent_cases": excellent_cases,
             "average_score": avg_score,
             "research_success_rate": research_success_rate,
+            "raw_live_research_success_rate": research_success_rate,
+            "transport_adjusted_research_success_rate": transport_adjusted_research_success_rate,
             "excellent_rate": excellent_rate,
             "research_success_min": research_success_min,
             "workflow_gate_pass_min": workflow_gate_pass_min,
@@ -647,6 +659,7 @@ pub fn run_research_golden(args: &[String]) -> i32 {
             "tool_choice_final_responses": tool_choice_final_responses,
             "unsupported_claims": unsupported_claims,
             "transport_failures": transport_failures,
+            "non_transport_cases": non_transport_cases,
             "failure_count": failure_events.len()
         },
         "measurement_split": measurement_split,
@@ -819,6 +832,12 @@ fn write_partial_research_golden_report(
         .iter()
         .filter(|row| bool_at(row, &["pass"], false))
         .count() as u64;
+    let transport_adjusted_passed_cases = rows
+        .iter()
+        .filter(|row| {
+            bool_at(row, &["pass"], false) && !bool_at(row, &["transport_failure"], false)
+        })
+        .count() as u64;
     let excellent_cases = rows
         .iter()
         .filter(|row| bool_at(row, &["excellent"], false))
@@ -841,11 +860,17 @@ fn write_partial_research_golden_report(
             "cases_planned": total_planned_cases,
             "cases_completed": completed_cases,
             "passed_cases": passed_cases,
+            "transport_adjusted_passed_cases": transport_adjusted_passed_cases,
             "excellent_cases": excellent_cases,
             "average_score_so_far": ratio(total_score, completed_cases),
             "research_success_rate_so_far": ratio(passed_cases, completed_cases),
+            "transport_adjusted_research_success_rate_so_far": ratio(
+                transport_adjusted_passed_cases,
+                completed_cases.saturating_sub(transport_failures)
+            ),
             "excellent_rate_so_far": ratio(excellent_cases, completed_cases),
-            "transport_failures": transport_failures
+            "transport_failures": transport_failures,
+            "non_transport_cases_so_far": completed_cases.saturating_sub(transport_failures)
         },
         "setup_failures": setup_failures,
         "latest_case": latest_case.cloned(),
@@ -1115,6 +1140,15 @@ fn measurement_split_report(
         .iter()
         .filter(|row| bool_at(row, &["pass"], false))
         .count() as u64;
+    let non_transport_cases = total_cases.saturating_sub(transport_failure_cases);
+    let transport_adjusted_pass_cases = rows
+        .iter()
+        .filter(|row| {
+            bool_at(row, &["pass"], false) && str_at(row, &["failure_classification"], "") != "transport"
+        })
+        .count() as u64;
+    let transport_adjusted_research_success_rate =
+        ratio(transport_adjusted_pass_cases, non_transport_cases);
     let workflow_path_ok = gate_rates
         .iter()
         .all(|row| row.get("ok").and_then(Value::as_bool).unwrap_or(false));
@@ -1430,6 +1464,11 @@ fn measurement_split_report(
             "passed_cases": pass_cases,
             "total_cases": total_cases,
             "research_success_rate": research_success_rate,
+            "raw_live_research_success_rate": research_success_rate,
+            "transport_adjusted_passed_cases": transport_adjusted_pass_cases,
+            "transport_adjusted_cases": non_transport_cases,
+            "transport_adjusted_research_success_rate": transport_adjusted_research_success_rate,
+            "transport_adjusted_ok": transport_adjusted_research_success_rate >= research_success_min,
             "research_success_min": research_success_min,
             "synthesis_gate_rate": synthesis_rate,
             "note": if live {
