@@ -487,6 +487,10 @@ pub fn run_research_golden(args: &[String]) -> i32 {
         });
         if let Some(object) = case_row.as_object_mut() {
             object.insert(
+                "response_full".to_string(),
+                Value::String(clean_text(&grade.response_text, 16_000)),
+            );
+            object.insert(
                 "response_grading_layers".to_string(),
                 grade.response_grading_layers,
             );

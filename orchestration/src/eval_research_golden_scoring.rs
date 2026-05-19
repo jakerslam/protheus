@@ -190,6 +190,7 @@ pub(super) fn grade_case(
         retrieval_quality: &retrieval_quality,
         citation_behavior: &citation_behavior,
         query_satisfaction: &query_satisfaction,
+        normalized_response: &normalized,
         source_signal,
         final_answer_present,
         limitation_signal,
@@ -1190,6 +1191,71 @@ fn source_summary_without_answer_signal(normalized_response: &str) -> bool {
         || broken_prompt_echo
 }
 
+fn excellent_insufficiency_marker_count(normalized_response: &str) -> usize {
+    [
+        "very limited evidence",
+        "limited evidence",
+        "insufficient evidence",
+        "evidence is insufficient",
+        "low confidence snippets",
+        "low-confidence snippets",
+        "off topic snippets",
+        "off-topic snippets",
+        "missing entity",
+        "missing entities",
+        "no source backed",
+        "no source-backed",
+        "no returned tool result",
+        "comparison evidence is insufficient",
+        "cannot answer from current evidence",
+        "cannot provide a source backed",
+        "cannot provide a source-backed",
+        "do not have usable source backed evidence",
+        "do not have usable source-backed evidence",
+        "search missed the entity entirely",
+    ]
+    .iter()
+    .filter(|needle| normalized_response.contains(**needle))
+    .count()
+}
+
+fn opening_limitation_preface_for_excellent(normalized_response: &str) -> bool {
+    let opening = normalized_response
+        .split_whitespace()
+        .take(60)
+        .collect::<Vec<_>>()
+        .join(" ");
+    if opening.is_empty() {
+        return false;
+    }
+    excellent_insufficiency_marker_count(&opening) >= 1
+        || response_has_meta_process_talk(&opening)
+        || contains_any(
+            &opening,
+            &[
+                "what the recorded evidence actually shows",
+                "what we know",
+                "what we do not know",
+                "recorded evidence so far",
+                "the current turn does not yet support",
+            ],
+        )
+}
+
+fn limitation_heavy_for_excellent(normalized_response: &str) -> bool {
+    let insufficiency_marker_count = excellent_insufficiency_marker_count(normalized_response);
+    let limitation_preface = opening_limitation_preface_for_excellent(normalized_response);
+    let recommendation_signal = has_recommendation_signal(normalized_response);
+    let structure_signal = has_tradeoff_or_structure(normalized_response);
+    let explicit_goal_gap =
+        response_explicitly_cannot_answer_goal_from_current_evidence(normalized_response);
+    let source_summary_without_answer = source_summary_without_answer_signal(normalized_response);
+    explicit_goal_gap
+        || source_summary_without_answer
+        || (limitation_preface && insufficiency_marker_count >= 2)
+        || (limitation_preface && !recommendation_signal && !structure_signal)
+}
+
 fn response_matches_prompt_intent(normalized_prompt: &str, normalized_response: &str) -> bool {
     if normalized_response.is_empty() {
         return false;
@@ -1840,6 +1906,7 @@ struct ExcellentDiagnosticInput<'a> {
     retrieval_quality: &'a Value,
     citation_behavior: &'a Value,
     query_satisfaction: &'a Value,
+    normalized_response: &'a str,
     source_signal: bool,
     final_answer_present: bool,
     limitation_signal: bool,
@@ -1890,6 +1957,7 @@ fn excellent_diagnostics(input: ExcellentDiagnosticInput<'_>) -> Value {
                 | "low_relevance"
         );
     let evidence_gaps_named_when_needed = !needs_gap_statement || input.limitation_signal;
+    let limitation_heavy_answer = limitation_heavy_for_excellent(input.normalized_response);
     let mut subgates = serde_json::Map::new();
     subgates.insert(
         "excellent_1_query_satisfaction".to_string(),
@@ -1930,6 +1998,10 @@ fn excellent_diagnostics(input: ExcellentDiagnosticInput<'_>) -> Value {
         "excellent_9_no_pass_failures".to_string(),
         json!(input.failures.is_empty()),
     );
+    subgates.insert(
+        "excellent_10_answer_not_limitation_heavy".to_string(),
+        json!(!limitation_heavy_answer),
+    );
 
     let ordered = [
         (
@@ -1959,6 +2031,10 @@ fn excellent_diagnostics(input: ExcellentDiagnosticInput<'_>) -> Value {
         ("excellent_7_projection_clean", "projection_not_clean"),
         ("excellent_8_score_threshold", "score_below_excellent"),
         ("excellent_9_no_pass_failures", "pass_failures_present"),
+        (
+            "excellent_10_answer_not_limitation_heavy",
+            "limitation_heavy_answer_shape",
+        ),
     ];
     let blockers = ordered
         .iter()
@@ -1980,6 +2056,7 @@ fn excellent_diagnostics(input: ExcellentDiagnosticInput<'_>) -> Value {
         "blockers": blockers,
         "top_blocker": top_blocker,
         "retrieval_status": retrieval_status,
+        "limitation_heavy_answer": limitation_heavy_answer,
         "score": input.score,
         "excellent_score": input.excellent_score,
         "note": "Excellent is diagnosed through generic quality properties, not hidden expected facts or a required visible format."
@@ -3675,6 +3752,61 @@ mod tests {
         assert!(grade
             .excellent_blockers
             .contains(&"query_satisfaction_below_excellent".to_string()));
+    }
+
+    #[test]
+    fn limitation_heavy_opening_blocks_excellent_even_when_answer_is_structured() {
+        let case = json!({
+            "prompt": "Compare Alpha and Beta for production use.",
+            "expected_gate_path": {
+                "gate_1": "tool_required",
+                "gate_2": "web_research",
+                "gate_3": "web_search",
+                "gate_4_required_fields": ["query", "aperture"]
+            },
+            "required_entities": ["Alpha", "Beta"]
+        });
+        let payload = json!({
+            "response": "I found very limited evidence for this comparison, and the recorded evidence is insufficient for a fully source-backed conclusion. What the recorded evidence actually shows is narrow, but the practical tradeoff still points one way: Alpha looks steadier for production reliability, while Beta is better for exploratory flexibility. My bounded recommendation is Alpha for production and Beta for experiments.",
+            "pending_tool_request": {
+                "status": "pending_confirmation",
+                "selected_tool_family": "web_research",
+                "selected_tool_label": "Web search",
+                "tool_name": "web_search",
+                "tool_key": "web_search",
+                "input": {
+                    "query": "Alpha Beta production comparison",
+                    "aperture": "web"
+                }
+            },
+            "tools": [{
+                "name": "web_search",
+                "status": "ok",
+                "candidate_count": 3,
+                "content_rich_candidate_count": 3,
+                "claim_hint_count": 2,
+                "evidence_refs": [{
+                    "title": "Alpha and Beta production comparison",
+                    "locator": "https://example.test/alpha-beta-production",
+                    "snippet": "A substantive source comparing Alpha and Beta for production reliability and experimentation tradeoffs.",
+                    "claim_hints": ["Alpha is the steadier production default.", "Beta is better for exploratory work."]
+                }]
+            }]
+        });
+
+        let grade = grade_case(&case, &payload, 85, 95);
+        assert!(grade.pass, "{:?}", grade.failures);
+        assert!(!grade.excellent);
+        assert!(grade
+            .excellent_blockers
+            .contains(&"limitation_heavy_answer_shape".to_string()));
+        assert_eq!(
+            grade
+                .excellent_diagnostics
+                .pointer("/subgates/excellent_10_answer_not_limitation_heavy")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
     }
 
     #[test]
