@@ -5,7 +5,12 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Stdio};
+use std::thread;
+use std::time::Duration;
+
+const LEVEL9_WORKER_TIMEOUT_SECONDS: u64 = 1200;
+const LEVEL9_WORKER_HEARTBEAT_SECONDS: u64 = 30;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LiveLevel9SeedBatchReport {
@@ -41,16 +46,46 @@ pub struct LiveLevel9JudgeReport {
     pub ok: bool,
     pub batch_root: String,
     pub attempt_count: usize,
+    pub scored_attempt_count: usize,
     pub pass_count: usize,
     pub fail_count: usize,
+    pub infra_failure_count: usize,
+    pub coding_failure_count: usize,
     pub attempts: Vec<LiveLevel9AttemptJudge>,
     pub failures: Vec<String>,
+    pub infra_failures: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct LiveLevel9RunReport {
+    pub harness_kind: &'static str,
+    pub ok: bool,
+    pub batch_root: String,
+    pub attempt_count: usize,
+    pub jobs: Vec<LiveLevel9Job>,
+    pub worker_runs: Vec<LiveLevel9WorkerRun>,
+    pub judge: LiveLevel9JudgeReport,
+    pub failures: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct LiveLevel9WorkerRun {
+    pub attempt_id: String,
+    pub ok: bool,
+    pub output_path: String,
+    pub timeout_seconds: u64,
+    pub timeout_count: usize,
+    pub duration_seconds: u64,
+    pub run_count: usize,
+    pub retried_infra_failure: bool,
+    pub final_infra_failure: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
 pub struct LiveLevel9AttemptJudge {
     pub attempt_id: String,
     pub ok: bool,
+    pub classification: &'static str,
     pub checks: Vec<LiveLevel9Check>,
     pub failures: Vec<String>,
 }
@@ -162,6 +197,7 @@ pub fn seed_live_level9_batch(attempt_count: usize) -> LiveLevel9SeedBatchReport
 
 pub fn judge_live_level9_batch(batch_root: &Path) -> LiveLevel9JudgeReport {
     let mut failures = Vec::new();
+    let mut infra_failures = Vec::new();
     let jobs_path = batch_root.join("jobs.json");
     let seed_report = fs::read_to_string(&jobs_path)
         .ok()
@@ -177,7 +213,12 @@ pub fn judge_live_level9_batch(batch_root: &Path) -> LiveLevel9JudgeReport {
     let attempts = jobs.iter().map(judge_live_attempt).collect::<Vec<_>>();
     for attempt in &attempts {
         if !attempt.ok {
-            failures.extend(
+            let target = if attempt.classification == "infra_failure" {
+                &mut infra_failures
+            } else {
+                &mut failures
+            };
+            target.extend(
                 attempt
                     .failures
                     .iter()
@@ -186,16 +227,362 @@ pub fn judge_live_level9_batch(batch_root: &Path) -> LiveLevel9JudgeReport {
         }
     }
     let pass_count = attempts.iter().filter(|attempt| attempt.ok).count();
-    let fail_count = attempts.len().saturating_sub(pass_count);
+    let infra_failure_count = attempts
+        .iter()
+        .filter(|attempt| attempt.classification == "infra_failure")
+        .count();
+    let coding_failure_count = attempts
+        .iter()
+        .filter(|attempt| attempt.classification == "coding_failure")
+        .count();
+    let scored_attempt_count = attempts.len().saturating_sub(infra_failure_count);
+    let fail_count = coding_failure_count;
     LiveLevel9JudgeReport {
         harness_kind: "coding_memory_live_level9_judge_v1",
-        ok: failures.is_empty() && !attempts.is_empty(),
+        ok: failures.is_empty() && scored_attempt_count > 0,
         batch_root: batch_root.display().to_string(),
         attempt_count: attempts.len(),
+        scored_attempt_count,
         pass_count,
         fail_count,
+        infra_failure_count,
+        coding_failure_count,
         attempts,
         failures,
+        infra_failures,
+    }
+}
+
+pub fn run_live_level9_batch(attempt_count: usize, infra_retries: usize) -> LiveLevel9RunReport {
+    let seed = seed_live_level9_batch(attempt_count);
+    let batch_root = PathBuf::from(&seed.batch_root);
+    let outputs_root = batch_root.join("agent_outputs");
+    let mut worker_runs = Vec::new();
+    let mut failures = seed.failures.clone();
+    if let Err(error) = fs::create_dir_all(&outputs_root) {
+        failures.push(format!("create_agent_outputs_failed:{}:{error}", outputs_root.display()));
+    }
+    eprintln!(
+        "level9_batch_start attempts={} infra_retries={} batch_root={}",
+        seed.jobs.len(),
+        infra_retries,
+        seed.batch_root
+    );
+    for (index, job) in seed.jobs.iter().enumerate() {
+        eprintln!(
+            "level9_worker_queue ordinal={}/{} attempt={}",
+            index + 1,
+            seed.jobs.len(),
+            job.attempt_id
+        );
+        let worker = run_live_level9_worker(job, &outputs_root, index + 1, infra_retries);
+        if !worker.ok {
+            if let Some(kind) = &worker.final_infra_failure {
+                failures.push(format!("{}:infra_failure:{kind}", job.attempt_id));
+            }
+        }
+        eprintln!(
+            "level9_worker_done attempt={} ok={} runs={} duration_seconds={} timeout_count={} final_infra_failure={}",
+            worker.attempt_id,
+            worker.ok,
+            worker.run_count,
+            worker.duration_seconds,
+            worker.timeout_count,
+            worker
+                .final_infra_failure
+                .clone()
+                .unwrap_or_else(|| "none".to_string())
+        );
+        worker_runs.push(worker);
+    }
+    let judge = judge_live_level9_batch(&batch_root);
+    LiveLevel9RunReport {
+        harness_kind: "coding_memory_live_level9_run_v1",
+        ok: seed.ok && judge.ok,
+        batch_root: seed.batch_root.clone(),
+        attempt_count: seed.jobs.len(),
+        jobs: seed.jobs,
+        worker_runs,
+        judge,
+        failures,
+    }
+}
+
+fn run_live_level9_worker(
+    job: &LiveLevel9Job,
+    outputs_root: &Path,
+    ordinal: usize,
+    infra_retries: usize,
+) -> LiveLevel9WorkerRun {
+    let output_path = outputs_root.join(format!("{}.json", job.attempt_id));
+    let mut run_count = 0usize;
+    let mut timeout_count = 0usize;
+    let mut duration_seconds = 0u64;
+    let mut retried_infra_failure = false;
+    let mut final_infra_failure = None;
+    let mut ok = false;
+    let timeout_seconds = level9_worker_timeout_seconds();
+    for retry_index in 0..=infra_retries {
+        run_count += 1;
+        final_infra_failure = None;
+        let start = millis_now();
+        let stdout_path = outputs_root.join(format!("{}.try{}.stdout.log", job.attempt_id, run_count));
+        let stderr_path = outputs_root.join(format!("{}.try{}.stderr.log", job.attempt_id, run_count));
+        eprintln!(
+            "level9_worker_start attempt={} try={}/{} timeout_seconds={} stdout={} stderr={}",
+            job.attempt_id,
+            run_count,
+            infra_retries + 1,
+            timeout_seconds,
+            stdout_path.display(),
+            stderr_path.display()
+        );
+        let output = run_level9_worker_command(
+            job,
+            ordinal,
+            run_count,
+            timeout_seconds,
+            &stdout_path,
+            &stderr_path,
+        );
+        duration_seconds = duration_seconds
+            .saturating_add(((millis_now().saturating_sub(start)) / 1000) as u64);
+        if output.timed_out {
+            timeout_count += 1;
+        }
+        let mut artifact = match output {
+            Level9WorkerCommandOutput {
+                status,
+                stdout,
+                stderr,
+                timed_out,
+                spawn_error: None,
+            } => {
+                let infra_marker = if timed_out || status.starts_with("try_wait_failed:") {
+                    "worker_infra_failure=provider_timeout_or_spawn_failure\n"
+                } else {
+                    ""
+                };
+                let text = format!(
+                    "status={status}\ntimed_out={timed_out}\ntimeout_seconds={timeout_seconds}\n{infra_marker}stdout_path={}\nstderr_path={}\nstdout:\n{stdout}\nstderr:\n{stderr}",
+                    stdout_path.display(),
+                    stderr_path.display()
+                );
+                ok = status.starts_with("exit status: 0") && !timed_out;
+                text
+            }
+            Level9WorkerCommandOutput {
+                status,
+                stdout,
+                stderr,
+                timed_out,
+                spawn_error: Some(error),
+            } => {
+                ok = false;
+                format!(
+                    "status={status}\ntimed_out={timed_out}\ntimeout_seconds={timeout_seconds}\nworker_infra_failure=provider_timeout_or_spawn_failure\nworker_spawn_failed:{error}\nstdout_path={}\nstderr_path={}\nstdout:\n{stdout}\nstderr:\n{stderr}",
+                    stdout_path.display(),
+                    stderr_path.display()
+                )
+            }
+        };
+        if retried_infra_failure
+            && !ok
+            && final_infra_failure.is_none()
+            && artifact.contains("missing_product_mutation_receipt")
+        {
+            artifact.push_str(
+                "\nworker_infra_failure=provider_timeout_or_spawn_failure\nretry_contaminated_after_provider_failure=true\n",
+            );
+        }
+        let _ = write_file(&output_path, &artifact);
+        final_infra_failure = if artifact.contains("timed_out=true")
+            || artifact.contains("worker_spawn_failed:")
+            || artifact.contains("try_wait_failed:")
+        {
+            Some("provider_timeout_or_spawn_failure".to_string())
+        } else {
+            classify_worker_infra_failure_text(&artifact)
+        };
+        if final_infra_failure.is_some() && retry_index < infra_retries {
+            retried_infra_failure = true;
+            let retry_path = outputs_root.join(format!("{}.infra_try{}.log", job.attempt_id, run_count));
+            let _ = fs::rename(&output_path, retry_path);
+            eprintln!(
+                "level9_worker_retry attempt={} completed_try={} reason={} next_try={}",
+                job.attempt_id,
+                run_count,
+                final_infra_failure
+                    .clone()
+                    .unwrap_or_else(|| "unknown_infra_failure".to_string()),
+                run_count + 1
+            );
+            ok = false;
+            continue;
+        }
+        if final_infra_failure.is_some() {
+            ok = false;
+        }
+        eprintln!(
+            "level9_worker_try_done attempt={} try={} ok={} elapsed_seconds={} timed_out={} infra_failure={}",
+            job.attempt_id,
+            run_count,
+            ok,
+            ((millis_now().saturating_sub(start)) / 1000),
+            artifact.contains("timed_out=true"),
+            final_infra_failure
+                .clone()
+                .unwrap_or_else(|| "none".to_string())
+        );
+        break;
+    }
+    LiveLevel9WorkerRun {
+        attempt_id: job.attempt_id.clone(),
+        ok,
+        output_path: output_path.display().to_string(),
+        timeout_seconds,
+        timeout_count,
+        duration_seconds,
+        run_count,
+        retried_infra_failure,
+        final_infra_failure,
+    }
+}
+
+struct Level9WorkerCommandOutput {
+    status: String,
+    stdout: String,
+    stderr: String,
+    timed_out: bool,
+    spawn_error: Option<String>,
+}
+
+fn level9_worker_timeout_seconds() -> u64 {
+    std::env::var("INFRING_LEVEL9_WORKER_TIMEOUT_SECONDS")
+        .ok()
+        .and_then(|raw| raw.parse::<u64>().ok())
+        .filter(|seconds| *seconds > 0)
+        .unwrap_or(LEVEL9_WORKER_TIMEOUT_SECONDS)
+}
+
+fn level9_worker_provider() -> String {
+    std::env::var("INFRING_LEVEL9_PROVIDER").unwrap_or_else(|_| "ollama".to_string())
+}
+
+fn level9_worker_model() -> String {
+    std::env::var("INFRING_LEVEL9_MODEL").unwrap_or_else(|_| "kimi-k2.6:cloud".to_string())
+}
+
+fn run_level9_worker_command(
+    job: &LiveLevel9Job,
+    ordinal: usize,
+    run_count: usize,
+    timeout_seconds: u64,
+    stdout_path: &Path,
+    stderr_path: &Path,
+) -> Level9WorkerCommandOutput {
+    let stdout_file = match fs::File::create(stdout_path) {
+        Ok(file) => file,
+        Err(error) => {
+            return Level9WorkerCommandOutput {
+                status: "spawn_not_attempted".to_string(),
+                stdout: String::new(),
+                stderr: String::new(),
+                timed_out: false,
+                spawn_error: Some(format!("worker_stdout_log_create_failed:{error}")),
+            };
+        }
+    };
+    let stderr_file = match fs::File::create(stderr_path) {
+        Ok(file) => file,
+        Err(error) => {
+            return Level9WorkerCommandOutput {
+                status: "spawn_not_attempted".to_string(),
+                stdout: String::new(),
+                stderr: String::new(),
+                timed_out: false,
+                spawn_error: Some(format!("worker_stderr_log_create_failed:{error}")),
+            };
+        }
+    };
+    let mut command = Command::new("cargo");
+    command
+        .arg("run")
+        .arg("-p")
+        .arg("xtask")
+        .arg("--")
+        .arg("infring-agent-run")
+        .arg(format!("--name=level9-native-{ordinal}-try{run_count}"))
+        .arg("--workflow=coding_project_operator")
+        .arg(format!("--provider={}", level9_worker_provider()))
+        .arg(format!("--model={}", level9_worker_model()))
+        .arg(format!("--prompt=@{}", job.prompt_path))
+        .current_dir(workspace_root())
+        .stdout(Stdio::from(stdout_file))
+        .stderr(Stdio::from(stderr_file));
+    let mut child = match command.spawn() {
+        Ok(child) => child,
+        Err(error) => {
+            return Level9WorkerCommandOutput {
+                status: "spawn_failed".to_string(),
+                stdout: read_to_string(stdout_path),
+                stderr: read_to_string(stderr_path),
+                timed_out: false,
+                spawn_error: Some(error.to_string()),
+            };
+        }
+    };
+    let start = millis_now();
+    let mut last_heartbeat = start;
+    let mut timed_out = false;
+    let status = loop {
+        match child.try_wait() {
+            Ok(Some(status)) => break status.to_string(),
+            Ok(None) => {
+                let now = millis_now();
+                let elapsed_seconds = ((now.saturating_sub(start)) / 1000) as u64;
+                if elapsed_seconds >= timeout_seconds {
+                    timed_out = true;
+                    eprintln!(
+                        "level9_worker_timeout attempt={} try={} elapsed_seconds={} timeout_seconds={}",
+                        job.attempt_id,
+                        run_count,
+                        elapsed_seconds,
+                        timeout_seconds
+                    );
+                    let _ = child.kill();
+                    break child
+                        .wait()
+                        .map(|status| status.to_string())
+                        .unwrap_or_else(|error| format!("wait_after_kill_failed:{error}"));
+                }
+                if ((now.saturating_sub(last_heartbeat)) / 1000) as u64
+                    >= LEVEL9_WORKER_HEARTBEAT_SECONDS
+                {
+                    eprintln!(
+                        "level9_worker_heartbeat attempt={} try={} elapsed_seconds={} timeout_seconds={}",
+                        job.attempt_id,
+                        run_count,
+                        elapsed_seconds,
+                        timeout_seconds
+                    );
+                    last_heartbeat = now;
+                }
+                thread::sleep(Duration::from_secs(1));
+            }
+            Err(error) => {
+                break format!("try_wait_failed:{error}");
+            }
+        }
+    };
+    let stdout = read_to_string(stdout_path);
+    let stderr = read_to_string(stderr_path);
+    Level9WorkerCommandOutput {
+        status,
+        stdout,
+        stderr,
+        timed_out,
+        spawn_error: None,
     }
 }
 
@@ -220,7 +607,10 @@ fn seed_live_attempt(
 
     let validation = run_python_validation(&project_root);
     if !validation.ok {
-        return Err(format!("{attempt_id}:seed_validation_failed:{}", validation.detail));
+        return Err(format!(
+            "{attempt_id}:seed_validation_failed:{}",
+            validation.detail
+        ));
     }
 
     let architecture_text = read_to_string(&project_root.join("ARCHITECTURE.md"));
@@ -351,7 +741,10 @@ fn seed_python_project(spec: &DomainSpec, root: &Path) -> Result<(), String> {
     )?;
     write_file(
         &root.join(format!("src/{}/__init__.py", spec.package)),
-        &format!("\"\"\"{} live Level 9 migration probe package.\"\"\"\n", spec.architecture_name),
+        &format!(
+            "\"\"\"{} live Level 9 migration probe package.\"\"\"\n",
+            spec.architecture_name
+        ),
     )?;
     write_file(
         &root.join(format!("src/{}/models.py", spec.package)),
@@ -400,7 +793,7 @@ fn seed_python_project(spec: &DomainSpec, root: &Path) -> Result<(), String> {
 
 fn worker_prompt(job: &LiveLevel9Job) -> String {
     format!(
-        "You are running a live Level 9 coding-memory resume probe. You are not alone in the broader codebase: do not revert or modify anything outside the assigned temp run directory. Your write ownership is limited to {project_root} and {receipts_root}.\n\nGoal: continue the existing local Python project by using current files plus stored checkpoint memory. Do not ask follow-up questions. Complete one coherent checkpoint slice that evolves persistence safely instead of only adding new functionality.\n\nEnvironment:\n- Project root: {project_root}\n- Python package: {package}\n- Isolated memory DB: {memory_db_path}\n- Resume token: {resume_token}\n- Prior memory row id: {prior_memory_row_id}\n- Expected new memory row id: {expected_new_memory_row_id}\n- Memory CLI command pattern: INFRING_MEMORY_DB_PATH={memory_db_path} cargo run --quiet --manifest-path /Users/jay/.openclaw/workspace/core/layer0/memory/Cargo.toml --bin memory-cli -- <command>\n- Validation command from project root: {validation_command}\n\nWorkflow requirements:\n1. Read the local project files first. Current files are authoritative.\n2. Retrieve checkpoint memory using the resume token and/or row id with the memory CLI.\n3. Decide the next checkpoint from local context plus memory.\n4. Implement checkpoint_003_delivery_schema_migration in multiple files.\n5. Add schema-versioned v2 delivery attempts while preserving read/report support for existing v1 JSONL records.\n6. Add a migration command or equivalent service operation that converts v1 records to v2 records without losing event id, destination, status, retryable classification, or created_at data.\n7. Make migration writes atomic: write migrated JSONL to a temporary file and then replace/rename into place.\n8. Handle malformed JSONL lines by quarantining, dead-lettering, or reporting malformed records without crashing the whole migration.\n9. Add retry sequencing so repeated live delivery attempts for the same event can produce stable distinct attempt IDs such as event_id:1 and event_id:2, while repeated imports/migrations remain idempotent.\n10. Add dedupe or stable-attempt-id behavior so repeated imports/migrations do not double count the same attempt.\n11. Preserve baseline route CLI behavior and existing attempts-report behavior for v1 records.\n12. Add regression tests for v1-only files, v2-only files, mixed v1/v2 files, malformed lines, duplicate attempt IDs, repeated migration/idempotence, retry sequencing, report summary, retryable failure detection, and CLI migration/report behavior.\n13. Run the validation command.\n14. Write a checkpoint receipt under {receipts_root}/checkpoint_003_handoff.json.\n15. Write a new checkpoint memory row to the isolated DB using the expected new memory row id and tags coding,checkpoint,resume,project_context. Include changed files, validation result, known risks, and recommended next checkpoint.\n\nFinal response should include: whether it passed, changed file paths, validation command/result, new memory row id, and any caveats. Do not commit anything.\n",
+        "You are running a live Level 9 coding-memory resume probe. You are not alone in the broader codebase: do not revert or modify anything outside the assigned temp run directory. Your write ownership is limited to {project_root} and {receipts_root}.\n\nGoal: continue the existing local Python project by using current files plus stored checkpoint memory. Do not ask follow-up questions. Complete one coherent checkpoint slice that evolves persistence safely instead of only adding new functionality.\n\nEnvironment:\n- Project root: {project_root}\n- Python package: {package}\n- Isolated memory DB: {memory_db_path}\n- Resume token: {resume_token}\n- Prior memory row id: {prior_memory_row_id}\n- Expected new memory row id: {expected_new_memory_row_id}\n- Memory CLI command pattern: INFRING_MEMORY_DB_PATH={memory_db_path} cargo run --quiet --manifest-path /Users/jay/.openclaw/workspace/core/layer0/memory/Cargo.toml --bin memory-cli -- <command>\n- Validation command from project root: {validation_command}\n\nWorkflow requirements:\n1. Read the local project files first. Current files are authoritative.\n2. Retrieve checkpoint memory using the resume token and/or row id with the memory CLI.\n3. Decide the next checkpoint from local context plus memory.\n4. Implement checkpoint_003_delivery_schema_migration in multiple files.\n5. Add schema-versioned v2 delivery attempts while preserving read/report support for existing v1 JSONL records.\n6. Add a migration command or equivalent service operation that converts v1 records to v2 records without losing event id, destination, status, retryable classification, or created_at data.\n7. Make migration writes atomic: write migrated JSONL to a temporary file and then replace/rename into place.\n8. Handle malformed JSONL lines by quarantining, dead-lettering, or reporting malformed records without crashing the whole migration.\n9. Add retry sequencing so repeated live delivery attempts for the same event can produce stable distinct attempt IDs such as event_id:1 and event_id:2, while repeated imports/migrations remain idempotent.\n10. Add dedupe or stable-attempt-id behavior so repeated imports/migrations do not double count the same attempt.\n11. Preserve baseline route CLI behavior and existing attempts-report behavior for v1 records.\n12. Add regression tests for v1-only files, v2-only files, mixed v1/v2 files, malformed lines, duplicate attempt IDs, repeated migration/idempotence, retry sequencing, report summary, retryable failure detection, and CLI migration/report behavior.\n13. Run the validation command.\n14. Write a checkpoint receipt under {receipts_root}/checkpoint_003_handoff.json.\n15. Write a new checkpoint memory row to the isolated DB using the expected new memory row id and tags coding,checkpoint,resume,project_context. Include changed files, validation result, known risks, and recommended next checkpoint.\n\nAcceptance signals that must appear in source or tests before receipt/memory:\n- schema_version and v2 records\n- v1 legacy/backward compatibility\n- migrate JSONL command or service operation\n- atomic temporary-file replace or rename\n- malformed JSONL quarantine, dead-letter, invalid-record, or JSONDecodeError handling\n- dedupe/idempotent repeated migration or import behavior\n- retry sequence or attempt_number behavior for repeated live attempts\n- mixed v1/v2 compatibility coverage\n\nMinimum concrete implementation surfaces:\n- repository.py should normalize v1 and v2 records, emit schema_version=v2, dedupe by attempt_id, quarantine malformed JSONL lines, and migrate via a temporary file plus replace/rename.\n- service.py should allocate stable retry sequence or attempt_number values so repeated live attempts for the same event create distinct IDs such as event_id:1 and event_id:2.\n- cli.py should preserve route and attempts-report behavior and add a migration command that calls the repository/service migration operation.\n- tests should cover v1-only, v2-only, mixed v1/v2, malformed lines, duplicate IDs, idempotent repeated migration, retry sequencing, report summary, retryable failures, and CLI migration/report behavior.\n- receipt and memory writes are finalization only; do not write an in_progress receipt or a receipt with target_files instead of changed_files.\n\nRequired implementation checklist:\n- Update repository.py with normalize_attempt_record, load_all support for v1/v2/mixed records, migrate_to_v2_jsonl using temp path and replace/rename, malformed record quarantine handling, and dedupe by attempt_id.\n- Update service.py with next_attempt_id, attempt_number, or retry sequence logic for repeated event ids.\n- Update cli.py with a migrate-attempts command plus preserved route and attempts-report commands.\n- Add tests that explicitly cover mixed v1/v2 records, malformed JSONL, duplicate attempt IDs, idempotent repeated migration, retry sequencing, report summary, retryable failures, and CLI migration/report behavior.\n- After validation passes, write checkpoint_003_handoff.json and the expected checkpoint_003 memory row; both must name checkpoint_003_delivery_schema_migration and validation pass.\n\nTool and completion guardrails:\n- Use concrete file_write or file_patch calls with non-empty absolute paths under {project_root} or {receipts_root}; never call a write tool with a null path.\n- Do not loop on reads: after reading repository.py, service.py, cli.py, models.py, tests, and memory once, your next tool calls must be file_write or file_patch mutations for repository.py, service.py, cli.py, and tests.\n- Do not call file_read with a null path; if a read target is unclear, use file_list once, choose concrete absolute paths, then write.\n- Do not stop at analysis or planning; implement full file contents or patches before any final response.\n- If any source file write fails, immediately retry that same source file with a corrected path/content before moving to tests, validation, receipt, memory, or final response.\n- Change source files before tests: repository.py, service.py, cli.py, and optionally models.py should be updated before adding or updating regression tests.\n- If source files already contain partial migration work from a previous failed try, continue from that partial state and still make a concrete source/test/receipt/memory mutation in this run.\n- Do not stop after writing only tests. The checkpoint is incomplete unless repository/service/CLI migration behavior, tests, validation, receipt, and memory write are all complete.\n- The checkpoint receipt must include completed_checkpoint=checkpoint_003_delivery_schema_migration, changed_files with at least three source/test/CLI files, validation_summary or validation_results, known_risks, and recommended_next_checkpoint.\n\nFinal response should include: whether it passed, changed file paths, validation command/result, new memory row id, and any caveats. Do not commit anything.\n",
         project_root = job.project_root,
         receipts_root = job.receipts_root,
         package = job.package,
@@ -415,6 +808,22 @@ fn worker_prompt(job: &LiveLevel9Job) -> String {
 fn judge_live_attempt(job: &LiveLevel9Job) -> LiveLevel9AttemptJudge {
     let mut checks = Vec::new();
     let mut failures = Vec::new();
+    if let Some(infra_failure) = classify_worker_infra_failure(job) {
+        push_check(
+            &mut checks,
+            &mut failures,
+            "worker_infra_failure",
+            false,
+            infra_failure,
+        );
+        return LiveLevel9AttemptJudge {
+            attempt_id: job.attempt_id.clone(),
+            ok: false,
+            classification: "infra_failure",
+            checks,
+            failures,
+        };
+    }
     let project_root = PathBuf::from(&job.project_root);
     let receipt_path = PathBuf::from(&job.receipts_root).join("checkpoint_003_handoff.json");
 
@@ -475,7 +884,8 @@ fn judge_live_attempt(job: &LiveLevel9Job) -> LiveLevel9AttemptJudge {
         &mut checks,
         &mut failures,
         "v1_backward_compatibility_present",
-        lower.contains("v1") && (lower.contains("legacy") || lower.contains("backward") || lower.contains("compat")),
+        lower.contains("v1")
+            && (lower.contains("legacy") || lower.contains("backward") || lower.contains("compat")),
         "source preserves v1/legacy compatibility".to_string(),
     );
     push_check(
@@ -507,7 +917,9 @@ fn judge_live_attempt(job: &LiveLevel9Job) -> LiveLevel9AttemptJudge {
         &mut failures,
         "atomic_migration_write_present",
         lower.contains("migrat")
-            && (lower.contains("replace(") || lower.contains(".replace") || lower.contains("rename("))
+            && (lower.contains("replace(")
+                || lower.contains(".replace")
+                || lower.contains("rename("))
             && (lower.contains("temp") || lower.contains("tmp")),
         "migration uses temp file plus replace/rename signal".to_string(),
     );
@@ -583,9 +995,54 @@ fn judge_live_attempt(job: &LiveLevel9Job) -> LiveLevel9AttemptJudge {
     LiveLevel9AttemptJudge {
         attempt_id: job.attempt_id.clone(),
         ok: failures.is_empty(),
+        classification: if failures.is_empty() {
+            "pass"
+        } else {
+            "coding_failure"
+        },
         checks,
         failures,
     }
+}
+
+fn classify_worker_infra_failure(job: &LiveLevel9Job) -> Option<String> {
+    let run_root = PathBuf::from(&job.run_root);
+    let batch_root = run_root.parent()?;
+    let output_path = batch_root
+        .join("agent_outputs")
+        .join(format!("{}.json", job.attempt_id));
+    let text = fs::read_to_string(&output_path).ok()?;
+    classify_worker_infra_failure_text(&text)
+}
+
+fn classify_worker_infra_failure_text(text: &str) -> Option<String> {
+    let lower = text.to_ascii_lowercase();
+    if lower.contains("502 bad gateway")
+        || lower.contains("503 service unavailable")
+        || lower.contains("504 gateway timeout")
+        || lower.contains("bad gateway")
+        || lower.contains("gateway timeout")
+        || lower.contains("temporarily overloaded")
+        || lower.contains("model is temporarily overloaded")
+    {
+        return Some("provider_overloaded".to_string());
+    }
+    if lower.contains("internal server error") {
+        return Some("provider_internal_server_error".to_string());
+    }
+    if lower.trim_end().ends_with("error:") {
+        return Some("provider_timeout_or_spawn_failure".to_string());
+    }
+    if lower.contains("provider:ollama_run_timeout")
+        || lower.contains("ollama_run_timeout:timeout_seconds")
+        || lower.contains("provider:ollama_run_failed")
+        || lower.contains("ollama_run_failed")
+        || lower.contains("worker_spawn_failed")
+        || lower.contains("provider_timeout_or_spawn_failure")
+    {
+        return Some("provider_timeout_or_spawn_failure".to_string());
+    }
+    None
 }
 
 fn push_check(
@@ -672,5 +1129,6 @@ fn write_file(path: &Path, content: &str) -> Result<(), String> {
         fs::create_dir_all(parent)
             .map_err(|error| format!("create_parent_failed:{}:{error}", parent.display()))?;
     }
-    fs::write(path, content).map_err(|error| format!("write_file_failed:{}:{error}", path.display()))
+    fs::write(path, content)
+        .map_err(|error| format!("write_file_failed:{}:{error}", path.display()))
 }

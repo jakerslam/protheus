@@ -226,6 +226,8 @@ fn main() {
                 "set-hot-state --key=<k> --value_json=<json> [--db-path=<path>]",
                 "ingest --id=<id> --content=<text> [--tags=t1,t2] [--repetitions=1] [--lambda=0.02]",
                 "get --id=<id>",
+                "checkpoint get --id=<id>",
+                "checkpoint write --id=<id> --content=<text> [--tags=t1,t2]",
                 "clear-cache",
                 "ebbinghaus-score --age-days=<n> [--repetitions=1] [--lambda=0.02]",
                 "crdt-exchange --payload=<json>",
@@ -381,6 +383,71 @@ fn main() {
             let parsed = serde_json::from_str::<serde_json::Value>(&payload)
                 .unwrap_or_else(|_| json!({"ok": false, "error": "invalid_get_payload"}));
             print_json(parsed);
+        }
+        "checkpoint" => {
+            let action = args.get(1).map(String::as_str).unwrap_or("get");
+            match action {
+                "get" | "read" => {
+                    let id = flags
+                        .get("id")
+                        .or_else(|| flags.get("row-id"))
+                        .cloned()
+                        .unwrap_or_default();
+                    let payload = get_json(&id);
+                    let parsed = serde_json::from_str::<serde_json::Value>(&payload)
+                        .unwrap_or_else(|_| json!({"ok": false, "error": "invalid_get_payload"}));
+                    print_json(parsed);
+                }
+                "write" | "put" | "ingest" => {
+                    let id = flags
+                        .get("id")
+                        .or_else(|| flags.get("row-id"))
+                        .cloned()
+                        .unwrap_or_else(|| format!("memory://{}", uuid_like_seed()));
+                    let content = flags
+                        .get("content")
+                        .or_else(|| flags.get("payload"))
+                        .or_else(|| flags.get("summary"))
+                        .cloned()
+                        .unwrap_or_default();
+                    let tags = flags
+                        .get("tags")
+                        .map(|s| {
+                            s.split(',')
+                                .map(|v| v.trim().to_string())
+                                .filter(|v| !v.is_empty())
+                                .collect::<Vec<_>>()
+                        })
+                        .unwrap_or_else(|| {
+                            vec![
+                                "coding".to_string(),
+                                "checkpoint".to_string(),
+                                "resume".to_string(),
+                                "project_context".to_string(),
+                            ]
+                        });
+                    let repetitions = parse_u32(flags.get("repetitions"), 1);
+                    let lambda = parse_f64(flags.get("lambda"), 0.02);
+                    match ingest_memory(&id, &content, tags, repetitions, lambda) {
+                        Ok(row) => print_json(json!({
+                          "ok": true,
+                          "row": row
+                        })),
+                        Err(err) => print_json(json!({
+                          "ok": false,
+                          "error": err
+                        })),
+                    }
+                }
+                _ => {
+                    print_json(json!({
+                      "ok": false,
+                      "error": "unsupported_checkpoint_command",
+                      "command": action
+                    }));
+                    std::process::exit(1);
+                }
+            }
         }
         "clear-cache" => match clear_cache() {
             Ok(cleared) => print_json(json!({

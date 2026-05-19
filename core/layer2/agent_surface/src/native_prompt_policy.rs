@@ -121,15 +121,102 @@ pub(crate) fn native_tool_completion_repair_action_brief(
     let cli_pattern = native_tool_prompt_memory_cli_pattern(original_prompt);
     let tags = native_tool_workflow_artifact_memory_tags(metadata).join(",");
     let completed_checkpoint = native_tool_prompt_checkpoint_name(original_prompt);
+    let product_mutation_action =
+        native_tool_missing_product_mutation_action(original_prompt, repair_reasons);
+    let missing_path_action = if target_paths.is_empty() {
+        "<none>".to_string()
+    } else {
+        format!(
+            "The runtime found required changed paths without successful mutation receipts. The next JSON tool_calls must file_write/file_patch those exact prompt-derived source, test, doc, or checkpoint paths instead of satisfying the task with unrelated sidecar files. For checkpoint/handoff paths, write a completed checkpoint artifact with completed_checkpoint, changed_files, validation_summary or validation_results, known_risks, and recommended_next_checkpoint; status alone is not enough. Missing paths:\n{}",
+            target_paths.join("\n")
+        )
+    };
+    let expected_row_text = expected_row.unwrap_or_else(|| "<none>".to_string());
+    let cli_pattern_text = cli_pattern.unwrap_or_else(|| "<none>".to_string());
+    let memory_action = if expected_row_text == "<none>" {
+        "<none>".to_string()
+    } else if cli_pattern_text == "<none>" {
+        format!(
+            "The task still needs a receipt-backed memory closure for row {expected_row_text}. Use the native command/file path implied by the task to persist that row, including validation status and checkpoint outcome. Do not satisfy memory closure by writing checkpoint_memory_persisted=true in a handoff artifact; the runtime needs a successful memory write receipt."
+        )
+    } else {
+        format!(
+            "The task still needs a receipt-backed memory closure for row {expected_row_text}. Run or adapt the prompt-provided memory CLI pattern and include validation status plus checkpoint outcome in the persisted row. Do not satisfy memory closure by writing checkpoint_memory_persisted=true in a handoff artifact; the runtime needs a successful memory write receipt. Pattern: {cli_pattern_text}"
+        )
+    };
     format!(
-        "{rule}\n\nUncovered items:\n{}\n\nPrompt-derived target paths:\n{}\n\nExpected memory row:\n{}\n\nMemory CLI pattern:\n{}\n\nMemory tags:\n{}\n\nPrompt-derived completed checkpoint:\n{}",
+        "{rule}\n\nUncovered items:\n{}\n\nRequired product mutation action:\n{}\n\nRequired missing-path action:\n{}\n\nRequired memory closure action:\n{}\n\nPrompt-derived target paths:\n{}\n\nExpected memory row:\n{}\n\nMemory CLI pattern:\n{}\n\nMemory tags:\n{}\n\nPrompt-derived completed checkpoint:\n{}",
         repair_reasons.join("\n"),
+        product_mutation_action.unwrap_or_else(|| "<none>".to_string()),
+        missing_path_action,
+        memory_action,
         target_paths.join("\n"),
-        expected_row.unwrap_or_else(|| "<none>".to_string()),
-        cli_pattern.unwrap_or_else(|| "<none>".to_string()),
+        expected_row_text,
+        cli_pattern_text,
         tags,
         completed_checkpoint.unwrap_or_else(|| "<none>".to_string())
     )
+}
+
+fn native_tool_missing_product_mutation_action(
+    original_prompt: &str,
+    repair_reasons: &[String],
+) -> Option<String> {
+    if repair_reasons
+        .iter()
+        .any(|reason| reason == "missing_product_mutation_receipt")
+    {
+        let project_root = crate::native_evidence::native_tool_prompt_project_root(original_prompt)
+            .unwrap_or_else(|| "<project root from the prompt>".to_string());
+        return Some(format!(
+            "The task still has no successful file_write/file_patch receipt, so validation cannot count as completion. The next response must be JSON tool_calls with at least one file_write or file_patch that implements a coherent product slice under {project_root}. Do not call file_read, file_list, command_run, summarize, finalize, write checkpoint/handoff artifacts, or ask the user until source/test product mutations exist. Prefer a vertical slice: product code first, then tests/docs/checkpoint artifacts requested by the prompt."
+        ));
+    }
+    if repair_reasons
+        .iter()
+        .any(|reason| reason == "missing_test_change_receipt")
+    {
+        return Some(
+            "The product code has mutation receipts, but the task still lacks a successful test file_write/file_patch receipt. The next response must write or patch a focused regression test under the existing tests directory. Do not write checkpoint/handoff artifacts, run memory closure, finalize, or ask the user until a test mutation receipt exists."
+                .to_string(),
+        );
+    }
+    let product_slice_reasons = repair_reasons
+        .iter()
+        .filter(|reason| {
+            reason.starts_with("incomplete_product_slice")
+                || reason.starts_with("missing_product_source_evidence:")
+        })
+        .cloned()
+        .collect::<Vec<_>>();
+    if product_slice_reasons.is_empty() {
+        return None;
+    }
+    let repair_hint = native_tool_product_slice_repair_hint(&product_slice_reasons);
+    Some(format!(
+        "The current mutation is too shallow for the requested product slice. Do not write checkpoint handoff or memory closure yet. Do not keep reading context if source/test context has already been observed. Return JSON tool_calls with file_write/file_patch updates that cover the missing product evidence: {}. {} Prefer source + tests + CLI/docs as one bounded vertical slice, then run validation.",
+        product_slice_reasons.join(", "),
+        repair_hint
+    ))
+}
+
+fn native_tool_product_slice_repair_hint(product_slice_reasons: &[String]) -> String {
+    let missing_report = product_slice_reasons
+        .iter()
+        .any(|reason| reason == "missing_product_source_evidence:report");
+    let missing_import_export = product_slice_reasons
+        .iter()
+        .any(|reason| reason == "missing_product_source_evidence:import_export");
+    if missing_report && missing_import_export {
+        return "If persistence/model code already exists, extend that existing module into the routing service and CLI: add report-by-destination/retryable summary behavior plus import/export or round-trip commands, and add regression tests for those public surfaces.".to_string();
+    }
+    if missing_report {
+        return "If persistence/model code already exists, add report-by-destination and retryable-failure summary behavior through service or CLI plus regression tests.".to_string();
+    }
+    if missing_import_export {
+        return "If persistence/model code already exists, add import/export or durable round-trip behavior through CLI/service plus regression tests.".to_string();
+    }
+    String::new()
 }
 
 pub(crate) fn native_tool_public_reasoning_metadata(metadata: &Value) -> Value {
@@ -240,7 +327,12 @@ pub(crate) fn native_tool_context_to_mutation_retry_prompt(
         "context_to_mutation_transition_rule",
         "Native mutation transition retry: local context already exists, but no successful file_write or file_patch receipt exists yet. Return only JSON tool calls for the next safe mutation batch, then validate when requested. Return a structured blocker only when local context proves mutation is unsafe or impossible.",
     );
+    let mutation_action = native_tool_missing_product_mutation_action(
+        original_prompt,
+        &["missing_product_mutation_receipt".to_string()],
+    )
+    .unwrap_or_default();
     format!(
-        "{original_prompt}\n\n{rule}\n\nRetry: {retry}\n\n{previous}\n\nNative tool observations already available:\n{observations}"
+        "{original_prompt}\n\n{rule}\n\nRequired product mutation action:\n{mutation_action}\n\nImplementation-entry response format: return only JSON tool_calls with no prose, markdown, explanation, validation command, or final answer. Use the already observed project structure; batch source, tests, and CLI/docs/report edits now when requested.\n\nRetry: {retry}\n\n{previous}\n\nNative tool observations already available:\n{observations}"
     )
 }

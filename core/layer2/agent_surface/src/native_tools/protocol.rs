@@ -1,6 +1,6 @@
 use crate::native_tools::receipts::NativeToolReceipt;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{json, Map, Value};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct NativeToolCall {
@@ -37,13 +37,20 @@ fn tool_calls_from_value(value: &Value) -> Vec<NativeToolCall> {
         return items
             .iter()
             .enumerate()
-            .filter_map(|(idx, item)| tool_call_from_value(item, idx))
+            .flat_map(|(idx, item)| tool_calls_from_item(item, idx))
             .collect();
     }
     if value.get("tool").is_some() || value.get("name").is_some() {
-        return tool_call_from_value(value, 0).into_iter().collect();
+        return tool_calls_from_item(value, 0);
     }
     Vec::new()
+}
+
+fn tool_calls_from_item(value: &Value, idx: usize) -> Vec<NativeToolCall> {
+    let Some(call) = tool_call_from_value(value, idx) else {
+        return Vec::new();
+    };
+    expanded_bulk_tool_calls(call)
 }
 
 fn tool_call_from_value(value: &Value, idx: usize) -> Option<NativeToolCall> {
@@ -51,6 +58,7 @@ fn tool_call_from_value(value: &Value, idx: usize) -> Option<NativeToolCall> {
         .get("name")
         .or_else(|| value.get("tool"))
         .or_else(|| value.get("tool_name"))
+        .or_else(|| value.pointer("/function/name"))
         .and_then(Value::as_str)?
         .trim()
         .to_string();
@@ -60,12 +68,137 @@ fn tool_call_from_value(value: &Value, idx: usize) -> Option<NativeToolCall> {
         .and_then(Value::as_str)
         .map(str::to_string)
         .unwrap_or_else(|| format!("call_{}", idx + 1));
-    let args = value
+    let args = tool_call_args_from_value(value);
+    Some(NativeToolCall { id, name, args })
+}
+
+fn expanded_bulk_tool_calls(call: NativeToolCall) -> Vec<NativeToolCall> {
+    let name = call.name.trim().to_ascii_lowercase();
+    if matches!(
+        name.as_str(),
+        "file_write" | "write_file" | "workspace.write" | "workspace_write"
+    ) {
+        if let Some(items) = call.args.get("files").and_then(Value::as_array) {
+            return items
+                .iter()
+                .enumerate()
+                .filter_map(|(idx, item)| {
+                    let mut args = normalize_tool_args(item);
+                    if args.is_object() {
+                        if let Some(overwrite) = call.args.get("overwrite") {
+                            args.as_object_mut()?
+                                .entry("overwrite".to_string())
+                                .or_insert_with(|| overwrite.clone());
+                        }
+                    }
+                    Some(NativeToolCall {
+                        id: format!("{}_{}", call.id, idx + 1),
+                        name: call.name.clone(),
+                        args,
+                    })
+                })
+                .collect();
+        }
+    }
+    if matches!(
+        name.as_str(),
+        "file_patch" | "patch_file" | "workspace.patch" | "workspace_patch"
+    ) {
+        for key in ["patches", "edits", "replacements"] {
+            if let Some(items) = call.args.get(key).and_then(Value::as_array) {
+                return items
+                    .iter()
+                    .enumerate()
+                    .map(|(idx, item)| NativeToolCall {
+                        id: format!("{}_{}", call.id, idx + 1),
+                        name: call.name.clone(),
+                        args: normalize_tool_args(item),
+                    })
+                    .collect();
+            }
+        }
+    }
+    vec![call]
+}
+
+fn tool_call_args_from_value(value: &Value) -> Value {
+    let explicit_args = value
         .get("args")
         .or_else(|| value.get("arguments"))
-        .cloned()
-        .unwrap_or_else(|| json!({}));
-    Some(NativeToolCall { id, name, args })
+        .or_else(|| value.get("input"))
+        .or_else(|| value.get("parameters"))
+        .or_else(|| value.get("params"))
+        .or_else(|| value.get("payload"))
+        .or_else(|| value.get("data"))
+        .or_else(|| value.pointer("/function/arguments"));
+    if let Some(args) = explicit_args {
+        return normalize_tool_args(args);
+    }
+    let mut args = Map::new();
+    for key in [
+        "path",
+        "file_path",
+        "filepath",
+        "target_path",
+        "target",
+        "file",
+        "absolute_path",
+        "full_path",
+        "output_path",
+        "destination",
+        "dest",
+        "filename",
+        "files",
+        "paths",
+        "content",
+        "contents",
+        "text",
+        "body",
+        "overwrite",
+        "old",
+        "find",
+        "search",
+        "before",
+        "original",
+        "new",
+        "replace",
+        "replacement",
+        "after",
+        "updated",
+        "patches",
+        "edits",
+        "replacements",
+        "allow_multiple",
+        "recursive",
+        "max_entries",
+        "cwd",
+        "working_directory",
+        "working_dir",
+        "workdir",
+        "directory",
+        "dir",
+        "project_root",
+        "root",
+        "cmd",
+        "command",
+        "env",
+        "timeout_seconds",
+        "max_output_bytes",
+        "start_line",
+        "end_line",
+    ] {
+        if let Some(value) = value.get(key) {
+            args.insert(key.to_string(), value.clone());
+        }
+    }
+    Value::Object(args)
+}
+
+fn normalize_tool_args(args: &Value) -> Value {
+    if let Some(raw) = args.as_str() {
+        return serde_json::from_str::<Value>(raw).unwrap_or_else(|_| json!({}));
+    }
+    args.clone()
 }
 
 fn json_candidates(raw: &str) -> Vec<String> {

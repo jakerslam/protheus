@@ -11,13 +11,20 @@ pub fn command_run(args: &Value) -> Result<Value, String> {
         "path": args
             .get("cwd")
             .or_else(|| args.get("path"))
+            .or_else(|| args.get("working_directory"))
+            .or_else(|| args.get("working_dir"))
+            .or_else(|| args.get("workdir"))
+            .or_else(|| args.get("directory"))
+            .or_else(|| args.get("dir"))
+            .or_else(|| args.get("project_root"))
+            .or_else(|| args.get("root"))
             .and_then(Value::as_str)
             .unwrap_or("")
     }))?;
     if !cwd.is_dir() {
         return Err("command_run_cwd_must_be_directory".to_string());
     }
-    let cmd = command_argv(args)?;
+    let (leading_env, cmd) = split_leading_env_assignments(command_argv(args)?)?;
     let timeout_seconds = args
         .get("timeout_seconds")
         .and_then(Value::as_u64)
@@ -60,6 +67,9 @@ pub fn command_run(args: &Value) -> Result<Value, String> {
             }
         }
     }
+    for (key, value) in leading_env {
+        command.env(key, value);
+    }
     let started = Instant::now();
     let mut child = command
         .spawn()
@@ -100,7 +110,57 @@ pub fn command_run(args: &Value) -> Result<Value, String> {
     }))
 }
 
+fn split_leading_env_assignments(cmd: Vec<String>) -> Result<(Vec<(String, String)>, Vec<String>), String> {
+    let mut env = Vec::new();
+    let mut command = Vec::new();
+    let mut still_reading_env = true;
+    for arg in cmd {
+        if still_reading_env {
+            if let Some((key, value)) = parse_env_assignment(&arg) {
+                env.push((key, value));
+                continue;
+            }
+            still_reading_env = false;
+        }
+        command.push(arg);
+    }
+    if command.is_empty() {
+        return Err("command_run_cmd_array_required".to_string());
+    }
+    Ok((env, command))
+}
+
+fn parse_env_assignment(arg: &str) -> Option<(String, String)> {
+    let (key, value) = arg.split_once('=')?;
+    if !valid_env_key(key) || value.contains('\0') {
+        return None;
+    }
+    Some((key.to_string(), value.to_string()))
+}
+
+fn valid_env_key(key: &str) -> bool {
+    let mut bytes = key.bytes();
+    let Some(first) = bytes.next() else {
+        return false;
+    };
+    if first.is_ascii_digit() {
+        return false;
+    }
+    (first == b'_' || first.is_ascii_alphabetic())
+        && bytes.all(|byte| byte == b'_' || byte.is_ascii_alphanumeric())
+}
+
 fn command_argv(args: &Value) -> Result<Vec<String>, String> {
+    if let Some(raw) = args
+        .get("cmd")
+        .or_else(|| args.get("command"))
+        .and_then(Value::as_str)
+    {
+        if raw.is_empty() || raw.contains('\0') {
+            return Err("command_run_invalid_cmd_arg".to_string());
+        }
+        return Ok(vec!["sh".to_string(), "-lc".to_string(), raw.to_string()]);
+    }
     let values = args
         .get("cmd")
         .or_else(|| args.get("command"))

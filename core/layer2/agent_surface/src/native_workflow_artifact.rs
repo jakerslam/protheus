@@ -5,7 +5,7 @@ use crate::native_evidence::{
     native_tool_prompt_checkpoint_name, native_tool_prompt_evidence_gaps,
     native_tool_prompt_expected_memory_row_id, native_tool_prompt_memory_cli_pattern,
     native_tool_prompt_next_checkpoint_name, native_tool_prompt_project_root,
-    native_tool_successful_validation_summary,
+    native_tool_product_slice_ready, native_tool_successful_validation_summary,
 };
 use crate::native_tools::{NativeToolCall, NativeToolDispatcher, NativeToolReceipt};
 use serde_json::{json, Map, Value};
@@ -18,6 +18,7 @@ pub(crate) fn native_tool_auto_workflow_artifact_receipts(
 ) -> Vec<NativeToolReceipt> {
     if !native_tool_has_successful_mutation(receipts)
         || !native_tool_has_successful_validation_command(receipts)
+        || !native_tool_product_slice_ready(original_prompt, receipts)
     {
         return Vec::new();
     }
@@ -43,7 +44,14 @@ pub(crate) fn native_tool_auto_workflow_artifact_receipts(
     payload_map.insert(completed_checkpoint_field, json!(checkpoint.clone()));
     payload_map.insert(alias_checkpoint_field, json!(checkpoint.clone()));
     payload_map.insert("changed_files".to_string(), json!(changed_files));
-    payload_map.insert("validation_results".to_string(), validation_results);
+    payload_map.insert("validation_results".to_string(), validation_results.clone());
+    payload_map.insert(
+        "validation_result".to_string(),
+        json!({
+            "status": "pass",
+            "summary": validation_results
+        }),
+    );
     payload_map.insert("known_risks".to_string(), json!(known_risks));
     payload_map.insert(next_checkpoint_field, json!(next_checkpoint));
     payload_map.insert("redaction_policy".to_string(), json!(redaction_policy));

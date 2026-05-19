@@ -1,6 +1,7 @@
 // Layer ownership: Core Layer 2 (Scheduling + Execution) - agent runtime surface coordination.
 use crate::native_tools::NativeToolReceipt;
 use serde_json::{json, Value};
+use std::fs;
 use std::path::PathBuf;
 
 pub(crate) fn native_tool_has_successful_mutation(receipts: &[NativeToolReceipt]) -> bool {
@@ -282,23 +283,27 @@ pub(crate) fn native_tool_prompt_evidence_gaps(
     receipts: &[NativeToolReceipt],
 ) -> Vec<String> {
     let mut reasons = Vec::<String>::new();
-    for path in native_tool_prompt_required_changed_paths(original_prompt) {
-        if !native_tool_changed_paths_include(receipts, &path) {
-            reasons.push(format!("missing_changed_path:{path}"));
-        } else if native_tool_is_handoff_artifact_path(&path)
-            && !native_tool_checkpoint_receipt_file_valid(
-                &path,
-                native_tool_prompt_checkpoint_name(original_prompt).as_deref(),
-            )
-        {
-            reasons.push(format!("invalid_checkpoint_receipt:{path}"));
-        }
-    }
     let prompt_lower = original_prompt.to_ascii_lowercase();
     if native_tool_prompt_requires_product_mutation(&prompt_lower)
         && !native_tool_has_successful_mutation(receipts)
     {
         reasons.push("missing_product_mutation_receipt".to_string());
+        return reasons;
+    }
+    reasons.extend(native_tool_product_slice_gaps(original_prompt, receipts));
+    for path in native_tool_prompt_required_changed_paths(original_prompt) {
+        if !native_tool_changed_paths_include(receipts, &path) {
+            reasons.push(format!("missing_changed_path:{path}"));
+        } else if native_tool_is_handoff_artifact_path(&path)
+            && !native_tool_checkpoint_receipt_file_valid(
+                native_tool_changed_path_for_expected(receipts, &path)
+                    .as_deref()
+                    .unwrap_or(&path),
+                native_tool_prompt_checkpoint_name(original_prompt).as_deref(),
+            )
+        {
+            reasons.push(format!("invalid_checkpoint_receipt:{path}"));
+        }
     }
     if native_tool_prompt_requires_test_changes(&prompt_lower)
         && !native_tool_changed_path_matches(receipts, |path| {
@@ -346,6 +351,168 @@ pub(crate) fn native_tool_prompt_evidence_gaps(
     reasons
 }
 
+pub(crate) fn native_tool_product_slice_ready(
+    original_prompt: &str,
+    receipts: &[NativeToolReceipt],
+) -> bool {
+    native_tool_product_slice_gaps(original_prompt, receipts).is_empty()
+}
+
+pub(crate) fn native_tool_product_slice_gaps(
+    original_prompt: &str,
+    receipts: &[NativeToolReceipt],
+) -> Vec<String> {
+    let prompt_lower = original_prompt.to_ascii_lowercase();
+    if !native_tool_prompt_requires_product_mutation(&prompt_lower) {
+        return Vec::new();
+    }
+    if !native_tool_has_successful_mutation(receipts) {
+        return vec!["missing_product_mutation_receipt".to_string()];
+    }
+    let changed_product_paths = native_tool_changed_paths(receipts)
+        .into_iter()
+        .filter(|path| !native_tool_is_handoff_artifact_path(path))
+        .collect::<Vec<_>>();
+    let mut reasons = Vec::<String>::new();
+    if native_tool_prompt_requires_multi_file_product_slice(&prompt_lower)
+        && changed_product_paths.len() < 3
+    {
+        reasons.push(format!(
+            "incomplete_product_slice_changed_file_count:{}",
+            changed_product_paths.len()
+        ));
+    }
+    let source = native_tool_changed_product_source_text(&changed_product_paths);
+    if native_tool_prompt_mentions_any(&prompt_lower, &["persistent", "persistence", "durable"])
+        && !(source.contains("json")
+            && (source.contains("jsonl") || source.contains("open(") || source.contains("write_text"))
+            && (source.contains("path") || source.contains("file")))
+    {
+        reasons.push("missing_product_source_evidence:persistence".to_string());
+    }
+    if native_tool_prompt_mentions_any(&prompt_lower, &["delivery attempt", "delivery-attempt"])
+        && !(source.contains("deliveryattempt") || source.contains("delivery_attempt"))
+    {
+        reasons.push("missing_product_source_evidence:delivery_attempt".to_string());
+    }
+    if prompt_lower.contains("report") && !source.contains("report") {
+        reasons.push("missing_product_source_evidence:report".to_string());
+    }
+    if prompt_lower.contains("destination") && !source.contains("destination") {
+        reasons.push("missing_product_source_evidence:destination".to_string());
+    }
+    if prompt_lower.contains("retryable") && !(source.contains("retryable") || source.contains("retry")) {
+        reasons.push("missing_product_source_evidence:retryable".to_string());
+    }
+    if native_tool_prompt_mentions_any(&prompt_lower, &["schema_version", "schema version"])
+        && !(source.contains("schema_version") && source.contains("v2"))
+    {
+        reasons.push("missing_product_source_evidence:schema_version_v2".to_string());
+    }
+    if native_tool_prompt_mentions_any(
+        &prompt_lower,
+        &["idempotent", "idempotence", "dedupe", "de-dupe", "duplicate"],
+    ) && !(source.contains("idempot")
+        || source.contains("dedupe")
+        || source.contains("de_dupe")
+        || source.contains("duplicate")
+        || (source.contains("schema_version")
+            && source.contains("v1")
+            && source.contains("v2")
+            && (source.contains("already")
+                || source.contains("unchanged")
+                || source.contains("pass")
+                || source.contains("if "))))
+    {
+        reasons.push("missing_product_source_evidence:idempotence".to_string());
+    }
+    if native_tool_prompt_mentions_any(
+        &prompt_lower,
+        &["malformed", "quarantine", "invalid json", "bad record"],
+    ) && !(source.contains("malformed")
+        || source.contains("quarantine")
+        || source.contains("jsondecodeerror")
+        || source.contains("invalid json"))
+    {
+        reasons.push("missing_product_source_evidence:malformed_record_handling".to_string());
+    }
+    if native_tool_prompt_mentions_any(
+        &prompt_lower,
+        &["mixed v1", "v1/v2", "v1 and v2", "legacy and v2"],
+    ) && !(source.contains("v1")
+        && source.contains("v2")
+        && (source.contains("mixed")
+            || source.contains("compat")
+            || source.contains("legacy")
+            || source.contains("existing")
+            || source.contains("load_all")
+            || source.contains("normaliz")))
+    {
+        reasons.push("missing_product_source_evidence:mixed_version_compatibility".to_string());
+    }
+    if native_tool_prompt_mentions_any(&prompt_lower, &["sequence", "sequencing"])
+        && !(source.contains("sequence")
+            || source.contains("attempt_number")
+            || source.contains("attempt number")
+            || source.contains("next_attempt")
+            || source.contains("attempt_id")
+            || source.contains(":1")
+            || source.contains(":2"))
+    {
+        reasons.push("missing_product_source_evidence:sequence".to_string());
+    }
+    if native_tool_prompt_mentions_any(&prompt_lower, &["import/export", "import export", "round-trip", "round trip"])
+        && !(source.contains("export") || source.contains("roundtrip") || source.contains("round_trip"))
+    {
+        reasons.push("missing_product_source_evidence:import_export".to_string());
+    }
+    reasons.sort();
+    reasons.dedup();
+    reasons
+}
+
+fn native_tool_prompt_requires_multi_file_product_slice(prompt_lower: &str) -> bool {
+    native_tool_prompt_mentions_any(
+        prompt_lower,
+        &[
+            "multiple files",
+            "multi-file",
+            "multiple file",
+            "coherent checkpoint",
+            "checkpoint_",
+            "regression tests",
+            "operator-facing cli",
+        ],
+    )
+}
+
+fn native_tool_prompt_mentions_any(prompt_lower: &str, needles: &[&str]) -> bool {
+    needles.iter().any(|needle| prompt_lower.contains(needle))
+}
+
+fn native_tool_changed_product_source_text(paths: &[String]) -> String {
+    let mut out = String::new();
+    for path in paths {
+        let lower = path.to_ascii_lowercase();
+        if lower.ends_with(".py")
+            || lower.ends_with(".rs")
+            || lower.ends_with(".ts")
+            || lower.ends_with(".tsx")
+            || lower.ends_with(".js")
+            || lower.ends_with(".jsx")
+            || lower.ends_with(".json")
+            || lower.ends_with(".md")
+            || lower.ends_with(".toml")
+        {
+            if let Ok(text) = fs::read_to_string(path) {
+                out.push_str(&text.to_ascii_lowercase());
+                out.push('\n');
+            }
+        }
+    }
+    out
+}
+
 pub(crate) fn native_tool_evidence_target_brief(original_prompt: &str) -> String {
     let mut items = Vec::<String>::new();
     let paths = native_tool_prompt_required_changed_paths(original_prompt);
@@ -388,6 +555,7 @@ pub(crate) fn native_tool_evidence_target_brief(original_prompt: &str) -> String
 pub(crate) fn native_tool_prompt_required_changed_paths(original_prompt: &str) -> Vec<String> {
     let mut paths = native_tool_unique_code_path_mentions(original_prompt)
         .into_iter()
+        .filter(|path| !native_tool_prompt_marks_path_optional(original_prompt, path))
         .filter(|path| {
             let lower = path.to_ascii_lowercase();
             !lower.contains("python")
@@ -398,6 +566,19 @@ pub(crate) fn native_tool_prompt_required_changed_paths(original_prompt: &str) -
     paths.sort();
     paths.dedup();
     paths
+}
+
+fn native_tool_prompt_marks_path_optional(original_prompt: &str, path: &str) -> bool {
+    let prompt = original_prompt.to_ascii_lowercase();
+    let path = path.to_ascii_lowercase();
+    [
+        format!("optionally {path}"),
+        format!("optional {path}"),
+        format!("and optionally {path}"),
+        format!("or optionally {path}"),
+    ]
+    .iter()
+    .any(|needle| prompt.contains(needle))
 }
 
 pub(crate) fn native_tool_prompt_requires_test_changes(prompt_lower: &str) -> bool {
@@ -600,8 +781,15 @@ pub(crate) fn native_tool_prompt_next_checkpoint_name(original_prompt: &str) -> 
 }
 
 pub(crate) fn native_tool_changed_paths_include(receipts: &[NativeToolReceipt], expected: &str) -> bool {
+    native_tool_changed_path_for_expected(receipts, expected).is_some()
+}
+
+fn native_tool_changed_path_for_expected(
+    receipts: &[NativeToolReceipt],
+    expected: &str,
+) -> Option<String> {
     let expected = expected.trim().trim_start_matches("./");
-    native_tool_changed_path_matches(receipts, |path| {
+    native_tool_changed_paths(receipts).into_iter().find(|path| {
         let normalized = path.replace('\\', "/");
         normalized.ends_with(expected) || normalized.contains(&format!("/{expected}"))
     })

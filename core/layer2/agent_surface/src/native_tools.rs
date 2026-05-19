@@ -1,6 +1,7 @@
 // Layer ownership: Core Layer 2 (Scheduling + Execution) - agent runtime surface coordination.
 mod dispatcher;
 mod command_run;
+mod export_guard;
 mod file_discovery;
 mod file_patch;
 mod file_read;

@@ -5,7 +5,7 @@ use crate::native_tools::file_read::{file_read, file_read_many};
 use crate::native_tools::file_write::file_write;
 use crate::native_tools::protocol::NativeToolCall;
 use crate::native_tools::receipts::NativeToolReceipt;
-use serde_json::Value;
+use serde_json::{json, Value};
 use std::collections::BTreeSet;
 use std::time::Instant;
 
@@ -68,10 +68,56 @@ impl NativeToolDispatcher {
                 tool_name,
                 status: "error".to_string(),
                 duration_ms,
-                result: Value::Null,
+                result: native_tool_error_diagnostics(&call.args),
                 error: Some(error),
             },
         }
+    }
+}
+
+fn native_tool_error_diagnostics(args: &Value) -> Value {
+    let Some(object) = args.as_object() else {
+        return json!({
+            "args_type": value_kind(args),
+        });
+    };
+
+    json!({
+        "args_keys": object.keys().cloned().collect::<Vec<_>>(),
+        "path": object
+            .get("path")
+            .or_else(|| object.get("file_path"))
+            .or_else(|| object.get("filepath"))
+            .or_else(|| object.get("target_path"))
+            .or_else(|| object.get("target"))
+            .or_else(|| object.get("file"))
+            .or_else(|| object.get("output_path"))
+            .or_else(|| object.get("destination"))
+            .or_else(|| object.get("dest"))
+            .or_else(|| object.get("filename"))
+            .cloned()
+            .unwrap_or(Value::Null),
+        "paths": object
+            .get("paths")
+            .or_else(|| object.get("files"))
+            .cloned()
+            .unwrap_or(Value::Null),
+        "command": object
+            .get("cmd")
+            .or_else(|| object.get("command"))
+            .cloned()
+            .unwrap_or(Value::Null),
+    })
+}
+
+fn value_kind(value: &Value) -> &'static str {
+    match value {
+        Value::Null => "null",
+        Value::Bool(_) => "bool",
+        Value::Number(_) => "number",
+        Value::String(_) => "string",
+        Value::Array(_) => "array",
+        Value::Object(_) => "object",
     }
 }
 
