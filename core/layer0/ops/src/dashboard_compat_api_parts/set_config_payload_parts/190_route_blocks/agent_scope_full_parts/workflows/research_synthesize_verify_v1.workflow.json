@@ -495,10 +495,12 @@
         "i completed the run, but the final reply did not render",
         "i completed the workflow gate, but the final workflow state was unexpected",
         "lease_denied:client_ingress_domain_boundary",
+        "recorded evidence so far",
         "next actions",
         "not a true/false decision i control",
         "please retry",
         "please retry so i can rerun the chain cleanly",
+        "retrieval attempt did not produce enough",
         "requires manual step-by-step authorization for tool usage",
         "rerun the chain",
         "restricted from running web searches",
@@ -518,6 +520,7 @@
         "targeted tool call",
         "task classification path",
         "task_or_info_route",
+        "this retrieval attempt did not produce enough",
         "this is a policy gate, not a web-provider outage",
         "tool operation request",
         "private workflow gate",
@@ -575,7 +578,12 @@
         "more targeted approach",
         "another search",
         "technical documentation",
-        "architecture details to enable"
+        "architecture details to enable",
+        "i need to do web research",
+        "requires real-time external information",
+        "requires real time external information",
+        "requires external information",
+        "need to verify externally"
       ],
       "unresolved_tool_need_phrases": [
         "i don't have current web search results",
@@ -593,7 +601,11 @@
         "if you'd like me to search",
         "if you would like me to search",
         "if you'd like me to fetch",
-        "if you would like me to fetch"
+        "if you would like me to fetch",
+        "i need to do web research",
+        "need to verify externally",
+        "requires real-time external information",
+        "requires real time external information"
       ],
       "gate_choice_prefix_leakage_phrases": [
         "need tools yes",

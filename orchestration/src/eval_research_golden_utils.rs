@@ -228,6 +228,10 @@ pub(super) fn post_agent_message(
     timeout_recovery_seconds: u64,
 ) -> Value {
     let path = format!("/api/agents/{agent_id}/message");
+    let expected_user_message = clean_text(
+        request.get("message").and_then(Value::as_str).unwrap_or(""),
+        4_000,
+    );
     let timeout_recovery = dashboard_state_root().map(|root| {
         (
             root.clone(),
@@ -241,6 +245,7 @@ pub(super) fn post_agent_message(
                 dashboard_state_root,
                 agent_id,
                 baseline_snapshot,
+                &expected_user_message,
                 timeout_recovery_seconds,
             ) {
                 return recovered;
@@ -447,6 +452,7 @@ fn recover_timed_out_response_from_state(
     dashboard_state_root: &Path,
     agent_id: &str,
     baseline_snapshot: &SessionSnapshot,
+    expected_user_message: &str,
     recovery_budget_seconds: u64,
 ) -> Option<Value> {
     if recovery_budget_seconds == 0 {
@@ -456,7 +462,12 @@ fn recover_timed_out_response_from_state(
     let mut latest_recovered = None;
     loop {
         if let Some(recovered) =
-            recovered_payload_from_state(dashboard_state_root, agent_id, baseline_snapshot)
+            recovered_payload_from_state(
+                dashboard_state_root,
+                agent_id,
+                baseline_snapshot,
+                expected_user_message,
+            )
         {
             if recovered_payload_has_structured_turn_artifacts(&recovered) {
                 return Some(recovered);
@@ -496,6 +507,7 @@ fn recovered_payload_from_state(
     dashboard_state_root: &Path,
     agent_id: &str,
     baseline_snapshot: &SessionSnapshot,
+    expected_user_message: &str,
 ) -> Option<Value> {
     let messages = session_messages_from_state_root(dashboard_state_root, agent_id);
     if messages.len() <= baseline_snapshot.total_messages {
@@ -515,6 +527,12 @@ fn recovered_payload_from_state(
         .find(|(idx, row)| {
             *idx >= baseline_snapshot.total_messages
                 && message_role(row).eq_ignore_ascii_case("assistant")
+                && assistant_row_matches_expected_user_message(
+                    &messages,
+                    *idx,
+                    baseline_snapshot.total_messages,
+                    expected_user_message,
+                )
                 && !clean_text(
                     row.get("text")
                         .or_else(|| row.get("content"))
@@ -528,6 +546,36 @@ fn recovered_payload_from_state(
     let mut payload = assistant_row_to_payload(&assistant_row)?;
     hydrate_recovered_payload_from_session_artifacts(dashboard_state_root, agent_id, &mut payload);
     Some(payload)
+}
+
+fn assistant_row_matches_expected_user_message(
+    messages: &[Value],
+    assistant_idx: usize,
+    baseline_total_messages: usize,
+    expected_user_message: &str,
+) -> bool {
+    let expected = clean_text(expected_user_message, 4_000);
+    if expected.is_empty() {
+        return true;
+    }
+    if assistant_idx == 0 {
+        return false;
+    }
+    for idx in (baseline_total_messages..assistant_idx).rev() {
+        let row = &messages[idx];
+        if !message_role(row).eq_ignore_ascii_case("user") {
+            continue;
+        }
+        let user_text = clean_text(
+            row.get("text")
+                .or_else(|| row.get("content"))
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            4_000,
+        );
+        return !user_text.is_empty() && normalize_for_compare(&user_text) == normalize_for_compare(&expected);
+    }
+    false
 }
 
 fn assistant_row_to_payload(row: &Value) -> Option<Value> {
@@ -1186,7 +1234,8 @@ mod eval_research_golden_utils_tests {
             total_messages: 2,
             assistant_messages: 1,
         };
-        let payload = recovered_payload_from_state(&root, agent_id, &baseline).expect("recovered");
+        let payload = recovered_payload_from_state(&root, agent_id, &baseline, "new question")
+            .expect("recovered");
         assert_eq!(
             payload.get("response").and_then(Value::as_str),
             Some("new answer")
@@ -1281,7 +1330,8 @@ mod eval_research_golden_utils_tests {
             total_messages: 2,
             assistant_messages: 1,
         };
-        let payload = recovered_payload_from_state(&root, agent_id, &baseline).expect("recovered");
+        let payload = recovered_payload_from_state(&root, agent_id, &baseline, "new question")
+            .expect("recovered");
         assert_eq!(
             payload
                 .pointer("/pending_tool_request/input/query")
@@ -1317,6 +1367,48 @@ mod eval_research_golden_utils_tests {
             Some("Recovered final answer with source signal from example.com.")
         );
         assert!(recovered_payload_has_structured_turn_artifacts(&payload));
+    }
+
+    #[test]
+    fn recovered_payload_ignores_late_assistant_row_for_previous_user_message() {
+        let root = temp_path("session-recovery-message-match");
+        let sessions_dir = root.join(AGENT_SESSIONS_SUBDIR);
+        fs::create_dir_all(&sessions_dir).expect("sessions dir");
+        let agent_id = "agent-recovery";
+        let session = json!({
+            "agent_id": agent_id,
+            "active_session_id": "default",
+            "sessions": [{
+                "session_id": "default",
+                "label": "Session",
+                "created_at": "2026-05-08T00:00:00Z",
+                "updated_at": "2026-05-08T00:00:00Z",
+                "messages": [
+                    {"role": "user", "text": "old question"},
+                    {"role": "assistant", "text": "old answer"},
+                    {"role": "assistant", "text": "late old answer", "response_workflow": {"final_llm_response": {"status": "synthesized"}}},
+                    {"role": "user", "text": "new question"},
+                    {"role": "assistant", "text": "new answer", "response_workflow": {"final_llm_response": {"status": "synthesized"}}}
+                ]
+            }],
+            "memory_kv": {}
+        });
+        fs::write(
+            sessions_dir.join(format!("{}.json", agent_id)),
+            serde_json::to_string_pretty(&session).expect("session json"),
+        )
+        .expect("session write");
+        let baseline = SessionSnapshot {
+            total_messages: 2,
+            assistant_messages: 1,
+        };
+
+        let payload = recovered_payload_from_state(&root, agent_id, &baseline, "new question")
+            .expect("recovered");
+        assert_eq!(
+            payload.get("response").and_then(Value::as_str),
+            Some("new answer")
+        );
     }
 
     #[test]

@@ -81,6 +81,20 @@ fn workflow_private_gate_recovery_signal(response_workflow: &Value) -> bool {
         || private_gate_reject
 }
 
+fn workflow_recovery_contract_marker(
+    response_workflow: &Value,
+    pointer: &str,
+    text: &str,
+) -> bool {
+    let selected_contract = workflow_tool_menu_contract_from_response_workflow(response_workflow);
+    workflow_message_matches_contract_markers(&selected_contract, pointer, text)
+        || workflow_message_matches_contract_markers(
+            &default_workflow_tool_menu_contract(),
+            pointer,
+            text,
+        )
+}
+
 fn workflow_latent_candidate_recovery_needed(
     response_workflow: &Value,
     initial_draft_response: &str,
@@ -101,12 +115,22 @@ fn workflow_latent_candidate_recovery_needed(
         4_000,
     )
     .to_ascii_lowercase();
-    let claims_missing_tool_backed_evidence = final_response_verifier_contract_marker(
+    let claims_missing_tool_backed_evidence = workflow_recovery_contract_marker(
+        response_workflow,
         "/diagnostic_markers/final_response_verifier/missing_evidence_claim_phrases",
         &combined,
     );
+    let requests_more_tooling = workflow_recovery_contract_marker(
+        response_workflow,
+        "/diagnostic_markers/deferred_tool_request_phrases",
+        &combined,
+    ) || workflow_recovery_contract_marker(
+        response_workflow,
+        "/diagnostic_markers/unresolved_tool_need_phrases",
+        &combined,
+    );
     let private_gate_diagnostic = workflow_private_gate_recovery_signal(response_workflow);
-    claims_missing_tool_backed_evidence || private_gate_diagnostic
+    claims_missing_tool_backed_evidence || requests_more_tooling || private_gate_diagnostic
 }
 
 fn workflow_terminal_invariant_promotes_required_latent_candidates(
@@ -167,6 +191,25 @@ fn workflow_latent_candidate_recovery_required_by_terminal_invariant(
         })
         .count()
         == 1
+}
+
+fn final_guard_retry_boilerplate_rewrite(message: &str, response_text: &str) -> Option<String> {
+    let lowered = clean_text(response_text, 2_000).to_ascii_lowercase();
+    let retry_boilerplate_family = response_contains_unexpected_state_retry_boilerplate(&lowered)
+        || lowered.contains("recorded evidence so far")
+        || lowered.contains("here's what i found")
+        || lowered.contains("here s what i found")
+        || lowered.contains("heres what i found")
+        || lowered.contains("web retrieval ran, but only")
+        || lowered.contains("retrieval attempt did not produce enough");
+    if !retry_boilerplate_family {
+        return None;
+    }
+    let _ = message;
+    Some(clean_text(
+        "The retrieved evidence in this turn was not strong enough to support a clean source-backed conclusion across all requested lanes. The current results are too noisy, incomplete, or mismatched to justify a reliable ranking, comparison, or recommendation. The safest bounded answer is to avoid a firm conclusion from this turn alone.",
+        1_200,
+    ))
 }
 
 fn finalize_message_finalization_and_payload(
@@ -442,6 +485,7 @@ fn finalize_message_finalization_and_payload(
         } else {
             initial_draft_response.clone()
         };
+        annotate_final_evidence_outcome_posture(&mut response_workflow, &response_tools);
         let (contract_finalized, contract_report, contract_outcome) =
             enforce_user_facing_finalization_contract(message, llm_only_candidate, &response_tools);
         finalized_response = contract_finalized;
@@ -651,10 +695,28 @@ fn finalize_message_finalization_and_payload(
     let response_guard =
         final_response_guard_report(message, &response_text, &response_tools, repair_candidate_contamination);
     if response_guard_bool(&response_guard, "final_contract_violation") {
-        // Runtime guards are diagnostics only. They may mark a contract
-        // violation, but they must not erase or replace LLM-authored chat text.
+        let rewritten_visible_response =
+            final_guard_retry_boilerplate_rewrite(message, &response_text);
+        if let Some(rewritten) = rewritten_visible_response.clone() {
+            response_text = rewritten;
+            finalized_response = clean_chat_text(&response_text, 32_000);
+            response_workflow["response"] = json!(response_text.clone());
+            response_workflow["text"] = json!(response_text.clone());
+            response_workflow["message"] = json!(response_text.clone());
+            response_workflow["final_llm_response"]["guard_rewrite_applied"] = json!(true);
+            response_workflow["final_llm_response"]["guard_rewrite_reason"] =
+                json!("retry_boilerplate_visible_response");
+            response_workflow["final_llm_response"]["guard_rewrite_excerpt"] =
+                json!(first_sentence(&response_text, 240));
+            finalization_outcome = merge_response_outcomes(
+                &finalization_outcome,
+                "final_response_guard_rewritten",
+                220,
+            );
+        }
         response_workflow["final_llm_response"]["runtime_interference_disabled"] = json!(true);
-        response_workflow["final_llm_response"]["final_guard_diagnostic_only"] = json!(true);
+        response_workflow["final_llm_response"]["final_guard_diagnostic_only"] =
+            json!(rewritten_visible_response.is_none());
         if response_guard_bool(&response_guard, "final_contamination_violation") {
             bump_workflow_quality_counter(&mut response_workflow, "contamination_reject");
         }
@@ -672,11 +734,13 @@ fn finalize_message_finalization_and_payload(
             final_response_guard_outcome(&response_guard),
             200,
         );
-        finalization_outcome = merge_response_outcomes(
-            &finalization_outcome,
-            "final_response_guard_diagnostic_only",
-            220,
-        );
+        if rewritten_visible_response.is_none() {
+            finalization_outcome = merge_response_outcomes(
+                &finalization_outcome,
+                "final_response_guard_diagnostic_only",
+                220,
+            );
+        }
     }
     if manual_toolbox_executed_pending_tool_request {
         finalization_outcome = merge_response_outcomes(
@@ -765,6 +829,21 @@ fn finalize_message_finalization_and_payload(
         visible_response_repaired,
         &finalization_outcome,
     );
+    let canonical_finalized_response = clean_chat_text(&response_text, 32_000);
+    if !canonical_finalized_response.trim().is_empty() {
+        response_finalization["finalized_output"] =
+            Value::String(canonical_finalized_response.clone());
+        response_finalization["final_output"] =
+            Value::String(canonical_finalized_response.clone());
+        response_finalization["final_response"]["text"] =
+            Value::String(canonical_finalized_response.clone());
+        response_finalization["final_llm_response"]["text"] =
+            Value::String(canonical_finalized_response.clone());
+        response_workflow["final_llm_response"]["text"] =
+            Value::String(canonical_finalized_response.clone());
+        response_workflow["final_llm_response"]["visible_response_source"] =
+            Value::String(visible_response_source.to_string());
+    }
     let final_package_citations = response_finalization
         .get("citations")
         .and_then(Value::as_array)
@@ -784,6 +863,13 @@ fn finalize_message_finalization_and_payload(
         response_workflow["source_refs"] = Value::Array(final_package_source_refs.clone());
         response_workflow["final_llm_response"]["source_refs"] =
             Value::Array(final_package_source_refs.clone());
+    }
+    if let Some(posture) = response_workflow
+        .pointer("/final_llm_response/evidence_outcome_posture")
+        .and_then(Value::as_str)
+    {
+        response_finalization["final_llm_response"]["evidence_outcome_posture"] =
+            Value::String(posture.to_string());
     }
     let turn_transaction = crate::dashboard_tool_turn_loop::turn_transaction_payload(
         "complete",
@@ -950,5 +1036,38 @@ fn finalize_message_finalization_and_payload(
     CompatApiResponse {
         status: 200,
         payload,
+    }
+}
+
+#[cfg(test)]
+mod latent_candidate_recovery_tests {
+    use super::*;
+
+    #[test]
+    fn latent_candidate_recovery_triggers_on_generic_tool_request_language() {
+        let workflow = json!({
+            "selected_workflow": {
+                "tool_menu_interface_contract": {
+                    "diagnostic_markers": {
+                        "deferred_tool_request_phrases": [
+                            "i need to do web research",
+                            "requires real-time external information"
+                        ],
+                        "unresolved_tool_need_phrases": [
+                            "need to verify externally"
+                        ],
+                        "final_response_verifier": {
+                            "missing_evidence_claim_phrases": []
+                        }
+                    }
+                }
+            }
+        });
+        let response = "I can't fulfill this directly because it requires real-time external information. I need to do web research to give you an accurate comparison.";
+
+        assert!(workflow_latent_candidate_recovery_needed(
+            &workflow,
+            response
+        ));
     }
 }
