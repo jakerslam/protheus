@@ -943,6 +943,14 @@ fn query_metadata_diagnostics(payload: &Value) -> Value {
             "eligible_batch_query_request": false,
             "metadata_present": false,
             "rich_query_pack_or_narrow_marker": false,
+            "query_lane_count": 0,
+            "followup_query_count": 0,
+            "multi_query_present": false,
+            "keyword_count": 0,
+            "alias_count": 0,
+            "negative_term_count": 0,
+            "required_coverage_entities_count": 0,
+            "required_coverage_facets_count": 0,
             "fields_present": [],
             "source": "none"
         });
@@ -958,6 +966,15 @@ fn query_metadata_diagnostics(payload: &Value) -> Value {
     let normalized_tool = normalize_for_compare(&tool);
     let eligible_batch_query = normalized_tool == "batch_query";
     let eligible_web_retrieval = matches!(normalized_tool.as_str(), "batch_query" | "web_search");
+    let query_lane_count = array_len(input.get("queries"));
+    let followup_query_count = query_lane_count.saturating_sub(1);
+    let keyword_count = array_len(input.get("keywords"));
+    let alias_count = array_len(input.get("aliases"));
+    let negative_term_count = array_len(input.get("negative_terms"));
+    let required_coverage_entities_count =
+        required_coverage_count(input.get("required_coverage"), "entities");
+    let required_coverage_facets_count =
+        required_coverage_count(input.get("required_coverage"), "facets");
     let fields_present = input
         .as_object()
         .map(|map| {
@@ -1003,6 +1020,14 @@ fn query_metadata_diagnostics(payload: &Value) -> Value {
         "eligible_web_retrieval_request": eligible_web_retrieval,
         "metadata_present": eligible_web_retrieval && metadata_present,
         "rich_query_pack_or_narrow_marker": eligible_web_retrieval && (rich_query_pack || narrow_or_expanded_marker),
+        "query_lane_count": query_lane_count,
+        "followup_query_count": followup_query_count,
+        "multi_query_present": query_lane_count > 1,
+        "keyword_count": keyword_count,
+        "alias_count": alias_count,
+        "negative_term_count": negative_term_count,
+        "required_coverage_entities_count": required_coverage_entities_count,
+        "required_coverage_facets_count": required_coverage_facets_count,
         "fields_present": fields_present,
         "tool": normalized_tool,
         "source": str_at(request, &["source"], "unknown"),
@@ -1028,11 +1053,27 @@ fn json_array_empty(value: Option<&Value>) -> bool {
         .unwrap_or(true)
 }
 
+fn array_len(value: Option<&Value>) -> u64 {
+    value
+        .and_then(Value::as_array)
+        .map(|rows| rows.len() as u64)
+        .unwrap_or(0)
+}
+
 fn required_coverage_nonempty(value: Option<&Value>) -> bool {
     let Some(map) = value.and_then(Value::as_object) else {
         return false;
     };
     !json_array_empty(map.get("entities")) || !json_array_empty(map.get("facets"))
+}
+
+fn required_coverage_count(value: Option<&Value>, field: &str) -> u64 {
+    value
+        .and_then(Value::as_object)
+        .and_then(|map| map.get(field))
+        .and_then(Value::as_array)
+        .map(|rows| rows.len() as u64)
+        .unwrap_or(0)
 }
 
 fn transition_first_failed_checkpoint(diagnostics: &Value) -> Option<String> {

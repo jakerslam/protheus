@@ -239,6 +239,104 @@ pub(super) fn markdown_report(report: &Value) -> String {
         )
     ));
     out.push_str(&format!(
+        "- web_tooling: top_layer={} top_failure={} raw_candidates/case={:.3} usable_evidence_rate={:.3}\n",
+        str_at(
+            split,
+            &["web_tooling", "operator_metrics", "top_layer"],
+            "none"
+        ),
+        str_at(
+            split,
+            &["web_tooling", "operator_metrics", "top_first_failure", "name"],
+            "none"
+        ),
+        f64_at(
+            split,
+            &["web_tooling", "operator_metrics", "averages", "raw_candidates_per_case"],
+            0.0
+        ),
+        f64_at(
+            split,
+            &["web_tooling", "operator_metrics", "conversion_rates", "usable_evidence_case_rate"],
+            0.0
+        )
+    ));
+    out.push_str(&format!(
+        "  - query_planning: query_lanes/case={:.3} followups/case={:.3} keywords/case={:.3} multi_query_rate={:.3}\n",
+        f64_at(
+            split,
+            &["web_tooling", "operator_metrics", "query_planning", "query_lanes_per_case"],
+            0.0
+        ),
+        f64_at(
+            split,
+            &["web_tooling", "operator_metrics", "query_planning", "followup_queries_per_case"],
+            0.0
+        ),
+        f64_at(
+            split,
+            &["web_tooling", "operator_metrics", "query_planning", "keywords_per_case"],
+            0.0
+        ),
+        f64_at(
+            split,
+            &["web_tooling", "operator_metrics", "query_planning", "multi_query_case_rate"],
+            0.0
+        )
+    ));
+    out.push_str(&format!(
+        "  - candidate_supply: unique_domains/case={:.3} official_case_rate={:.3} relevant_per_candidate={:.3}\n",
+        f64_at(
+            split,
+            &["web_tooling", "operator_metrics", "candidate_supply", "unique_source_domains_per_case"],
+            0.0
+        ),
+        f64_at(
+            split,
+            &["web_tooling", "operator_metrics", "candidate_supply", "official_or_primary_case_rate"],
+            0.0
+        ),
+        f64_at(
+            split,
+            &["web_tooling", "operator_metrics", "candidate_supply", "relevant_evidence_per_candidate"],
+            0.0
+        )
+    ));
+    out.push_str(&format!(
+        "  - access_materialization: blocked_rate={:.3} content_rich_per_candidate={:.3}\n",
+        f64_at(
+            split,
+            &["web_tooling", "operator_metrics", "blocker_rates", "access_blocked_or_throttled_case_rate"],
+            0.0
+        ),
+        f64_at(
+            split,
+            &["web_tooling", "operator_metrics", "conversion_rates", "content_rich_per_candidate"],
+            0.0
+        )
+    ));
+    out.push_str(&format!(
+        "  - claim_extraction: claim_hints_per_evidence={:.3}\n",
+        f64_at(
+            split,
+            &["web_tooling", "operator_metrics", "conversion_rates", "claim_hints_per_evidence"],
+            0.0
+        )
+    ));
+    out.push_str(&format!(
+        "  - usable_evidence_packaging: evidence_per_candidate={:.3} synthesis_handoff_rate={:.3}\n",
+        f64_at(
+            split,
+            &["web_tooling", "operator_metrics", "conversion_rates", "evidence_per_candidate"],
+            0.0
+        ),
+        f64_at(
+            split,
+            &["web_tooling", "operator_metrics", "conversion_rates", "synthesis_handoff_case_rate"],
+            0.0
+        )
+    ));
+    out.push_str(&format!(
         "- upstream_failure_localization: top_layer={} run_stability={} workflow_path={} retrieval_mechanics={} evidence_carrythrough={} synthesis_quality={} ux_smoke={}\n",
         str_at(split, &["upstream_failure_localization", "top_layer"], "none"),
         layer_count(split, "run_stability"),

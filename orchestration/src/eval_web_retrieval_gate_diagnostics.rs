@@ -458,6 +458,10 @@ pub(super) fn web_retrieval_gate_diagnostics(
         .unwrap_or("")
         .to_string();
     let operator_metrics = web_operator_case_metrics(
+        payload,
+        request_input,
+        retrieval_quality,
+        query_metadata_diagnostics,
         &first_failed_gate,
         retrieval_status.as_str(),
         candidate_count,
@@ -680,6 +684,18 @@ pub(super) fn web_retrieval_measurement_report(
     let mut provider_starved_cases = 0_u64;
     let mut access_blocked_cases = 0_u64;
     let mut synthesis_handoff_cases = 0_u64;
+    let mut query_lane_count_total = 0_u64;
+    let mut followup_query_count_total = 0_u64;
+    let mut keyword_count_total = 0_u64;
+    let mut required_entity_count_total = 0_u64;
+    let mut required_facet_count_total = 0_u64;
+    let mut multi_query_cases = 0_u64;
+    let mut unique_source_domains_total = 0_u64;
+    let mut unique_evidence_domains_total = 0_u64;
+    let mut source_class_count_total = 0_u64;
+    let mut official_or_primary_cases = 0_u64;
+    let mut relevant_evidence_count_total = 0_u64;
+    let mut topic_relevant_cases = 0_u64;
     for row in measured_rows {
         let gate = row
             .pointer("/web_tool_gate_diagnostics/first_failed_gate")
@@ -707,6 +723,133 @@ pub(super) fn web_retrieval_measurement_report(
             &["web_tool_gate_diagnostics", "claim_hint_count"],
             0,
         ));
+        query_lane_count_total = query_lane_count_total.saturating_add(u64_at(
+            row,
+            &[
+                "web_tool_gate_diagnostics",
+                "operator_metrics",
+                "query_planning",
+                "query_lane_count",
+            ],
+            0,
+        ));
+        followup_query_count_total = followup_query_count_total.saturating_add(u64_at(
+            row,
+            &[
+                "web_tool_gate_diagnostics",
+                "operator_metrics",
+                "query_planning",
+                "followup_query_count",
+            ],
+            0,
+        ));
+        keyword_count_total = keyword_count_total.saturating_add(u64_at(
+            row,
+            &[
+                "web_tool_gate_diagnostics",
+                "operator_metrics",
+                "query_planning",
+                "keyword_count",
+            ],
+            0,
+        ));
+        required_entity_count_total = required_entity_count_total.saturating_add(u64_at(
+            row,
+            &[
+                "web_tool_gate_diagnostics",
+                "operator_metrics",
+                "query_planning",
+                "required_entity_count",
+            ],
+            0,
+        ));
+        required_facet_count_total = required_facet_count_total.saturating_add(u64_at(
+            row,
+            &[
+                "web_tool_gate_diagnostics",
+                "operator_metrics",
+                "query_planning",
+                "required_facet_count",
+            ],
+            0,
+        ));
+        if bool_at(
+            row,
+            &[
+                "web_tool_gate_diagnostics",
+                "operator_metrics",
+                "query_planning",
+                "multi_query_present",
+            ],
+            false,
+        ) {
+            multi_query_cases = multi_query_cases.saturating_add(1);
+        }
+        unique_source_domains_total = unique_source_domains_total.saturating_add(u64_at(
+            row,
+            &[
+                "web_tool_gate_diagnostics",
+                "operator_metrics",
+                "candidate_supply",
+                "unique_source_domains",
+            ],
+            0,
+        ));
+        unique_evidence_domains_total = unique_evidence_domains_total.saturating_add(u64_at(
+            row,
+            &[
+                "web_tool_gate_diagnostics",
+                "operator_metrics",
+                "candidate_supply",
+                "unique_evidence_domains",
+            ],
+            0,
+        ));
+        source_class_count_total = source_class_count_total.saturating_add(u64_at(
+            row,
+            &[
+                "web_tool_gate_diagnostics",
+                "operator_metrics",
+                "candidate_supply",
+                "source_class_count",
+            ],
+            0,
+        ));
+        relevant_evidence_count_total = relevant_evidence_count_total.saturating_add(u64_at(
+            row,
+            &[
+                "web_tool_gate_diagnostics",
+                "operator_metrics",
+                "candidate_supply",
+                "relevant_evidence_count",
+            ],
+            0,
+        ));
+        if bool_at(
+            row,
+            &[
+                "web_tool_gate_diagnostics",
+                "operator_metrics",
+                "candidate_supply",
+                "topic_relevant_evidence",
+            ],
+            false,
+        ) {
+            topic_relevant_cases = topic_relevant_cases.saturating_add(1);
+        }
+        if u64_at(
+            row,
+            &[
+                "web_tool_gate_diagnostics",
+                "operator_metrics",
+                "candidate_supply",
+                "official_or_primary_source_count",
+            ],
+            0,
+        ) > 0
+        {
+            official_or_primary_cases = official_or_primary_cases.saturating_add(1);
+        }
         if bool_at(
             row,
             &["web_tool_gate_diagnostics", "usable_evidence"],
@@ -821,6 +964,18 @@ pub(super) fn web_retrieval_measurement_report(
         evidence_count_total,
         content_rich_candidate_count_total,
         claim_hint_count_total,
+        query_lane_count_total,
+        followup_query_count_total,
+        keyword_count_total,
+        required_entity_count_total,
+        required_facet_count_total,
+        multi_query_cases,
+        unique_source_domains_total,
+        unique_evidence_domains_total,
+        source_class_count_total,
+        official_or_primary_cases,
+        relevant_evidence_count_total,
+        topic_relevant_cases,
         usable_evidence_cases,
         provider_starved_cases,
         access_blocked_cases,
@@ -964,6 +1119,10 @@ fn provider_supply_refs(provider_supply: &Value) -> Vec<String> {
 }
 
 fn web_operator_case_metrics(
+    payload: &Value,
+    request_input: Option<&Value>,
+    retrieval_quality: &Value,
+    query_metadata_diagnostics: &Value,
     first_failed_gate: &str,
     retrieval_status: &str,
     candidate_count: u64,
@@ -977,15 +1136,61 @@ fn web_operator_case_metrics(
     evidence_context_to_synthesis: bool,
 ) -> Value {
     let primary_bottleneck = web_failure_boundary(first_failed_gate);
+    let layer_bottleneck = web_failure_layer(first_failed_gate);
+    let query_lane_count = u64_at(query_metadata_diagnostics, &["query_lane_count"], 0);
+    let followup_query_count = u64_at(query_metadata_diagnostics, &["followup_query_count"], 0);
+    let keyword_count = u64_at(query_metadata_diagnostics, &["keyword_count"], 0);
+    let alias_count = u64_at(query_metadata_diagnostics, &["alias_count"], 0);
+    let negative_term_count = u64_at(query_metadata_diagnostics, &["negative_term_count"], 0);
+    let required_entity_count =
+        u64_at(query_metadata_diagnostics, &["required_coverage_entities_count"], 0);
+    let required_facet_count =
+        u64_at(query_metadata_diagnostics, &["required_coverage_facets_count"], 0);
+    let source_lane_count = declared_source_preference_count(request_input);
+    let unique_source_domains = unique_source_domain_count(payload);
+    let unique_evidence_domains = unique_evidence_domain_count(payload);
+    let source_class_count = unique_source_class_count(payload);
+    let official_or_primary_source_count = official_or_primary_source_count(payload);
+    let relevant_evidence_count =
+        u64_at(retrieval_quality, &["prompt_relevance", "relevant_evidence_count"], 0);
+    let topic_relevant_evidence = retrieval_quality
+        .pointer("/prompt_relevance/topic_relevant_evidence")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
     json!({
         "schema_version": 1,
         "readout": web_operator_case_readout(primary_bottleneck, retrieval_status),
         "primary_bottleneck": primary_bottleneck,
+        "layer_bottleneck": layer_bottleneck,
         "next_action": web_operator_next_action(primary_bottleneck),
+        "query_planning": {
+            "query_lane_count": query_lane_count,
+            "followup_query_count": followup_query_count,
+            "multi_query_present": query_lane_count > 1,
+            "keyword_count": keyword_count,
+            "alias_count": alias_count,
+            "negative_term_count": negative_term_count,
+            "required_entity_count": required_entity_count,
+            "required_facet_count": required_facet_count,
+            "declared_source_lane_count": source_lane_count,
+            "metadata_present": bool_at(query_metadata_diagnostics, &["metadata_present"], false),
+            "rich_query_pack_or_narrow_marker": bool_at(
+                query_metadata_diagnostics,
+                &["rich_query_pack_or_narrow_marker"],
+                false
+            )
+        },
         "candidate_supply": {
             "raw_candidate_count": candidate_count,
             "provider_status": retrieval_status,
-            "provider_not_empty_or_degraded": provider_not_empty_or_degraded
+            "provider_not_empty_or_degraded": provider_not_empty_or_degraded,
+            "unique_source_domains": unique_source_domains,
+            "unique_evidence_domains": unique_evidence_domains,
+            "source_class_count": source_class_count,
+            "official_or_primary_source_count": official_or_primary_source_count,
+            "relevant_evidence_count": relevant_evidence_count,
+            "topic_relevant_evidence": topic_relevant_evidence,
+            "relevant_evidence_per_candidate_rate": ratio(relevant_evidence_count, candidate_count)
         },
         "packaging": {
             "evidence_count": evidence_count,
@@ -1031,6 +1236,18 @@ fn web_operator_aggregate_metrics(
     evidence_count_total: u64,
     content_rich_candidate_count_total: u64,
     claim_hint_count_total: u64,
+    query_lane_count_total: u64,
+    followup_query_count_total: u64,
+    keyword_count_total: u64,
+    required_entity_count_total: u64,
+    required_facet_count_total: u64,
+    multi_query_cases: u64,
+    unique_source_domains_total: u64,
+    unique_evidence_domains_total: u64,
+    source_class_count_total: u64,
+    official_or_primary_cases: u64,
+    relevant_evidence_count_total: u64,
+    topic_relevant_cases: u64,
     usable_evidence_cases: u64,
     provider_starved_cases: u64,
     access_blocked_cases: u64,
@@ -1047,9 +1264,30 @@ fn web_operator_aggregate_metrics(
         "schema_version": 1,
         "readout": web_operator_aggregate_readout(&top_failure),
         "top_first_failure": top_failure,
+        "top_layer": top_failure
+            .get("name")
+            .and_then(Value::as_str)
+            .map(web_failure_layer)
+            .unwrap_or("none"),
         "measured_cases": measured_cases,
         "transport_excluded_cases": transport_excluded_cases,
         "gates_below_target": gates_below_target,
+        "query_planning": {
+            "query_lanes_per_case": ratio(query_lane_count_total, measured_cases),
+            "followup_queries_per_case": ratio(followup_query_count_total, measured_cases),
+            "keywords_per_case": ratio(keyword_count_total, measured_cases),
+            "required_entities_per_case": ratio(required_entity_count_total, measured_cases),
+            "required_facets_per_case": ratio(required_facet_count_total, measured_cases),
+            "multi_query_case_rate": ratio(multi_query_cases, measured_cases)
+        },
+        "candidate_supply": {
+            "unique_source_domains_per_case": ratio(unique_source_domains_total, measured_cases),
+            "unique_evidence_domains_per_case": ratio(unique_evidence_domains_total, measured_cases),
+            "source_classes_per_case": ratio(source_class_count_total, measured_cases),
+            "official_or_primary_case_rate": ratio(official_or_primary_cases, measured_cases),
+            "relevant_evidence_per_candidate": ratio(relevant_evidence_count_total, candidate_count_total),
+            "topic_relevant_case_rate": ratio(topic_relevant_cases, measured_cases)
+        },
         "averages": {
             "raw_candidates_per_case": ratio(candidate_count_total, measured_cases),
             "evidence_refs_per_case": ratio(evidence_count_total, measured_cases),
@@ -1068,7 +1306,14 @@ fn web_operator_aggregate_metrics(
             "access_blocked_or_throttled_case_rate": ratio(access_blocked_cases, measured_cases)
         },
         "plain_english": {
+            "query_lanes_per_case": "How many concrete retrieval lanes each request submitted on average.",
+            "followup_queries_per_case": "How many narrower follow-up query lanes each request carried beyond the first lane.",
+            "keywords_per_case": "How much explicit query metadata the request preserved for retrieval.",
+            "multi_query_case_rate": "Share of measured cases that used more than one explicit query lane.",
             "raw_candidates_per_case": "How many candidate URLs/rows the web tooling found before filtering.",
+            "unique_source_domains_per_case": "How many distinct source domains retrieval surfaced per case.",
+            "official_or_primary_case_rate": "Share of measured cases that surfaced at least one official or primary source.",
+            "relevant_evidence_per_candidate": "How much of the candidate supply stayed relevant to the user's actual prompt.",
             "evidence_per_candidate": "How much of the raw candidate supply survived packaging into evidence refs.",
             "content_rich_per_candidate": "How often candidates had usable page/snippet content rather than thin search rows.",
             "claim_hints_per_evidence": "How much claim-level material synthesis received per evidence item.",
@@ -1143,6 +1388,34 @@ fn web_operator_case_readout(primary_bottleneck: &str, retrieval_status: &str) -
             "evidence exists, but the final synthesis boundary did not receive it".to_string()
         }
         _ => "web tooling failed at an unclassified boundary".to_string(),
+    }
+}
+
+fn web_failure_layer(gate: &str) -> &'static str {
+    match gate {
+        "" | "none" => "none",
+        "web_1_request_shape_present"
+        | "web_2_query_metadata_present"
+        | "web_3_tool_attempt_recorded" => "query_planning",
+        "web_3b1_provider_quota_not_rate_limited"
+        | "web_3b2_no_bot_challenge_or_waf"
+        | "web_3b3_no_permission_or_auth_block"
+        | "web_3b4_no_access_denied_or_forbidden"
+        | "web_3b5_provider_configuration_available"
+        | "web_3b_access_not_blocked_or_throttled"
+        | "web_3c_blocker_recovery_lane_visible"
+        | "web_3d_browser_materialization_not_failed"
+        | "web_5b_content_rich_candidates_present" => "access_materialization",
+        "web_4a_search_provider_configuration_usable"
+        | "web_4b_search_provider_circuit_closed"
+        | "web_4c_search_provider_surface_ready"
+        | "web_4d_provider_raw_rows_available"
+        | "web_4e_provider_candidates_survive_filtering"
+        | "web_4_raw_candidates_present"
+        | "web_6_provider_not_empty_or_degraded" => "candidate_supply",
+        "web_5_packaged_evidence_present" | "web_7_usable_evidence_available" | "web_8_evidence_context_to_synthesis" => "usable_evidence_packaging",
+        "web_5c_claim_extraction_present" => "claim_extraction",
+        _ => "unknown",
     }
 }
 
@@ -1221,6 +1494,182 @@ fn web_operator_aggregate_readout(top_failure: &Value) -> String {
             count
         )
     }
+}
+
+fn declared_source_preference_count(request_input: Option<&Value>) -> u64 {
+    request_input
+        .and_then(Value::as_object)
+        .and_then(|map| map.get("source_preferences"))
+        .and_then(Value::as_array)
+        .map(|rows| rows.len() as u64)
+        .unwrap_or(0)
+}
+
+fn unique_source_domain_count(payload: &Value) -> u64 {
+    unique_domain_inventory(payload, false).len() as u64
+}
+
+fn unique_evidence_domain_count(payload: &Value) -> u64 {
+    unique_domain_inventory(payload, true).len() as u64
+}
+
+fn unique_source_class_count(payload: &Value) -> u64 {
+    let mut classes = Vec::<String>::new();
+    for object in source_like_objects(payload) {
+        if let Some(class) = source_class_value(object) {
+            push_unique_case_insensitive(&mut classes, &class);
+        }
+    }
+    classes.len() as u64
+}
+
+fn official_or_primary_source_count(payload: &Value) -> u64 {
+    source_like_objects(payload)
+        .iter()
+        .filter_map(|object| source_class_value(object))
+        .filter(|class| {
+            let normalized = normalize_for_compare(class);
+            normalized.contains("official") || normalized.contains("primary")
+        })
+        .count() as u64
+}
+
+fn unique_domain_inventory(payload: &Value, evidence_only: bool) -> Vec<String> {
+    let mut domains = Vec::<String>::new();
+    for object in source_like_objects(payload) {
+        if evidence_only && !object_looks_like_evidence(object) {
+            continue;
+        }
+        if let Some(domain) = source_domain_value(object) {
+            push_unique_case_insensitive(&mut domains, &domain);
+        }
+    }
+    domains
+}
+
+fn source_like_objects<'a>(payload: &'a Value) -> Vec<&'a serde_json::Map<String, Value>> {
+    let mut out = Vec::<&serde_json::Map<String, Value>>::new();
+    collect_source_like_objects(payload, &mut out, 0);
+    out
+}
+
+fn collect_source_like_objects<'a>(
+    value: &'a Value,
+    out: &mut Vec<&'a serde_json::Map<String, Value>>,
+    depth: usize,
+) {
+    if depth > 8 {
+        return;
+    }
+    match value {
+        Value::Array(rows) => {
+            for row in rows {
+                collect_source_like_objects(row, out, depth + 1);
+            }
+        }
+        Value::Object(map) => {
+            if object_looks_like_source_row(map) {
+                out.push(map);
+            }
+            for child in map.values() {
+                collect_source_like_objects(child, out, depth + 1);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn object_looks_like_source_row(map: &serde_json::Map<String, Value>) -> bool {
+    [
+        "title",
+        "source_domain",
+        "source_class",
+        "source_kind",
+        "locator",
+        "url",
+        "source_url",
+        "link",
+        "snippet",
+        "summary",
+        "content",
+        "markdown",
+        "text",
+        "claim_hints",
+    ]
+    .iter()
+    .any(|key| map.get(*key).map(value_has_content).unwrap_or(false))
+}
+
+fn object_looks_like_evidence(map: &serde_json::Map<String, Value>) -> bool {
+    [
+        "claim_hints",
+        "summary",
+        "content",
+        "markdown",
+        "text",
+        "snippet",
+        "evidence_ref",
+        "citation",
+        "source_domain",
+        "source_class",
+    ]
+    .iter()
+    .any(|key| map.get(*key).map(value_has_content).unwrap_or(false))
+}
+
+fn source_class_value(map: &serde_json::Map<String, Value>) -> Option<String> {
+    ["source_class", "source_kind", "class"]
+        .iter()
+        .find_map(|key| map.get(*key).and_then(Value::as_str))
+        .map(|raw| clean_text(raw, 120))
+        .filter(|raw| !raw.is_empty())
+}
+
+fn source_domain_value(map: &serde_json::Map<String, Value>) -> Option<String> {
+    map.get("source_domain")
+        .and_then(Value::as_str)
+        .map(|raw| clean_text(raw, 160))
+        .filter(|raw| !raw.is_empty())
+        .or_else(|| {
+            ["locator", "url", "source_url", "link"]
+                .iter()
+                .find_map(|key| map.get(*key).and_then(Value::as_str))
+                .and_then(extract_domain_like_host)
+        })
+}
+
+fn extract_domain_like_host(raw: &str) -> Option<String> {
+    let cleaned = clean_text(raw, 240);
+    if cleaned.is_empty() {
+        return None;
+    }
+    let hostish = cleaned
+        .trim_start_matches("http://")
+        .trim_start_matches("https://")
+        .trim_start_matches("www.")
+        .split('/')
+        .next()
+        .unwrap_or("")
+        .trim_matches(|ch: char| !ch.is_ascii_alphanumeric() && ch != '.' && ch != '-');
+    if hostish.is_empty() || !hostish.contains('.') {
+        return None;
+    }
+    Some(hostish.to_ascii_lowercase())
+}
+
+fn push_unique_case_insensitive(values: &mut Vec<String>, candidate: &str) {
+    let cleaned = clean_text(candidate, 160);
+    if cleaned.is_empty() {
+        return;
+    }
+    let normalized = cleaned.to_ascii_lowercase();
+    if values
+        .iter()
+        .any(|existing| existing.to_ascii_lowercase() == normalized)
+    {
+        return;
+    }
+    values.push(cleaned);
 }
 
 fn top_count_row(counts: &BTreeMap<String, u64>) -> Value {

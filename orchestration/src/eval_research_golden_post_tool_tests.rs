@@ -1151,6 +1151,12 @@ fn research_golden_reports_web_tooling_gate_splits_separately() {
     );
     assert_eq!(
         report
+            .pointer("/cases/0/web_tool_gate_diagnostics/operator_metrics/layer_bottleneck")
+            .and_then(Value::as_str),
+        Some("query_planning")
+    );
+    assert_eq!(
+        report
             .pointer("/cases/0/web_tool_gate_diagnostics/operator_metrics/candidate_supply/raw_candidate_count")
             .and_then(Value::as_u64),
         Some(4)
@@ -1226,6 +1232,12 @@ fn research_golden_reports_web_tooling_gate_splits_separately() {
             )
             .and_then(Value::as_f64),
         Some(4.0)
+    );
+    assert_eq!(
+        report
+            .pointer("/measurement_split/web_tooling/operator_metrics/top_layer")
+            .and_then(Value::as_str),
+        Some("query_planning")
     );
     assert_eq!(
         report
@@ -1316,6 +1328,42 @@ fn research_golden_web_search_metadata_moves_failure_to_provider_quality() {
             .pointer("/cases/0/query_metadata_diagnostics/eligible_web_retrieval_request")
             .and_then(Value::as_bool),
         Some(true)
+    );
+    assert_eq!(
+        report
+            .pointer("/cases/0/query_metadata_diagnostics/query_lane_count")
+            .and_then(Value::as_u64),
+        Some(0)
+    );
+    assert_eq!(
+        report
+            .pointer("/cases/0/query_metadata_diagnostics/keyword_count")
+            .and_then(Value::as_u64),
+        Some(3)
+    );
+    assert_eq!(
+        report
+            .pointer("/cases/0/query_metadata_diagnostics/required_coverage_entities_count")
+            .and_then(Value::as_u64),
+        Some(1)
+    );
+    assert_eq!(
+        report
+            .pointer("/cases/0/query_metadata_diagnostics/required_coverage_facets_count")
+            .and_then(Value::as_u64),
+        Some(2)
+    );
+    assert_eq!(
+        report
+            .pointer("/cases/0/web_tool_gate_diagnostics/operator_metrics/query_planning/keyword_count")
+            .and_then(Value::as_u64),
+        Some(3)
+    );
+    assert_eq!(
+        report
+            .pointer("/cases/0/web_tool_gate_diagnostics/operator_metrics/query_planning/multi_query_present")
+            .and_then(Value::as_bool),
+        Some(false)
     );
     let gates = report
         .get("web_tool_gate_pass_rates")
@@ -1447,6 +1495,24 @@ fn research_golden_web_tooling_gates_split_thin_rows_from_materialized_evidence(
     assert_eq!(
         report.pointer("/cases/0/retrieval_quality/claim_hint_count"),
         Some(&Value::Number(0.into()))
+    );
+    assert_eq!(
+        report
+            .pointer("/cases/0/web_tool_gate_diagnostics/operator_metrics/query_planning/query_lane_count")
+            .and_then(Value::as_u64),
+        Some(2)
+    );
+    assert_eq!(
+        report
+            .pointer("/cases/0/web_tool_gate_diagnostics/operator_metrics/query_planning/followup_query_count")
+            .and_then(Value::as_u64),
+        Some(1)
+    );
+    assert_eq!(
+        report
+            .pointer("/cases/0/web_tool_gate_diagnostics/operator_metrics/candidate_supply/unique_source_domains")
+            .and_then(Value::as_u64),
+        Some(1)
     );
     assert_eq!(
         report
