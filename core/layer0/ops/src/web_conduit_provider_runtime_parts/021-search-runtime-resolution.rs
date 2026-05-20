@@ -423,6 +423,8 @@ pub(crate) fn resolved_search_provider_chain(
     policy: &Value,
 ) -> Vec<String> {
     let request_chain = request_provider_chain_for_family(request, WebProviderFamily::Search);
+    let strict_request_chain =
+        !request_chain.is_empty() && request_provider_chain_is_strict(request, WebProviderFamily::Search);
     let runtime_selected_provider =
         runtime_selected_provider_from_request(request, WebProviderFamily::Search);
     let prefer_runtime_provider =
@@ -430,6 +432,7 @@ pub(crate) fn resolved_search_provider_chain(
     let base = provider_chain_from_request(provider_hint, request, policy);
     if base.is_empty()
         || search_provider_hint_is_explicit(provider_hint)
+        || strict_request_chain
         || (!request_chain.is_empty() && !prefer_runtime_provider)
     {
         return base;
@@ -464,6 +467,9 @@ pub(crate) fn search_provider_resolution_snapshot(
     let mut runtime = runtime_web_family_metadata(root, policy, WebProviderFamily::Search);
     let requested_provider_hint = clean_text(provider_hint, 60).to_ascii_lowercase();
     let request_provider_chain = request_provider_chain_for_family(request, WebProviderFamily::Search);
+    let strict_request_chain =
+        !request_provider_chain.is_empty()
+            && request_provider_chain_is_strict(request, WebProviderFamily::Search);
     let runtime_selected_provider =
         runtime_selected_provider_from_request(request, WebProviderFamily::Search);
     let prefer_runtime_provider =
@@ -498,7 +504,7 @@ pub(crate) fn search_provider_resolution_snapshot(
     let allow_fallback = !matches!(
         selection_scope,
         "request_provider_hint" | "policy_configured" | "runtime_metadata"
-    );
+    ) && !strict_request_chain;
     let tool_surface_status = runtime
         .pointer("/tool_surface_health/status")
         .and_then(Value::as_str)

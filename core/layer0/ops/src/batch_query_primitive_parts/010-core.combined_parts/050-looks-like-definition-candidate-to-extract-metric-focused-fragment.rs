@@ -153,6 +153,152 @@ fn is_official_source_query_lane(query: &str) -> bool {
     .any(|marker| lowered.contains(marker))
 }
 
+fn entityish_query_token(raw: &str) -> Option<String> {
+    let cleaned = raw
+        .trim_matches(|ch: char| !ch.is_ascii_alphanumeric() && ch != '-' && ch != '.')
+        .trim();
+    if cleaned.len() < 2 {
+        return None;
+    }
+    let lowered = cleaned.to_ascii_lowercase();
+    if matches!(
+        lowered.as_str(),
+        "a"
+            | "an"
+            | "and"
+            | "as"
+            | "at"
+            | "avoid"
+            | "based"
+            | "browser"
+            | "compare"
+            | "current"
+            | "focus"
+            | "for"
+            | "give"
+            | "how"
+            | "in"
+            | "is"
+            | "it"
+            | "most"
+            | "of"
+            | "on"
+            | "or"
+            | "production"
+            | "qa"
+            | "repeatable"
+            | "research"
+            | "right"
+            | "should"
+            | "summarize"
+            | "task"
+            | "team"
+            | "the"
+            | "to"
+            | "use"
+            | "what"
+            | "which"
+            | "workflow"
+            | "workflows"
+    ) {
+        return None;
+    }
+    let alpha_count = cleaned.chars().filter(|ch| ch.is_ascii_alphabetic()).count();
+    let all_upper = alpha_count >= 2
+        && cleaned
+            .chars()
+            .filter(|ch| ch.is_ascii_alphabetic())
+            .all(|ch| ch.is_ascii_uppercase());
+    let has_inner_upper = cleaned.chars().skip(1).any(|ch| ch.is_ascii_uppercase());
+    let has_titlecase = cleaned
+        .chars()
+        .next()
+        .map(|ch| ch.is_ascii_uppercase())
+        .unwrap_or(false);
+    let has_digit = cleaned.chars().any(|ch| ch.is_ascii_digit());
+    let has_symbolic_shape = cleaned.contains('-') || cleaned.contains('.');
+    if !(all_upper || has_inner_upper || has_titlecase || has_digit || has_symbolic_shape) {
+        return None;
+    }
+    Some(clean_text(cleaned, 120))
+}
+
+fn push_unique_subject_phrase(
+    out: &mut Vec<String>,
+    seen: &mut HashSet<String>,
+    raw: &str,
+) {
+    let cleaned = clean_text(raw, 160);
+    if cleaned.is_empty() {
+        return;
+    }
+    let lowered = cleaned.to_ascii_lowercase();
+    if seen.insert(lowered) {
+        out.push(cleaned);
+    }
+}
+
+fn query_subject_phrases(query: &str) -> Vec<String> {
+    let mut out = Vec::<String>::new();
+    let mut seen = HashSet::<String>::new();
+    for quoted in query.split('"').skip(1).step_by(2) {
+        let cleaned = clean_text(quoted, 160);
+        if cleaned.is_empty() {
+            continue;
+        }
+        let token_count = cleaned.split_whitespace().count();
+        if token_count == 0 || token_count > 4 {
+            continue;
+        }
+        push_unique_subject_phrase(&mut out, &mut seen, &cleaned);
+    }
+    let tokens = query
+        .split_whitespace()
+        .filter_map(entityish_query_token)
+        .collect::<Vec<_>>();
+    let mut current = Vec::<String>::new();
+    let flush_current = |current: &mut Vec<String>,
+                         out: &mut Vec<String>,
+                         seen: &mut HashSet<String>| {
+        if current.is_empty() {
+            return;
+        }
+        let phrase = current.iter().take(4).cloned().collect::<Vec<_>>().join(" ");
+        push_unique_subject_phrase(out, seen, &phrase);
+        if current.len() == 1 {
+            push_unique_subject_phrase(out, seen, &current[0]);
+        }
+        current.clear();
+    };
+    for token in tokens {
+        let continuation = current.last().map(|prior| {
+            prior.chars()
+                .last()
+                .map(|ch| ch != '.')
+                .unwrap_or(true)
+        });
+        if continuation.unwrap_or(true) && current.len() < 4 {
+            current.push(token);
+            continue;
+        }
+        flush_current(&mut current, &mut out, &mut seen);
+        current.push(token);
+    }
+    flush_current(&mut current, &mut out, &mut seen);
+    out
+}
+
+fn query_subject_phrase_matches_candidate(query: &str, candidate: &Candidate) -> bool {
+    let haystack = candidate_relevance_text(candidate).to_ascii_lowercase();
+    if haystack.is_empty() {
+        return false;
+    }
+    query_subject_phrases(query)
+        .iter()
+        .map(|phrase| phrase.to_ascii_lowercase())
+        .any(|phrase| haystack.contains(&phrase))
+}
+
 fn candidate_has_trusted_primary_source_signal(query: &str, candidate: &Candidate) -> bool {
     let combined = candidate_relevance_text(candidate);
     let locator = clean_text(&candidate.locator, 2_200).to_ascii_lowercase();
@@ -160,13 +306,14 @@ fn candidate_has_trusted_primary_source_signal(query: &str, candidate: &Candidat
     let domain_lower = domain.to_ascii_lowercase();
     let snippet_words = clean_text(&candidate.snippet, 1_800).split_whitespace().count();
     let (overlap, distinctive_overlap, query_len) = query_overlap_profile(query, candidate);
+    let subject_phrase_match = query_subject_phrase_matches_candidate(query, candidate);
     let official_lane_domain_candidate = is_official_source_query_lane(query)
         && !domain_lower.is_empty()
         && domain_lower != "source"
         && !is_search_engine_domain(&domain_lower)
         && (200..400).contains(&candidate.status_code)
         && (locator.starts_with("https://") || locator.starts_with("http://"))
-        && (distinctive_overlap >= 1 || overlap >= 2);
+        && (distinctive_overlap >= 1 || overlap >= 2 || subject_phrase_match);
     let trusted_source = source_trust_adjustment(candidate) >= 0.15
         || framework_official_domain(&domain)
         || official_lane_domain_candidate
@@ -185,6 +332,7 @@ fn candidate_has_trusted_primary_source_signal(query: &str, candidate: &Candidat
         || locator.contains("/reference")
         || locator.contains("/api");
     distinctive_overlap >= 1
+        || subject_phrase_match
         || (overlap >= 2 && snippet_words >= 8)
         || (overlap >= 1
             && overview_signal

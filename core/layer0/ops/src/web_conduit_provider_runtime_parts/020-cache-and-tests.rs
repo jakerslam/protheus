@@ -193,6 +193,36 @@ mod tests {
     }
 
     #[test]
+    fn provider_chain_strict_request_does_not_append_default_fallbacks() {
+        let request = json!({
+            "search_provider_chain": ["duckduckgo_lite", "duckduckgo"],
+            "search_provider_chain_strict": true
+        });
+        let policy = json!({
+            "web_conduit": {
+                "search_provider_order": ["google_news_rss", "bing_rss", "duckduckgo"]
+            }
+        });
+        let chain = provider_chain_from_request("", &request, &policy);
+        assert_eq!(
+            chain,
+            vec!["duckduckgo_lite".to_string(), "duckduckgo".to_string()]
+        );
+    }
+
+    #[test]
+    fn explicit_duckduckgo_lite_hint_stays_explicit() {
+        let request = json!({});
+        let policy = json!({
+            "web_conduit": {
+                "search_provider_order": ["google_news_rss", "bing_rss", "duckduckgo"]
+            }
+        });
+        let chain = provider_chain_from_request("duckduckgo_lite", &request, &policy);
+        assert_eq!(chain.first().map(String::as_str), Some("duckduckgo_lite"));
+    }
+
+    #[test]
     fn explicit_provider_hint_rejects_unknown_provider() {
         assert_eq!(
             validate_explicit_provider_hint("perplexity"),

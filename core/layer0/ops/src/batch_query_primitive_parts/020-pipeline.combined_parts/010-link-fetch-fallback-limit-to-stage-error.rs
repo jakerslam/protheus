@@ -29,6 +29,7 @@ fn stage_search_payload(
     stage: Option<&str>,
     query: &str,
     provider: Option<&str>,
+    policy: &Value,
     search_scope: &BatchQuerySearchScope,
 ) -> Value {
     if let Some(stage_name) = stage {
@@ -41,15 +42,17 @@ fn stage_search_payload(
     if fixture_mode_enabled() {
         return fixture_missing_payload();
     }
-    let request = stage_search_request(query, provider, search_scope);
+    let request = stage_search_request(query, provider, policy, search_scope);
     crate::web_conduit::api_search(root, &request)
 }
 
 fn stage_search_request(
     query: &str,
     provider: Option<&str>,
+    policy: &Value,
     search_scope: &BatchQuerySearchScope,
 ) -> Value {
+    let trusted_official_lane = is_official_source_query_lane(query);
     let mut request = json!({
         "query": query,
         "summary_only": false
@@ -63,12 +66,41 @@ fn stage_search_request(
     }
     if let Some(provider_name) = provider {
         request["provider"] = Value::String(provider_name.to_string());
+    } else if trusted_official_lane {
+        request["provider"] = Value::String("duckduckgo_lite".to_string());
+    }
+    if let Some(provider_chain) = lane_aware_search_provider_chain(query, policy) {
+        request["search_provider_chain"] = json!(provider_chain);
+        request["search_provider_chain_strict"] = json!(true);
     }
     if !search_scope.allowed_domains.is_empty() {
         request["allowed_domains"] = json!(search_scope.allowed_domains.clone());
         request["exclude_subdomains"] = json!(search_scope.exclude_subdomains);
     }
     request
+}
+
+fn lane_aware_search_provider_chain(query: &str, policy: &Value) -> Option<Vec<String>> {
+    if !is_official_source_query_lane(query) {
+        return None;
+    }
+    let base =
+        crate::web_conduit_provider_runtime::resolved_search_provider_chain("", &json!({}), policy);
+    let filtered = base
+        .iter()
+        .filter(|provider| {
+            !matches!(
+                provider.as_str(),
+                "google_news_rss" | "bing_rss" | "tavily" | "exa" | "brave" | "serperdev"
+            )
+        })
+        .cloned()
+        .collect::<Vec<_>>();
+    if filtered.is_empty() {
+        Some(vec!["duckduckgo_lite".to_string(), "duckduckgo".to_string()])
+    } else {
+        Some(filtered)
+    }
 }
 
 fn stage_fetch_payload(root: &Path, stage: &str, url: &str, extract_mode: &str) -> Value {
@@ -584,8 +616,12 @@ fn page_extraction_link_preflight_rejection_reason_with_context(
     context: &str,
 ) -> Option<&'static str> {
     let candidate = page_extraction_link_candidate_with_context(link, context);
+    let trusted_primary_source_candidate =
+        candidate_has_trusted_primary_source_signal(query, &candidate);
     let trusted_official_source_candidate =
         candidate_has_trusted_official_source_signal(query, &candidate);
+    let trusted_prefetch_candidate =
+        trusted_primary_source_candidate || trusted_official_source_candidate;
     if link_contains_collapsed_query_phrase(query, link) {
         return None;
     }
@@ -599,13 +635,13 @@ fn page_extraction_link_preflight_rejection_reason_with_context(
     if contains_web_junk_marker(&combined) {
         return Some("junk_link");
     }
-    if !trusted_official_source_candidate && looks_like_off_intent_noise_candidate(query, &candidate) {
+    if !trusted_prefetch_candidate && looks_like_off_intent_noise_candidate(query, &candidate) {
         return Some("off_intent_link");
     }
-    if !trusted_official_source_candidate && has_only_weak_query_overlap(query, &candidate) {
+    if !trusted_prefetch_candidate && has_only_weak_query_overlap(query, &candidate) {
         return Some("weak_overlap_link");
     }
-    if !trusted_official_source_candidate
+    if !trusted_prefetch_candidate
         && query_overlap_terms(query, &candidate) == 0
         && source_trust_adjustment(&candidate) <= 0.0
     {

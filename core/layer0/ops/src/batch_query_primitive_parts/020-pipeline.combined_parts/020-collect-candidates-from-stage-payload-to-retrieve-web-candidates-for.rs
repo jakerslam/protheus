@@ -383,10 +383,13 @@ fn should_try_browser_materialization_for_fetch_error(
     fetch_payload: &Value,
     fetch_error: &str,
 ) -> bool {
+    let lowered = clean_text(fetch_error, 240).to_ascii_lowercase();
     payload_access_blocker_class(fetch_payload).is_some()
-        || issue_is_access_or_throttle_failure(fetch_error)
-        || fetch_error.contains("no_usable_summary")
-        || fetch_error.contains("low_signal")
+        || issue_is_access_or_throttle_failure(&lowered)
+        || lowered.contains("no_usable_summary")
+        || lowered.contains("low_signal")
+        || lowered.contains("web_conduit_policy_denied")
+        || lowered.contains("policy_denied")
 }
 
 fn should_try_browser_materialization_for_candidate_error(
@@ -887,7 +890,7 @@ fn retrieve_web_candidates_for_query(
     let mut issues = Vec::<String>::new();
     let mut provider_results = Vec::<Value>::new();
 
-    let primary_payload = stage_search_payload(root, None, query, None, search_scope);
+    let primary_payload = stage_search_payload(root, None, query, None, policy, search_scope);
     let (primary_candidates, primary_issues, primary_provider_result) =
         collect_candidates_from_stage_payload(
         root,
@@ -914,7 +917,7 @@ fn retrieve_web_candidates_for_query(
 
     if !has_usable_synthesis_candidate(&candidates) {
         let bing_payload =
-            stage_search_payload(root, Some("bing_rss"), query, Some("bing"), search_scope);
+            stage_search_payload(root, Some("bing_rss"), query, Some("bing"), policy, search_scope);
         let (bing_candidates, bing_issues, bing_provider_result) =
             collect_candidates_from_stage_payload(
             root,
@@ -982,7 +985,7 @@ fn retrieve_web_candidates_for_query(
     if !has_usable_synthesis_candidate(&candidates) {
         for provider in provider_recovery_providers(policy, query) {
             let provider_payload =
-                stage_search_payload(root, Some(&provider), query, Some(&provider), search_scope);
+                stage_search_payload(root, Some(&provider), query, Some(&provider), policy, search_scope);
             let (mut provider_candidates, provider_issues, provider_result) =
                 collect_candidates_from_stage_payload(
                     root,

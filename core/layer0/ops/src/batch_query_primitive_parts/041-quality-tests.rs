@@ -2154,6 +2154,19 @@ mod quality_tests {
     }
 
     #[test]
+    fn page_extraction_keeps_entity_bearing_primary_links_for_broad_queries() {
+        let query =
+            "Research the current Model Context Protocol ecosystem and summarize what is mature, what is risky, and what a product team should avoid overcommitting to right now.";
+        let link = "https://modelcontextprotocol.io/introduction";
+        let context =
+            "Model Context Protocol introduction and official specification overview for server, client, and tool integration patterns.";
+        assert_eq!(
+            page_extraction_link_preflight_rejection_reason_with_context(query, link, context),
+            None
+        );
+    }
+
+    #[test]
     fn trusted_primary_source_candidate_can_pass_broad_relevance_gate() {
         let query =
             "Compare LangGraph vs CrewAI for deployment maturity, approval boundaries, and operational tradeoffs.";
@@ -2173,6 +2186,74 @@ mod quality_tests {
             candidate_passes_relevance_gate(query, &candidate, false),
             "trusted primary-source docs with real entity overlap should survive broad-query relevance gating"
         );
+    }
+
+    #[test]
+    fn trusted_primary_source_candidate_can_pass_entity_bearing_broad_relevance_gate() {
+        let query =
+            "Research browser-use, Playwright-based browser agents, and OpenHands for browser task automation. Which is most appropriate for repeatable QA-style workflows?";
+        let candidate = Candidate {
+            source_kind: "web".to_string(),
+            title: "OpenHands browser agent overview".to_string(),
+            locator: "https://docs.all-hands.dev/modules/usage/browser".to_string(),
+            snippet:
+                "OpenHands documentation covering browser automation workflows, agent control, and repeatable QA task execution."
+                    .to_string(),
+            excerpt_hash: "openhands-browser-overview".to_string(),
+            timestamp: None,
+            permissions: Some("public_web".to_string()),
+            status_code: 200,
+        };
+        assert!(
+            candidate_passes_relevance_gate(query, &candidate, false),
+            "entity-bearing trusted primary sources should survive broad-query relevance gating"
+        );
+    }
+
+    #[test]
+    fn policy_denied_fetch_errors_trigger_browser_materialization_fallback() {
+        let payload = json!({
+            "ok": false,
+            "error": "web_conduit_policy_denied"
+        });
+        assert!(should_try_browser_materialization_for_fetch_error(
+            &payload,
+            "web_conduit_policy_denied"
+        ));
+    }
+
+    #[test]
+    fn official_source_query_lanes_avoid_news_feed_search_providers() {
+        let policy = default_policy();
+        let request = stage_search_request(
+            "browser-use official documentation",
+            None,
+            &policy,
+            &BatchQuerySearchScope::default(),
+        );
+        let chain = request
+            .get("search_provider_chain")
+            .and_then(Value::as_array)
+            .expect("search_provider_chain");
+        assert_eq!(
+            request
+                .get("search_provider_chain_strict")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert!(
+            !chain.iter().any(|row| row.as_str() == Some("google_news_rss")),
+            "{chain:#?}"
+        );
+        assert!(
+            !chain.iter().any(|row| row.as_str() == Some("bing_rss")),
+            "{chain:#?}"
+        );
+        assert_eq!(
+            request.get("provider").and_then(Value::as_str),
+            Some("duckduckgo_lite")
+        );
+        assert!(!chain.is_empty(), "{chain:#?}");
     }
 
     #[test]

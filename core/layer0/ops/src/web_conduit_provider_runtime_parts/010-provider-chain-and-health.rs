@@ -271,6 +271,27 @@ fn request_provider_chain_value<'a>(
     }
 }
 
+fn request_provider_chain_is_strict(request: &Value, family: WebProviderFamily) -> bool {
+    let raw = match family {
+        WebProviderFamily::Search => request
+            .get("provider_chain_strict")
+            .or_else(|| request.get("search_provider_chain_strict"))
+            .or_else(|| request.get("providerChainStrict"))
+            .or_else(|| request.get("searchProviderChainStrict")),
+        WebProviderFamily::Fetch => request
+            .get("provider_chain_strict")
+            .or_else(|| request.get("fetch_provider_chain_strict"))
+            .or_else(|| request.get("providerChainStrict"))
+            .or_else(|| request.get("fetchProviderChainStrict")),
+    };
+    raw.and_then(|value| {
+        value
+            .as_bool()
+            .or_else(|| value.as_str().map(|raw| matches!(raw.trim().to_ascii_lowercase().as_str(), "1" | "true" | "yes" | "on")))
+    })
+    .unwrap_or(false)
+}
+
 pub(crate) fn request_provider_chain_for_family(
     request: &Value,
     family: WebProviderFamily,
@@ -326,6 +347,8 @@ where
     let hint = clean_text(provider_hint, 60).to_ascii_lowercase();
     let request_chain = request_provider_chain_for_family(request, WebProviderFamily::Search);
     let request_chain_explicit = !request_chain.is_empty();
+    let strict_request_chain =
+        request_chain_explicit && request_provider_chain_is_strict(request, WebProviderFamily::Search);
     let runtime_selected_provider =
         runtime_selected_provider_from_request(request, WebProviderFamily::Search);
     let prefer_runtime_provider =
@@ -335,7 +358,11 @@ where
         .or_else(|| policy.get("search_provider_order"))
         .map(|raw| parse_provider_list_for_family(raw, WebProviderFamily::Search))
         .unwrap_or_default();
-    let configured = if request_chain.is_empty() { policy_chain } else { request_chain };
+    let configured = if request_chain.is_empty() {
+        policy_chain
+    } else {
+        request_chain.clone()
+    };
     let configured = if configured.is_empty() { default_provider_chain_vec(WebProviderFamily::Search) } else { configured };
 
     let mut prefix = Vec::<String>::new();
@@ -343,6 +370,9 @@ where
         "bing" | "bing_rss" => return vec!["bing_rss".to_string()],
         "google_news" | "google-news" | "google_news_rss" | "google-news-rss" | "news_rss" | "news-rss" | "gnews" => return vec!["google_news_rss".to_string()],
         "duckduckgo" | "ddg" => prefix.extend(["duckduckgo", "duckduckgo_lite", "bing_rss"].into_iter().map(str::to_string)),
+        "duckduckgo_lite" | "ddg_lite" | "duckduckgo-lite" | "ddg-lite" | "lite" => {
+            prefix.extend(["duckduckgo_lite", "duckduckgo", "bing_rss"].into_iter().map(str::to_string))
+        }
         "tavily" | "tavily_search" | "tvly" => prefix.push("tavily".to_string()),
         "exa" | "exa_search" | "exaai" | "exa_ai" => prefix.push("exa".to_string()),
         "brave" | "brave_search" | "brave-search" => prefix.push("brave".to_string()),
@@ -354,6 +384,7 @@ where
         "bing" | "bing_rss" | "google_news" | "google-news" | "google_news_rss"
             | "google-news-rss" | "news_rss" | "news-rss" | "gnews"
             | "duckduckgo" | "ddg" | "tavily" | "tavily_search" | "tvly"
+            | "duckduckgo_lite" | "ddg_lite" | "duckduckgo-lite" | "ddg-lite" | "lite"
             | "exa" | "exa_search" | "exaai" | "exa_ai" | "brave" | "brave_search"
             | "brave-search" | "serper" | "serperdev"
     );
@@ -366,7 +397,14 @@ where
     merged.extend(configured);
     merged.extend(default_provider_chain_vec(WebProviderFamily::Search));
     let deduped = dedupe_preserve(merged);
-    if hint_explicit || (request_chain_explicit && !prefer_runtime_provider) {
+    if hint_explicit || ((request_chain_explicit && !prefer_runtime_provider) && strict_request_chain) {
+        return if strict_request_chain {
+            dedupe_preserve(request_chain)
+        } else {
+            deduped
+        };
+    }
+    if request_chain_explicit && !prefer_runtime_provider {
         return deduped;
     }
     let mut credential_ready = Vec::<String>::new();
