@@ -18,7 +18,7 @@ fn current_web_intent(query: &str) -> bool {
 }
 
 fn web_tool_quality_version() -> &'static str {
-    "web_tool_quality_v5"
+    "web_tool_quality_v6"
 }
 
 fn current_year() -> String {
@@ -824,7 +824,7 @@ fn coverage_gap_recovery_needed(
     covered < coverage_gap_recovery_min_covered_facets(policy, facets.len(), budget)
 }
 
-fn expand_coverage_gap_recovery_template(
+fn expand_recovery_template(
     template: &str,
     query: &str,
     facet: &str,
@@ -904,7 +904,7 @@ fn coverage_gap_recovery_queries(
             if template.contains("{entities}") && entities.is_empty() {
                 continue;
             }
-            if let Some(candidate) = expand_coverage_gap_recovery_template(
+            if let Some(candidate) = expand_recovery_template(
                 &template,
                 query,
                 &facet.requested_text,
@@ -913,6 +913,117 @@ fn coverage_gap_recovery_queries(
                 if seen.insert(candidate.to_ascii_lowercase()) {
                     out.push(candidate);
                 }
+            }
+            if out.len() >= max_queries {
+                return out;
+            }
+        }
+    }
+    out
+}
+
+fn usable_candidate_claim_hint_count(query: &str, candidate: &Candidate) -> usize {
+    if !candidate_counts_as_usable_evidence(candidate) {
+        return 0;
+    }
+    evidence_pack_claim_hints(query, &candidate.snippet, 2).len()
+}
+
+fn weak_research_facets_for_claim_support(
+    query: &str,
+    facets: &[ResearchFacet],
+    candidates: &[Candidate],
+    min_terms: usize,
+) -> Vec<ResearchFacet> {
+    if facets.is_empty() {
+        return Vec::new();
+    }
+    facets
+        .iter()
+        .filter(|facet| {
+            let claim_hints = candidates
+                .iter()
+                .filter(|candidate| {
+                    candidate_counts_as_usable_evidence(candidate)
+                        && candidate_matches_facet(facet, candidate, min_terms)
+                })
+                .map(|candidate| usable_candidate_claim_hint_count(query, candidate))
+                .sum::<usize>();
+            claim_hints == 0
+        })
+        .cloned()
+        .collect::<Vec<_>>()
+}
+
+fn claim_gap_recovery_needed(
+    policy: &Value,
+    query: &str,
+    facets: &[ResearchFacet],
+    candidates: &[Candidate],
+    budget: ApertureBudget,
+) -> bool {
+    if !claim_gap_recovery_enabled(policy) || candidates.is_empty() {
+        return false;
+    }
+    let min_terms = facet_aware_min_terms(policy);
+    let usable = usable_ranked_candidates_for_coverage(query, facets, candidates, min_terms);
+    if usable.is_empty() {
+        return false;
+    }
+    if usable.len() < claim_gap_recovery_min_materialized_evidence(policy, budget) {
+        return true;
+    }
+    let claim_hint_count = usable
+        .iter()
+        .map(|(candidate, _)| usable_candidate_claim_hint_count(query, candidate))
+        .sum::<usize>();
+    claim_hint_count < claim_gap_recovery_min_claim_hints(policy, budget)
+}
+
+fn claim_gap_recovery_queries(
+    policy: &Value,
+    query: &str,
+    existing_queries: &[String],
+    facets: &[ResearchFacet],
+    candidates: &[Candidate],
+    budget: ApertureBudget,
+) -> Vec<String> {
+    if !claim_gap_recovery_needed(policy, query, facets, candidates, budget) {
+        return Vec::new();
+    }
+    let min_terms = facet_aware_min_terms(policy);
+    let weak_facets = weak_research_facets_for_claim_support(query, facets, candidates, min_terms);
+    let max_queries = claim_gap_recovery_max_queries(policy, budget);
+    let mut seen = existing_queries
+        .iter()
+        .map(|row| clean_text(row, 600).to_ascii_lowercase())
+        .collect::<HashSet<_>>();
+    let mut out = Vec::<String>::new();
+    let templates = claim_gap_recovery_templates(policy);
+    for template in &templates {
+        if !weak_facets.is_empty() {
+            for facet in &weak_facets {
+                let entities = compact_recovery_entities(facets, facet);
+                if template.contains("{entities}") && entities.is_empty() {
+                    continue;
+                }
+                if let Some(candidate) = expand_recovery_template(
+                    template,
+                    query,
+                    &facet.requested_text,
+                    &entities,
+                ) {
+                    if seen.insert(candidate.to_ascii_lowercase()) {
+                        out.push(candidate);
+                    }
+                }
+                if out.len() >= max_queries {
+                    return out;
+                }
+            }
+        } else if let Some(candidate) = expand_recovery_template(template, query, query, "") {
+            if seen.insert(candidate.to_ascii_lowercase()) {
+                out.push(candidate);
             }
             if out.len() >= max_queries {
                 return out;
@@ -2969,6 +3080,168 @@ fn issue_quality_flags(partial_failures: &[String]) -> Vec<String> {
     flags
 }
 
+fn normalized_materialization_failure_reason(reason: &str) -> Option<&'static str> {
+    let lowered = clean_text(reason, 320).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return None;
+    }
+    if lowered.contains("page_extraction_global_budget_exhausted") {
+        return Some("fetch_budget_exhausted");
+    }
+    if lowered.contains("page_extraction_candidate_prefetch_rejected:junk_link")
+        || lowered.contains("junk_page")
+    {
+        return Some("prefetch_rejected_junk");
+    }
+    if lowered.contains("page_extraction_candidate_prefetch_rejected:off_intent_link")
+        || lowered.contains("query_result_mismatch")
+    {
+        return Some("prefetch_rejected_off_intent");
+    }
+    if lowered.contains("page_extraction_candidate_prefetch_rejected:weak_overlap_link")
+        || lowered.contains("page_extraction_candidate_prefetch_rejected:no_distinctive_overlap_link")
+        || lowered.contains("candidate_low_relevance")
+        || lowered.contains("fetch_candidate_low_relevance")
+    {
+        return Some("prefetch_or_promotion_low_relevance");
+    }
+    if lowered.contains("query_timeout_ms_") || lowered.contains("query_timeout") {
+        return Some("fetch_timeout");
+    }
+    if lowered.contains("rate_limited") || lowered.contains("http_429") || lowered.contains(":429")
+    {
+        return Some("fetch_rate_limited");
+    }
+    if lowered.contains("anti_bot_challenge")
+        || lowered.contains("captcha")
+        || lowered.contains("cloudflare")
+        || lowered.contains("verify you are human")
+    {
+        return Some("fetch_blocked_or_waf");
+    }
+    if lowered.contains("access_denied")
+        || lowered.contains("login required")
+        || lowered.contains("subscription")
+        || lowered.contains("region block")
+        || lowered.contains(":403")
+        || lowered.ends_with("403")
+    {
+        return Some("fetch_denied_or_auth");
+    }
+    if lowered.contains("browser_materialization") {
+        return Some("browser_materialization_failed");
+    }
+    if lowered.contains("provider readiness mismatch")
+        || lowered.contains("tool_surface_degraded")
+        || lowered.contains("provider_degraded")
+    {
+        return Some("provider_surface_degraded");
+    }
+    if lowered.contains("content_too_thin")
+        || lowered.contains("no_usable_summary")
+        || lowered.contains("low_signal")
+        || lowered.contains("page_extraction")
+    {
+        return Some("content_too_thin");
+    }
+    if lowered.contains("fetch:") || lowered.contains("fetch_candidate:") {
+        return Some("fetch_or_parse_failed");
+    }
+    None
+}
+
+fn materialization_failure_report(
+    quality_failures: &[String],
+    evidence_count: usize,
+    materialized_candidate_count: usize,
+    candidate_only_count: usize,
+    failed_materialization_count: usize,
+) -> Value {
+    let mut reason_counts = HashMap::<String, u64>::new();
+    let mut sample_reasons = HashMap::<String, String>::new();
+    for reason in quality_failures {
+        let Some(normalized) = normalized_materialization_failure_reason(reason) else {
+            continue;
+        };
+        *reason_counts.entry(normalized.to_string()).or_insert(0) += 1;
+        sample_reasons
+            .entry(normalized.to_string())
+            .or_insert_with(|| clean_text(reason, 220));
+    }
+    if candidate_only_count > 0 && materialized_candidate_count == 0 {
+        *reason_counts
+            .entry("candidate_only_unfetched".to_string())
+            .or_insert(0) += candidate_only_count as u64;
+        sample_reasons
+            .entry("candidate_only_unfetched".to_string())
+            .or_insert_with(|| {
+                "candidate rows stayed at title/snippet level and never materialized into source text"
+                    .to_string()
+            });
+    }
+    if failed_materialization_count > 0 {
+        *reason_counts
+            .entry("failed_materialization_candidate".to_string())
+            .or_insert(0) += failed_materialization_count as u64;
+        sample_reasons
+            .entry("failed_materialization_candidate".to_string())
+            .or_insert_with(|| {
+                "candidate fetch or promotion attempted but did not yield promotable source content"
+                    .to_string()
+            });
+    }
+    let mut reason_rows = reason_counts
+        .iter()
+        .map(|(reason, count)| {
+            json!({
+                "reason": reason,
+                "count": count,
+                "sample": sample_reasons.get(reason).cloned().unwrap_or_default()
+            })
+        })
+        .collect::<Vec<_>>();
+    reason_rows.sort_by(|a, b| {
+        b.get("count")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+            .cmp(&a.get("count").and_then(Value::as_u64).unwrap_or(0))
+            .then_with(|| {
+                a.get("reason")
+                    .and_then(Value::as_str)
+                    .unwrap_or("")
+                    .cmp(b.get("reason").and_then(Value::as_str).unwrap_or(""))
+            })
+    });
+    let total_issue_count = reason_rows
+        .iter()
+        .map(|row| row.get("count").and_then(Value::as_u64).unwrap_or(0))
+        .sum::<u64>();
+    let status = if materialized_candidate_count > 0 {
+        "materialized_candidates_present"
+    } else if !reason_rows.is_empty() {
+        "materialization_gap_diagnosed"
+    } else if evidence_count == 0 {
+        "no_packaged_evidence"
+    } else {
+        "not_recorded"
+    };
+    let top_reason = reason_rows.first().cloned().unwrap_or(Value::Null);
+    json!({
+        "version": "materialization_failure_report_v1",
+        "status": status,
+        "total_issue_count": total_issue_count,
+        "distinct_reason_count": reason_rows.len(),
+        "top_reason": top_reason,
+        "reason_rows": reason_rows,
+        "candidate_state_counts": {
+            "materialized_candidate_count": materialized_candidate_count,
+            "candidate_only_count": candidate_only_count,
+            "failed_materialization_count": failed_materialization_count
+        },
+        "note": "Normalizes why candidate rows failed to become materialized source evidence so provider-surface failures can be debugged upstream."
+    })
+}
+
 fn text_has_any_marker(text: &str, markers: &[&str]) -> bool {
     markers.iter().any(|marker| text.contains(*marker))
 }
@@ -3623,6 +3896,13 @@ fn web_tool_quality_report(
         .map(|(candidate, _)| evidence_pack_claim_hints(query, &candidate.snippet, 2).len())
         .sum::<usize>();
     let evidence_claim_count = claim_hint_count;
+    let materialization_failure_report = materialization_failure_report(
+        quality_failures,
+        evidence_count,
+        materialized_candidate_count,
+        candidate_only_count,
+        failed_materialization_count,
+    );
     if evidence_count > 0 && materialized_candidate_count == 0 {
         flags.push("materialized_evidence_missing".to_string());
     }
@@ -3836,6 +4116,7 @@ fn web_tool_quality_report(
         "trusted_structured_feed_count": trusted_structured_feed_count,
         "candidate_only_count": candidate_only_count,
         "failed_materialization_count": failed_materialization_count,
+        "materialization_failure_report": materialization_failure_report,
         "candidate_quality": candidate_quality,
         "blocker_taxonomy": blocker_taxonomy,
         "browser_materialization": browser_materialization,

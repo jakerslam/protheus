@@ -1069,9 +1069,7 @@ fn response_delegates_research_back_to_user(normalized_response: &str) -> bool {
     )
 }
 
-fn response_explicitly_cannot_answer_goal_from_current_evidence(
-    normalized_response: &str,
-) -> bool {
+fn response_explicitly_cannot_answer_goal_from_current_evidence(normalized_response: &str) -> bool {
     if normalized_response.is_empty() {
         return false;
     }
@@ -1103,7 +1101,9 @@ fn response_explicitly_cannot_answer_goal_from_current_evidence(
             "what the evidence misses everything specific",
         ],
     );
-    explicit_goal_gap || (off_topic_or_missing_coverage && response_delegates_research_back_to_user(normalized_response))
+    explicit_goal_gap
+        || (off_topic_or_missing_coverage
+            && response_delegates_research_back_to_user(normalized_response))
 }
 
 fn response_denies_recorded_evidence(normalized_response: &str, evidence_count: u64) -> bool {
@@ -1472,8 +1472,11 @@ fn retrieval_provider_quality(payload: &Value, normalized_prompt: &str) -> Value
     let tool_executed = has_tool_execution(payload);
     let candidate_count = provider_candidate_count(payload);
     let evidence_count = provider_evidence_count(payload);
+    let materialized_candidate_count = provider_materialized_candidate_count(payload);
     let content_rich_candidate_count = provider_content_rich_candidate_count(payload);
     let claim_hint_count = provider_claim_hint_count(payload);
+    let materialization_failure_report =
+        provider_explicit_quality_value(payload, &["materialization_failure_report"]);
     let prompt_relevance = evidence_prompt_relevance(payload, normalized_prompt);
     let topic_relevant_evidence = prompt_relevance
         .get("topic_relevant_evidence")
@@ -1535,6 +1538,8 @@ fn retrieval_provider_quality(payload: &Value, normalized_prompt: &str) -> Value
     );
     let evidence_artifact_conflict =
         explicit_no_results && (candidate_count > 0 || evidence_count > 0);
+    let materialized_evidence_available =
+        materialized_candidate_count > 0 && claim_hint_count > 0;
     let status = if !tool_executed {
         "not_attempted"
     } else if explicit_provider_degraded {
@@ -1547,6 +1552,8 @@ fn retrieval_provider_quality(payload: &Value, normalized_prompt: &str) -> Value
         "no_evidence"
     } else if candidate_count == 0 {
         "raw_provider_absent"
+    } else if materialized_candidate_count == 0 || claim_hint_count == 0 {
+        "low_signal"
     } else if explicit_low_signal {
         "low_signal"
     } else if evidence_count > 0 && !topic_relevant_evidence {
@@ -1581,6 +1588,9 @@ fn retrieval_provider_quality(payload: &Value, normalized_prompt: &str) -> Value
     if candidate_count == 0 {
         flags.push("raw_provider_absent");
     }
+    if tool_executed && evidence_count > 0 && materialized_candidate_count == 0 {
+        flags.push("materialized_evidence_absent");
+    }
     if tool_executed && evidence_count > 0 && content_rich_candidate_count == 0 {
         flags.push("content_rich_candidates_absent");
     }
@@ -1597,9 +1607,11 @@ fn retrieval_provider_quality(payload: &Value, normalized_prompt: &str) -> Value
         "tool_executed": tool_executed,
         "candidate_count": candidate_count,
         "evidence_count": evidence_count,
+        "materialized_candidate_count": materialized_candidate_count,
         "content_rich_candidate_count": content_rich_candidate_count,
         "claim_hint_count": claim_hint_count,
-        "materialized_evidence_available": content_rich_candidate_count > 0 && claim_hint_count > 0,
+        "materialization_failure_report": materialization_failure_report,
+        "materialized_evidence_available": materialized_evidence_available,
         "usable_evidence": usable_evidence,
         "allows_excellent": allows_excellent,
         "quality_flags": flags,
@@ -1609,6 +1621,7 @@ fn retrieval_provider_quality(payload: &Value, normalized_prompt: &str) -> Value
             "explicit_provider_degraded_marker": explicit_provider_degraded,
             "explicit_low_signal_marker": explicit_low_signal,
             "evidence_artifact_conflict": evidence_artifact_conflict,
+            "materialized_candidate_count": materialized_candidate_count,
             "content_rich_candidate_count": content_rich_candidate_count,
             "claim_hint_count": claim_hint_count,
             "relevant_evidence_count": relevant_evidence_count,
@@ -2150,17 +2163,28 @@ fn provider_evidence_count(payload: &Value) -> u64 {
 }
 
 fn provider_content_rich_candidate_count(payload: &Value) -> u64 {
-    let explicit = provider_explicit_quality_metric(
-        payload,
-        &[
-            "content_rich_candidate_count",
-            "content_rich_item_count",
-            "materialized_candidate_count",
-        ],
-    );
+    let explicit_materialized =
+        provider_explicit_quality_metric(payload, &["materialized_candidate_count"]);
+    let explicit = if explicit_materialized > 0 {
+        explicit_materialized
+    } else {
+        provider_explicit_quality_metric(
+            payload,
+            &["content_rich_candidate_count", "content_rich_item_count"],
+        )
+    };
     let inferred = selected_tool_contexts(payload)
         .iter()
         .map(|row| count_content_rich_items(row, 0))
+        .sum::<u64>();
+    explicit.max(inferred)
+}
+
+fn provider_materialized_candidate_count(payload: &Value) -> u64 {
+    let explicit = provider_explicit_quality_metric(payload, &["materialized_candidate_count"]);
+    let inferred = selected_tool_contexts(payload)
+        .iter()
+        .map(|row| count_materialized_items(row, 0))
         .sum::<u64>();
     explicit.max(inferred)
 }
@@ -2210,6 +2234,13 @@ fn provider_explicit_quality_metric(payload: &Value, metric_keys: &[&str]) -> u6
         .unwrap_or(0)
 }
 
+fn provider_explicit_quality_value(payload: &Value, value_keys: &[&str]) -> Value {
+    selected_tool_contexts(payload)
+        .iter()
+        .find_map(|row| explicit_quality_value(row, value_keys, 0))
+        .unwrap_or(Value::Null)
+}
+
 fn explicit_quality_metric(value: &Value, metric_keys: &[&str], depth: usize) -> u64 {
     if depth > 7 {
         return 0;
@@ -2237,6 +2268,27 @@ fn explicit_quality_metric(value: &Value, metric_keys: &[&str], depth: usize) ->
     }
 }
 
+fn explicit_quality_value(value: &Value, value_keys: &[&str], depth: usize) -> Option<Value> {
+    if depth > 7 {
+        return None;
+    }
+    match value {
+        Value::Object(map) => {
+            for key in value_keys {
+                if let Some(found) = map.get(*key) {
+                    return Some(found.clone());
+                }
+            }
+            map.values()
+                .find_map(|row| explicit_quality_value(row, value_keys, depth + 1))
+        }
+        Value::Array(rows) => rows
+            .iter()
+            .find_map(|row| explicit_quality_value(row, value_keys, depth + 1)),
+        _ => None,
+    }
+}
+
 fn count_content_rich_items(value: &Value, depth: usize) -> u64 {
     if depth > 7 {
         return 0;
@@ -2248,6 +2300,9 @@ fn count_content_rich_items(value: &Value, depth: usize) -> u64 {
             .map(|row| count_content_rich_items(row, depth + 1))
             .sum(),
         Value::Object(map) => {
+            if let Some(false) = value_counts_as_usable_evidence(value) {
+                return 0;
+            }
             let direct = [
                 "snippet",
                 "summary",
@@ -2290,6 +2345,9 @@ fn count_claim_hint_items(value: &Value, depth: usize) -> u64 {
             .map(|row| count_claim_hint_items(row, depth + 1))
             .sum(),
         Value::Object(map) => {
+            if let Some(false) = value_counts_as_usable_evidence(value) {
+                return 0;
+            }
             let direct = [
                 "claim_hints",
                 "claims",
@@ -2307,6 +2365,106 @@ fn count_claim_hint_items(value: &Value, depth: usize) -> u64 {
         }
         _ => 0,
     }
+}
+
+fn count_materialized_items(value: &Value, depth: usize) -> u64 {
+    if depth > 7 {
+        return 0;
+    }
+    match value {
+        Value::Array(rows) => rows
+            .iter()
+            .map(|row| count_materialized_items(row, depth + 1))
+            .sum(),
+        Value::Object(map) => {
+            let direct = value_counts_as_usable_evidence(value)
+                .filter(|eligible| *eligible)
+                .map(|_| 1)
+                .unwrap_or(0);
+            if direct > 0 {
+                direct
+            } else {
+                semantic_child_values(map)
+                    .map(|row| count_materialized_items(row, depth + 1))
+                    .sum()
+            }
+        }
+        _ => 0,
+    }
+}
+
+fn value_counts_as_usable_evidence(value: &Value) -> Option<bool> {
+    let map = value.as_object()?;
+    if let Some(explicit) = map.get("counts_as_usable_evidence").and_then(Value::as_bool) {
+        return Some(explicit);
+    }
+    let quality = map
+        .get("materialization_quality")
+        .and_then(Value::as_str)
+        .map(normalize_for_compare)
+        .or_else(|| {
+            let source_kind = map.get("source_kind").and_then(Value::as_str).unwrap_or("");
+            let permissions = map.get("permissions").and_then(Value::as_str).unwrap_or("");
+            let snippet = map
+                .get("snippet")
+                .or_else(|| map.get("summary"))
+                .or_else(|| map.get("content"))
+                .or_else(|| map.get("markdown"))
+                .or_else(|| map.get("text"))
+                .and_then(Value::as_str)
+                .unwrap_or("");
+            infer_materialization_quality(source_kind, permissions, snippet)
+        })?;
+    Some(matches!(
+        quality.as_str(),
+        "full_materialized" | "partial_materialized" | "trusted_structured_feed"
+    ))
+}
+
+fn infer_materialization_quality(
+    source_kind: &str,
+    permissions: &str,
+    snippet: &str,
+) -> Option<String> {
+    let source_kind = normalize_for_compare(source_kind);
+    let permissions = normalize_for_compare(permissions);
+    if source_kind.is_empty() && permissions.is_empty() {
+        return None;
+    }
+    let snippet_rich = content_rich_text(snippet);
+    let materialized = source_kind.contains("materialized")
+        || source_kind.contains("page_enriched")
+        || source_kind.contains("document_page_artifact")
+        || source_kind.contains("reader_output")
+        || source_kind.contains("rendered_page")
+        || source_kind.contains("page_artifact")
+        || permissions.contains("browser_materialized");
+    if materialized {
+        return Some(if snippet_rich {
+            "full_materialized".to_string()
+        } else {
+            "partial_materialized".to_string()
+        });
+    }
+    let fetch_like = source_kind.contains("direct_fetch")
+        || source_kind.contains("fetch_candidate")
+        || permissions.contains("fetch_materialized");
+    if fetch_like {
+        return Some(if snippet_rich {
+            "partial_materialized".to_string()
+        } else {
+            "failed_materialization".to_string()
+        });
+    }
+    let trusted_structured_feed = source_kind.contains("rss")
+        || source_kind.contains("feed")
+        || source_kind.contains("api")
+        || permissions.contains("structured_feed")
+        || permissions.contains("headline_feed");
+    if trusted_structured_feed {
+        return Some("trusted_structured_feed".to_string());
+    }
+    Some("candidate_only".to_string())
 }
 
 fn content_rich_text(raw: &str) -> bool {
@@ -2885,7 +3043,7 @@ mod tests {
         );
         assert_eq!(
             quality.get("allows_excellent").and_then(Value::as_bool),
-            Some(true)
+            Some(false)
         );
     }
 

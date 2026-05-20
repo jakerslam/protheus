@@ -2587,6 +2587,60 @@ fn coverage_gap_recovery_templates(policy: &Value) -> Vec<String> {
         })
 }
 
+fn claim_gap_recovery_enabled(policy: &Value) -> bool {
+    policy
+        .pointer("/batch_query/claim_gap_recovery/enabled")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+}
+
+fn claim_gap_recovery_min_materialized_evidence(
+    policy: &Value,
+    budget: ApertureBudget,
+) -> usize {
+    policy
+        .pointer("/batch_query/claim_gap_recovery/min_materialized_evidence")
+        .and_then(Value::as_u64)
+        .unwrap_or(2)
+        .clamp(1, budget.max_evidence.max(1) as u64) as usize
+}
+
+fn claim_gap_recovery_min_claim_hints(policy: &Value, budget: ApertureBudget) -> usize {
+    policy
+        .pointer("/batch_query/claim_gap_recovery/min_claim_hints")
+        .and_then(Value::as_u64)
+        .unwrap_or(3)
+        .clamp(1, (budget.max_evidence.max(1) * 2) as u64) as usize
+}
+
+fn claim_gap_recovery_max_queries(policy: &Value, budget: ApertureBudget) -> usize {
+    policy
+        .pointer("/batch_query/claim_gap_recovery/max_queries")
+        .and_then(Value::as_u64)
+        .unwrap_or_else(|| second_pass_recovery_max_queries(policy, budget) as u64)
+        .clamp(1, budget.max_candidates.clamp(1, 8) as u64) as usize
+}
+
+fn claim_gap_recovery_templates(policy: &Value) -> Vec<String> {
+    policy
+        .pointer("/batch_query/claim_gap_recovery/templates")
+        .and_then(Value::as_array)
+        .map(|rows| {
+            rows.iter()
+                .filter_map(Value::as_str)
+                .map(|row| clean_text(row, 320))
+                .filter(|row| !row.is_empty())
+                .collect::<Vec<_>>()
+        })
+        .filter(|rows| !rows.is_empty())
+        .unwrap_or_else(|| {
+            vec![
+                "{query} detailed source-backed findings".to_string(),
+                "{query} primary report or official results".to_string(),
+            ]
+        })
+}
+
 fn second_pass_recovery_queries(
     policy: &Value,
     query: &str,

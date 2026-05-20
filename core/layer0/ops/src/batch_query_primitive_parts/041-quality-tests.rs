@@ -78,6 +78,13 @@ mod quality_tests {
                         "min_covered_facet_ratio": 1.0,
                         "templates": ["{facet} source-backed evidence"]
                     },
+                    "claim_gap_recovery": {
+                        "enabled": second_pass_enabled,
+                        "max_queries": 1,
+                        "min_materialized_evidence": 1,
+                        "min_claim_hints": 2,
+                        "templates": ["{query} detailed source-backed findings"]
+                    },
                     "quality_gate": {
                         "enabled": true,
                         "provider_recovery": {"enabled": false}
@@ -3245,6 +3252,109 @@ mod quality_tests {
                 })
                 .unwrap_or(false),
             "{out:#?}"
+        );
+    }
+
+    #[test]
+    fn claim_gap_recovery_runs_when_materialized_rows_are_claim_thin() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        write_test_batch_policy(tmp.path(), true);
+        let query = "agent runtime reliability evidence";
+        let recovery_query = "agent runtime reliability evidence detailed source-backed findings";
+        let out = with_fixture(
+            json!({
+                query: {
+                    "ok": true,
+                    "provider": "duckduckgo",
+                    "source_kind": "document_page_artifact",
+                    "summary": "Agent runtime reliability evidence describes deterministic receipts, rollback control, and bounded recovery behavior for production teams operating autonomous systems in live environments.",
+                    "requested_url": "https://example.org/runtime-reliability-overview",
+                    "status_code": 200
+                },
+                recovery_query: {
+                    "ok": true,
+                    "provider": "duckduckgo",
+                    "source_kind": "document_page_artifact",
+                    "summary": "A primary report on agent runtime reliability documents incident rates, recovery timing, operator review boundaries, and measurable improvements in deployment stability across repeated production runs.",
+                    "requested_url": "https://example.org/runtime-reliability-report",
+                    "status_code": 200
+                }
+            }),
+            || run_query(tmp.path(), query, "medium"),
+        );
+        assert_eq!(
+            out.pointer("/second_pass_recovery/used")
+                .and_then(Value::as_bool),
+            Some(true),
+            "{out:#?}"
+        );
+        assert_eq!(
+            out.pointer("/second_pass_recovery/reason")
+                .and_then(Value::as_str),
+            Some("claim_gap"),
+            "{out:#?}"
+        );
+        assert!(
+            out.pointer("/second_pass_recovery/queries")
+                .and_then(Value::as_array)
+                .map(|rows| rows.iter().any(|row| row.as_str() == Some(recovery_query)))
+                .unwrap_or(false),
+            "{out:#?}"
+        );
+        assert!(
+            out.pointer("/evidence_claims")
+                .and_then(Value::as_array)
+                .map(|rows| rows.len() >= 2)
+                .unwrap_or(false),
+            "{out:#?}"
+        );
+    }
+
+    #[test]
+    fn materialization_failure_report_normalizes_fetch_gap_reasons() {
+        let report = materialization_failure_report(
+            &vec![
+                "search:page_extraction_candidate_prefetch_rejected:weak_overlap_link".to_string(),
+                "search:fetch_candidate:no_usable_summary".to_string(),
+                "search:query_timeout_ms_5000".to_string(),
+            ],
+            3,
+            0,
+            2,
+            0,
+        );
+        assert_eq!(
+            report.pointer("/status").and_then(Value::as_str),
+            Some("materialization_gap_diagnosed"),
+            "{report:#?}"
+        );
+        assert_eq!(
+            report
+                .pointer("/top_reason/reason")
+                .and_then(Value::as_str),
+            Some("candidate_only_unfetched"),
+            "{report:#?}"
+        );
+        assert!(
+            report
+                .pointer("/reason_rows")
+                .and_then(Value::as_array)
+                .map(|rows| rows.iter().any(|row| {
+                    row.get("reason").and_then(Value::as_str)
+                        == Some("content_too_thin")
+                }))
+                .unwrap_or(false),
+            "{report:#?}"
+        );
+        assert!(
+            report
+                .pointer("/reason_rows")
+                .and_then(Value::as_array)
+                .map(|rows| rows.iter().any(|row| {
+                    row.get("reason").and_then(Value::as_str) == Some("fetch_timeout")
+                }))
+                .unwrap_or(false),
+            "{report:#?}"
         );
     }
 

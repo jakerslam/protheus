@@ -210,6 +210,18 @@ fn default_policy() -> Value {
                     "{query} {facet} source-backed evidence"
                 ]
             },
+            "claim_gap_recovery": {
+                "enabled": true,
+                "max_queries": 3,
+                "min_materialized_evidence": 2,
+                "min_claim_hints": 3,
+                "templates": [
+                    "{entities} {facet} detailed source-backed findings",
+                    "{entities} {facet} primary report results",
+                    "{query} detailed source-backed findings",
+                    "{query} primary report or official results"
+                ]
+            },
             "quality_gate": {
                 "enabled": true,
                 "provider_recovery": {

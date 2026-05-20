@@ -15,6 +15,11 @@ pub(super) fn web_retrieval_gate_diagnostics(
     let tool_attempted = has_tool_execution(payload);
     let candidate_count = u64_at(retrieval_quality, &["candidate_count"], 0);
     let evidence_count = u64_at(retrieval_quality, &["evidence_count"], 0);
+    let materialized_candidate_count = u64_at(
+        retrieval_quality,
+        &["materialized_candidate_count"],
+        0,
+    );
     let content_rich_candidate_count =
         u64_at(retrieval_quality, &["content_rich_candidate_count"], 0);
     let claim_hint_count = u64_at(retrieval_quality, &["claim_hint_count"], 0);
@@ -31,7 +36,8 @@ pub(super) fn web_retrieval_gate_diagnostics(
         ) || bool_at(query_metadata_diagnostics, &["metadata_present"], false);
     let raw_candidates_present = candidate_count > 0;
     let packaged_evidence_present = evidence_count > 0;
-    let content_rich_candidates_present = content_rich_candidate_count > 0;
+    let content_rich_candidates_present =
+        content_rich_candidate_count > 0 && materialized_candidate_count > 0;
     let claim_extraction_present = claim_hint_count > 0;
     let provider_not_empty_or_degraded = !matches!(
         retrieval_status.as_str(),
@@ -80,7 +86,10 @@ pub(super) fn web_retrieval_gate_diagnostics(
     let provider_circuits_closed = !provider_circuit_open_detected
         || (provider_candidates_survive_filtering && packaged_evidence_present && usable_evidence);
     let provider_surface_ready = !provider_surface_degraded
-        || (provider_candidates_survive_filtering && packaged_evidence_present && usable_evidence);
+        || (provider_candidates_survive_filtering
+            && packaged_evidence_present
+            && content_rich_candidates_present
+            && claim_extraction_present);
     let blocker_recovery_lane_visible =
         bool_at(
             &browser_materialization_recovery,
@@ -399,9 +408,12 @@ pub(super) fn web_retrieval_gate_diagnostics(
                 "content-rich candidates cannot be expected before packaged evidence"
             },
             vec![
+                "retrieval_quality.materialized_candidate_count".to_string(),
                 "retrieval_quality.content_rich_candidate_count".to_string(),
                 "tool_result_quality.content_rich_candidate_count".to_string(),
+                "tool_result_quality.materialized_candidate_count".to_string(),
                 "evidence_pack_quality.content_rich_item_count".to_string(),
+                "evidence_pack_quality.materialized_item_count".to_string(),
             ],
         ),
         web_gate(
@@ -433,6 +445,7 @@ pub(super) fn web_retrieval_gate_diagnostics(
             vec![
                 "retrieval_quality.usable_evidence".to_string(),
                 "retrieval_quality.status".to_string(),
+                "retrieval_quality.materialized_candidate_count".to_string(),
                 "retrieval_quality.content_rich_candidate_count".to_string(),
                 "retrieval_quality.claim_hint_count".to_string(),
             ],
@@ -658,6 +671,7 @@ pub(super) fn web_retrieval_measurement_report(
     gate_metrics: &[Value],
 ) -> Value {
     let mut first_failure_counts = BTreeMap::<String, u64>::new();
+    let mut materialization_failure_reason_counts = BTreeMap::<String, u64>::new();
     let mut access_blocker_counts = BTreeMap::<String, u64>::new();
     let mut access_blocker_class_counts = BTreeMap::<String, u64>::new();
     let mut access_blocker_signal_counts = BTreeMap::<String, u64>::new();
@@ -702,6 +716,21 @@ pub(super) fn web_retrieval_measurement_report(
             .and_then(Value::as_str)
             .unwrap_or("none");
         *first_failure_counts.entry(gate.to_string()).or_insert(0) += 1;
+        let materialization_reason = str_at(
+            row,
+            &[
+                "web_tool_gate_diagnostics",
+                "operator_metrics",
+                "materialization",
+                "top_failure_reason",
+            ],
+            "none",
+        );
+        if !materialization_reason.is_empty() && materialization_reason != "none" {
+            *materialization_failure_reason_counts
+                .entry(materialization_reason)
+                .or_insert(0) += 1;
+        }
         candidate_count_total = candidate_count_total.saturating_add(u64_at(
             row,
             &["web_tool_gate_diagnostics", "candidate_count"],
@@ -991,6 +1020,8 @@ pub(super) fn web_retrieval_measurement_report(
         "transport_excluded_cases": transport_excluded_cases,
         "post_tool_context_excluded_cases": post_tool_context_excluded_cases,
         "first_failure_counts": first_failure_counts,
+        "materialization_failure_reason_counts": materialization_failure_reason_counts,
+        "top_materialization_failure_reason": top_count_row(&materialization_failure_reason_counts),
         "access_blocker_counts": access_blocker_counts,
         "access_blocker_class_counts": access_blocker_class_counts,
         "access_blocker_signal_counts": access_blocker_signal_counts,
@@ -1053,11 +1084,24 @@ fn unseeded_post_tool_synthesis_case(
     payload: &Value,
     retrieval_quality: &Value,
 ) -> bool {
-    str_at(case, &["category"], "") == "post_tool_synthesis"
-        && !has_tool_execution(payload)
+    if str_at(case, &["category"], "") != "post_tool_synthesis" {
+        return false;
+    }
+    let derived_fallback_request = str_at(
+        payload,
+        &[
+            "pending_tool_request",
+            "input",
+            "query_metadata_policy",
+            "classification",
+        ],
+        "",
+    ) == "derived_prompt_request";
+    (!has_tool_execution(payload)
         && web_pending_request(payload).is_none()
         && !bool_at(retrieval_quality, &["tool_executed"], false)
-        && str_at(retrieval_quality, &["status"], "") == "not_attempted"
+        && str_at(retrieval_quality, &["status"], "") == "not_attempted")
+        || derived_fallback_request
 }
 
 fn web_gate(
@@ -1137,22 +1181,41 @@ fn web_operator_case_metrics(
 ) -> Value {
     let primary_bottleneck = web_failure_boundary(first_failed_gate);
     let layer_bottleneck = web_failure_layer(first_failed_gate);
+    let materialized_candidate_count =
+        u64_at(retrieval_quality, &["materialized_candidate_count"], 0);
     let query_lane_count = u64_at(query_metadata_diagnostics, &["query_lane_count"], 0);
     let followup_query_count = u64_at(query_metadata_diagnostics, &["followup_query_count"], 0);
     let keyword_count = u64_at(query_metadata_diagnostics, &["keyword_count"], 0);
     let alias_count = u64_at(query_metadata_diagnostics, &["alias_count"], 0);
     let negative_term_count = u64_at(query_metadata_diagnostics, &["negative_term_count"], 0);
-    let required_entity_count =
-        u64_at(query_metadata_diagnostics, &["required_coverage_entities_count"], 0);
-    let required_facet_count =
-        u64_at(query_metadata_diagnostics, &["required_coverage_facets_count"], 0);
+    let required_entity_count = u64_at(
+        query_metadata_diagnostics,
+        &["required_coverage_entities_count"],
+        0,
+    );
+    let required_facet_count = u64_at(
+        query_metadata_diagnostics,
+        &["required_coverage_facets_count"],
+        0,
+    );
     let source_lane_count = declared_source_preference_count(request_input);
     let unique_source_domains = unique_source_domain_count(payload);
     let unique_evidence_domains = unique_evidence_domain_count(payload);
     let source_class_count = unique_source_class_count(payload);
     let official_or_primary_source_count = official_or_primary_source_count(payload);
-    let relevant_evidence_count =
-        u64_at(retrieval_quality, &["prompt_relevance", "relevant_evidence_count"], 0);
+    let relevant_evidence_count = u64_at(
+        retrieval_quality,
+        &["prompt_relevance", "relevant_evidence_count"],
+        0,
+    );
+    let materialization_failure_report = retrieval_quality
+        .get("materialization_failure_report")
+        .cloned()
+        .unwrap_or(Value::Null);
+    let top_materialization_failure_reason = materialization_failure_report
+        .pointer("/top_reason/reason")
+        .and_then(Value::as_str)
+        .unwrap_or("none");
     let topic_relevant_evidence = retrieval_quality
         .pointer("/prompt_relevance/topic_relevant_evidence")
         .and_then(Value::as_bool)
@@ -1197,8 +1260,11 @@ fn web_operator_case_metrics(
             "evidence_per_candidate_rate": ratio(evidence_count, candidate_count)
         },
         "materialization": {
+            "materialized_candidate_count": materialized_candidate_count,
             "content_rich_candidate_count": content_rich_candidate_count,
-            "content_rich_per_candidate_rate": ratio(content_rich_candidate_count, candidate_count)
+            "content_rich_per_candidate_rate": ratio(content_rich_candidate_count, candidate_count),
+            "top_failure_reason": top_materialization_failure_reason,
+            "failure_report": materialization_failure_report
         },
         "claim_extraction": {
             "claim_hint_count": claim_hint_count,
@@ -1413,7 +1479,9 @@ fn web_failure_layer(gate: &str) -> &'static str {
         | "web_4e_provider_candidates_survive_filtering"
         | "web_4_raw_candidates_present"
         | "web_6_provider_not_empty_or_degraded" => "candidate_supply",
-        "web_5_packaged_evidence_present" | "web_7_usable_evidence_available" | "web_8_evidence_context_to_synthesis" => "usable_evidence_packaging",
+        "web_5_packaged_evidence_present"
+        | "web_7_usable_evidence_available"
+        | "web_8_evidence_context_to_synthesis" => "usable_evidence_packaging",
         "web_5c_claim_extraction_present" => "claim_extraction",
         _ => "unknown",
     }
@@ -2579,6 +2647,168 @@ mod tests {
         assert_eq!(
             blocker.get("kind").and_then(Value::as_str),
             Some("anti_bot_challenge")
+        );
+    }
+
+    #[test]
+    fn excludes_post_tool_cases_when_only_derived_fallback_request_exists() {
+        let case = json!({
+            "category": "post_tool_synthesis"
+        });
+        let payload = json!({
+            "pending_tool_request": {
+                "input": {
+                    "query": "After the web tool returns low-signal results...",
+                    "query_metadata_policy": {
+                        "classification": "derived_prompt_request"
+                    }
+                }
+            },
+            "tools": [{
+                "status": "blocked"
+            }]
+        });
+        let retrieval_quality = json!({
+            "tool_executed": true,
+            "status": "provider_degraded"
+        });
+        assert_eq!(
+            web_tooling_measurement_exclusion_reason_case(&case, &payload, &retrieval_quality),
+            Some("post_tool_context_not_seeded")
+        );
+    }
+
+    #[test]
+    fn provider_surface_gate_passes_when_degraded_provider_still_yields_materialized_evidence() {
+        let payload = json!({
+            "pending_tool_request": {
+                "tool_key": "batch_query",
+                "input": {
+                    "query": "Find recent benchmarks comparing agent frameworks",
+                    "queries": ["Find recent benchmarks comparing agent frameworks"],
+                    "keywords": ["benchmarks", "agent frameworks"],
+                    "required_coverage": {"entities": ["agent frameworks"], "facets": ["benchmarks"]}
+                }
+            },
+            "tools": [{
+                "status": "low_signal"
+            }],
+            "provider_results": [{
+                "provider_raw_count": 126,
+                "result_quality": "provider_error",
+                "synthesis_candidate_count": 20
+            }],
+            "query_lane_attribution": {
+                "rows": [{
+                    "provider_raw_rows": 126,
+                    "candidate_rows": 20,
+                    "synthesis_candidate_rows": 6,
+                    "filtered_or_rejected_rows": 19
+                }]
+            },
+            "evidence_refs": [
+                {"snippet": "benchmark writeup", "claim_hints": ["coverage gap"], "source_domain": "example.com"}
+            ]
+        });
+        let retrieval_quality = json!({
+            "status": "low_signal",
+            "candidate_count": 20,
+            "evidence_count": 6,
+            "content_rich_candidate_count": 6,
+            "claim_hint_count": 2,
+            "usable_evidence": false,
+            "quality_flags": ["explicit_low_signal_marker"]
+        });
+        let query_metadata = json!({
+            "metadata_present": true,
+            "rich_query_pack_or_narrow_marker": true
+        });
+        let transitions = json!({
+            "checkpoints": [{
+                "checkpoint": "5e_agent_received_evidence_context",
+                "status": "pass"
+            }]
+        });
+        let diag = web_retrieval_gate_diagnostics(
+            &payload,
+            &retrieval_quality,
+            &query_metadata,
+            &transitions,
+        );
+        let gate_4c = diag
+            .get("gates")
+            .and_then(Value::as_array)
+            .and_then(|rows| {
+                rows.iter().find(|row| {
+                    row.get("gate").and_then(Value::as_str)
+                        == Some("web_4c_search_provider_surface_ready")
+                })
+            })
+            .cloned()
+            .expect("web_4c gate");
+        let gate_7 = diag
+            .get("gates")
+            .and_then(Value::as_array)
+            .and_then(|rows| {
+                rows.iter().find(|row| {
+                    row.get("gate").and_then(Value::as_str)
+                        == Some("web_7_usable_evidence_available")
+                })
+            })
+            .cloned()
+            .expect("web_7 gate");
+        assert_eq!(gate_4c.get("status").and_then(Value::as_str), Some("pass"));
+        assert_eq!(gate_7.get("status").and_then(Value::as_str), Some("fail"));
+    }
+
+    #[test]
+    fn operator_metrics_surface_materialization_failure_reason() {
+        let payload = json!({
+            "pending_tool_request": {
+                "tool_key": "batch_query",
+                "input": {
+                    "query": "Find recent benchmarks comparing agent frameworks"
+                }
+            },
+            "tools": [{
+                "status": "low_signal"
+            }]
+        });
+        let retrieval_quality = json!({
+            "status": "low_signal",
+            "candidate_count": 12,
+            "evidence_count": 4,
+            "content_rich_candidate_count": 0,
+            "materialized_candidate_count": 0,
+            "claim_hint_count": 0,
+            "usable_evidence": false,
+            "materialization_failure_report": {
+                "top_reason": {"reason": "content_too_thin", "count": 4},
+                "reason_rows": [
+                    {"reason": "content_too_thin", "count": 4}
+                ]
+            }
+        });
+        let query_metadata = json!({
+            "metadata_present": true,
+            "rich_query_pack_or_narrow_marker": true
+        });
+        let transitions = json!({
+            "checkpoints": [{
+                "checkpoint": "5e_agent_received_evidence_context",
+                "status": "pass"
+            }]
+        });
+        let diag = web_retrieval_gate_diagnostics(
+            &payload,
+            &retrieval_quality,
+            &query_metadata,
+            &transitions,
+        );
+        assert_eq!(
+            diag.pointer("/operator_metrics/materialization/top_failure_reason")
+                .and_then(Value::as_str),
+            Some("content_too_thin")
         );
     }
 }

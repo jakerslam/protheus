@@ -644,6 +644,22 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             second_pass_reason = "coverage_gap";
         }
     }
+    if source == "web"
+        && planned_second_pass_queries.is_empty()
+        && claim_gap_recovery_enabled(&policy)
+    {
+        planned_second_pass_queries = claim_gap_recovery_queries(
+            &policy,
+            &query,
+            &executed_queries,
+            &first_pass_research_facets,
+            &candidates,
+            budget,
+        );
+        if !planned_second_pass_queries.is_empty() {
+            second_pass_reason = "claim_gap";
+        }
+    }
     if source == "web" && !planned_second_pass_queries.is_empty() {
         for recovery_query in planned_second_pass_queries {
             let (mut rows, issues, artifacts) = retrieve_web_candidates_for_query_with_timeout(

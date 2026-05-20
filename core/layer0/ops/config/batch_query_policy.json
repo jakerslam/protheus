@@ -338,6 +338,25 @@
         "do_not_treat_high_candidate_count_as_evidence_sufficiency"
       ]
     },
+    "claim_gap_recovery": {
+      "enabled": true,
+      "trigger": "usable_materialized_evidence_exists_but_claim_support_is_too_thin_for_coherent_synthesis",
+      "max_queries": 3,
+      "min_materialized_evidence": 2,
+      "min_claim_hints": 3,
+      "record_recovery_queries": true,
+      "templates": [
+        "{entities} {facet} detailed source-backed findings",
+        "{entities} {facet} primary report results",
+        "{query} detailed source-backed findings",
+        "{query} primary report or official results"
+      ],
+      "non_goals": [
+        "do_not_treat_candidate_titles_as_claim_support",
+        "do_not_force_user_visible_output_format",
+        "do_not_hardcode_domains_or_topic_candidates"
+      ]
+    },
     "coverage_aware_query_planning": {
       "enabled": true,
       "authority": "agent_submitted_query_pack_with_policy_scoring",
