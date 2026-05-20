@@ -1,3 +1,175 @@
+fn percent_decode_wrapper_component(raw: &str) -> String {
+    let bytes = raw.as_bytes();
+    let mut out = String::new();
+    let mut i = 0usize;
+    while i < bytes.len() {
+        if bytes[i] == b'%' && i + 2 < bytes.len() {
+            let hex = &raw[i + 1..i + 3];
+            if let Ok(v) = u8::from_str_radix(hex, 16) {
+                out.push(v as char);
+                i += 3;
+                continue;
+            }
+        }
+        if bytes[i] == b'+' {
+            out.push(' ');
+        } else {
+            out.push(bytes[i] as char);
+        }
+        i += 1;
+    }
+    out
+}
+
+fn extract_http_candidate_from_wrapper_text(text: &str) -> Option<String> {
+    let lowered = text.to_ascii_lowercase();
+    let start = lowered
+        .find("https://")
+        .or_else(|| lowered.find("http://"))?;
+    let tail = &text[start..];
+    let end = tail
+        .find(|ch: char| ch.is_whitespace() || matches!(ch, '"' | '\'' | '<' | '>'))
+        .unwrap_or(tail.len());
+    let out = clean_text(&tail[..end], 2_200);
+    if out.starts_with("http://") || out.starts_with("https://") {
+        Some(out)
+    } else {
+        None
+    }
+}
+
+fn decode_wrapper_base64_candidate(token: &str) -> Option<String> {
+    use base64::engine::general_purpose::{STANDARD, URL_SAFE, URL_SAFE_NO_PAD};
+    use base64::Engine;
+
+    let trimmed = token.trim().trim_matches('/');
+    for decoder in [&URL_SAFE_NO_PAD, &URL_SAFE, &STANDARD] {
+        if let Ok(bytes) = decoder.decode(trimmed.as_bytes()) {
+            let decoded = String::from_utf8_lossy(&bytes).to_string();
+            if let Some(url) = extract_http_candidate_from_wrapper_text(&decoded) {
+                return Some(url);
+            }
+        }
+    }
+    for pad in ["=", "==", "==="] {
+        let padded = format!("{trimmed}{pad}");
+        if let Ok(bytes) = URL_SAFE.decode(padded.as_bytes()) {
+            let decoded = String::from_utf8_lossy(&bytes).to_string();
+            if let Some(url) = extract_http_candidate_from_wrapper_text(&decoded) {
+                return Some(url);
+            }
+        }
+    }
+    None
+}
+
+fn decode_wrapper_query_param(url: &str, include_continue: bool) -> Option<String> {
+    let (_, query) = url.split_once('?')?;
+    for part in query.split('&') {
+        let mut chunks = part.splitn(2, '=');
+        let key = chunks.next().unwrap_or_default();
+        let value = chunks.next().unwrap_or_default();
+        let key_allowed = matches!(key, "url" | "u" | "q")
+            || (include_continue && key == "continue")
+            || key == "uddg";
+        if key_allowed {
+            let candidate = percent_decode_wrapper_component(value);
+            if candidate.starts_with("http://") || candidate.starts_with("https://") {
+                return Some(candidate);
+            }
+        }
+    }
+    None
+}
+
+fn decode_citation_wrapper_once(url: &str) -> Option<String> {
+    let cleaned = clean_text(url, 2_200);
+    if cleaned.is_empty() {
+        return None;
+    }
+    let (_, host, path_raw, query) = parse_page_extraction_http_url(&cleaned)?;
+    let host = host.trim_start_matches("www.").to_ascii_lowercase();
+    let path = path_raw.to_ascii_lowercase();
+    let query_lower = query.unwrap_or("").to_ascii_lowercase();
+
+    if host == "news.google.com" {
+        if let Some(decoded) = decode_wrapper_query_param(&cleaned, true) {
+            return Some(decoded);
+        }
+        if path.contains("/rss/articles/") || path.contains("/articles/") || path.contains("/read/")
+        {
+            let token = path_raw
+                .split('/')
+                .filter(|segment| !segment.is_empty())
+                .next_back()
+                .unwrap_or_default();
+            if let Some(decoded) = decode_wrapper_base64_candidate(token) {
+                return Some(decoded);
+            }
+        }
+    }
+
+    if (host == "google.com" || host == "www.google.com")
+        && (path.contains("/url") || query_lower.contains("url=") || query_lower.contains("q=http"))
+    {
+        return decode_wrapper_query_param(&cleaned, false);
+    }
+
+    if host == "duckduckgo.com" && (path.contains("/l/") || query_lower.contains("uddg=")) {
+        return decode_wrapper_query_param(&cleaned, false);
+    }
+
+    None
+}
+
+fn decode_citation_wrapper_url(url: &str, max_depth: usize) -> Option<String> {
+    let mut current = clean_text(url, 2_200);
+    if current.is_empty() {
+        return None;
+    }
+    for _ in 0..max_depth.max(1) {
+        let Some(decoded) = decode_citation_wrapper_once(&current) else {
+            break;
+        };
+        if decoded == current {
+            break;
+        }
+        current = decoded;
+    }
+    if current.starts_with("http://") || current.starts_with("https://") {
+        Some(current)
+    } else {
+        None
+    }
+}
+
+fn canonical_search_result_locator(primary: &str, fallbacks: &[&str]) -> String {
+    let primary_clean = clean_text(primary, 2_200);
+    let primary_is_wrapper = citation_wrapper_link(&primary_clean);
+    if !primary_clean.is_empty() && !primary_is_wrapper {
+        return primary_clean;
+    }
+    if let Some(decoded) = decode_citation_wrapper_url(&primary_clean, 4) {
+        if !citation_wrapper_link(&decoded) {
+            return decoded;
+        }
+    }
+    for fallback in fallbacks {
+        let cleaned = clean_text(fallback, 2_200);
+        if cleaned.is_empty() {
+            continue;
+        }
+        if !citation_wrapper_link(&cleaned) {
+            return cleaned;
+        }
+        if let Some(decoded) = decode_citation_wrapper_url(&cleaned, 4) {
+            if !citation_wrapper_link(&decoded) {
+                return decoded;
+            }
+        }
+    }
+    primary_clean
+}
 
 fn non_search_engine_links(payload: &Value, max_links: usize) -> Vec<String> {
     if max_links == 0 {
@@ -11,7 +183,7 @@ fn non_search_engine_links(payload: &Value, max_links: usize) -> Vec<String> {
         .cloned()
         .unwrap_or_default()
     {
-        let link = clean_text(row.as_str().unwrap_or(""), 2_200);
+        let link = canonical_search_result_locator(row.as_str().unwrap_or(""), &[]);
         let Some(link) = normalize_document_candidate_link(&link) else {
             continue;
         };
@@ -51,9 +223,8 @@ fn normalize_document_candidate_link(link: &str) -> Option<String> {
         .unwrap_or(cleaned.as_str())
         .to_ascii_lowercase();
     let excluded_extensions = [
-        ".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".ico", ".css", ".js", ".woff",
-        ".woff2", ".ttf", ".mp3", ".mp4", ".avi", ".mov", ".zip", ".gz", ".tar", ".dmg",
-        ".exe",
+        ".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".ico", ".css", ".js", ".woff", ".woff2",
+        ".ttf", ".mp3", ".mp4", ".avi", ".mov", ".zip", ".gz", ".tar", ".dmg", ".exe",
     ];
     if excluded_extensions
         .iter()
@@ -73,7 +244,7 @@ fn first_non_search_engine_link(payload: &Value) -> String {
         .get("links")
         .and_then(Value::as_array)
         .and_then(|links| links.iter().find_map(Value::as_str))
-        .map(|link| clean_text(link, 2_200))
+        .map(|link| canonical_search_result_locator(link, &[]))
         .unwrap_or_default()
 }
 

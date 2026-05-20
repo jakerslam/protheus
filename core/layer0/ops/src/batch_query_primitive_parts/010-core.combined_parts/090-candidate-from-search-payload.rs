@@ -1,4 +1,3 @@
-
 fn candidate_from_search_payload(query: &str, payload: &Value) -> Result<Candidate, String> {
     if !payload.get("ok").and_then(Value::as_bool).unwrap_or(false) {
         return Err(clean_text(
@@ -19,17 +18,33 @@ fn candidate_from_search_payload(query: &str, payload: &Value) -> Result<Candida
     );
     let mut locator = first_non_search_engine_link(payload);
     if locator.is_empty() {
-        locator = clean_text(
+        locator = canonical_search_result_locator(
             payload
                 .get("requested_url")
                 .or_else(|| payload.pointer("/receipt/requested_url"))
                 .and_then(Value::as_str)
                 .unwrap_or(""),
-            2200,
+            &[
+                payload
+                    .get("source_url")
+                    .and_then(Value::as_str)
+                    .unwrap_or(""),
+                payload
+                    .get("resolved_url")
+                    .and_then(Value::as_str)
+                    .unwrap_or(""),
+                payload
+                    .get("final_url")
+                    .and_then(Value::as_str)
+                    .unwrap_or(""),
+            ],
         );
     }
-    let content_normalized =
-        normalize_snippet_text(&normalize_htmlish_content_for_snippet(&content), query, &locator);
+    let content_normalized = normalize_snippet_text(
+        &normalize_htmlish_content_for_snippet(&content),
+        query,
+        &locator,
+    );
     let summary = normalize_snippet_text(&raw_summary, query, &locator);
     let summary_low_signal = looks_like_low_signal_search_summary(&summary);
     let content_empty_duckduckgo_shell =
@@ -43,16 +58,15 @@ fn candidate_from_search_payload(query: &str, payload: &Value) -> Result<Candida
         },
         5,
     );
-    let mut snippet =
-        if !summary.is_empty()
-            && !summary_defers_to_content
-            && !looks_like_ack_only(&summary)
-            && !summary_low_signal
-        {
-            summary.clone()
-        } else {
-            String::new()
-        };
+    let mut snippet = if !summary.is_empty()
+        && !summary_defers_to_content
+        && !looks_like_ack_only(&summary)
+        && !summary_low_signal
+    {
+        summary.clone()
+    } else {
+        String::new()
+    };
     if snippet.is_empty()
         && !content_normalized.is_empty()
         && !looks_like_ack_only(&content_normalized)

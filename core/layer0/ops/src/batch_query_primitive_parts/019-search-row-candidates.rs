@@ -25,7 +25,7 @@ fn candidate_from_rendered_search_row(
         return None;
     }
     let url_match = search_row_url_regex().find(&cleaned)?;
-    let locator = clean_text(url_match.as_str(), 2_200);
+    let locator = canonical_search_result_locator(url_match.as_str(), &[]);
     let domain = extract_domains_from_text(&locator, 1)
         .into_iter()
         .next()
@@ -75,9 +75,7 @@ fn structured_result_collection_key(key: &str) -> bool {
 
 fn structured_result_source_kind(key: &str, fallback: &str) -> String {
     match key.to_ascii_lowercase().as_str() {
-        "web" | "news" | "images" | "image" | "document" | "documents" => {
-            key.to_ascii_lowercase()
-        }
+        "web" | "news" | "images" | "image" | "document" | "documents" => key.to_ascii_lowercase(),
         _ => fallback.to_string(),
     }
 }
@@ -94,11 +92,7 @@ fn object_string_field(map: &Map<String, Value>, keys: &[&str], max_len: usize) 
     String::new()
 }
 
-fn nested_metadata_string_field(
-    map: &Map<String, Value>,
-    keys: &[&str],
-    max_len: usize,
-) -> String {
+fn nested_metadata_string_field(map: &Map<String, Value>, keys: &[&str], max_len: usize) -> String {
     map.get("metadata")
         .and_then(Value::as_object)
         .map(|metadata| object_string_field(metadata, keys, max_len))
@@ -112,9 +106,11 @@ fn structured_result_locator(map: &Map<String, Value>) -> String {
             "url",
             "link",
             "href",
-            "source",
             "sourceURL",
             "source_url",
+            "resolved_url",
+            "final_url",
+            "source",
             "imageUrl",
             "image_url",
             "thumbnail",
@@ -125,14 +121,44 @@ fn structured_result_locator(map: &Map<String, Value>) -> String {
         2_200,
     );
     if !direct.is_empty() {
-        return direct;
+        let direct_fallback = object_string_field(
+            map,
+            &[
+                "sourceURL",
+                "source_url",
+                "resolved_url",
+                "final_url",
+                "requested_url",
+            ],
+            2_200,
+        );
+        let nested_fallback = nested_metadata_string_field(
+            map,
+            &[
+                "sourceURL",
+                "source_url",
+                "resolved_url",
+                "final_url",
+                "url",
+                "ogUrl",
+                "canonical",
+                "requested_url",
+            ],
+            2_200,
+        );
+        return canonical_search_result_locator(
+            &direct,
+            &[direct_fallback.as_str(), nested_fallback.as_str()],
+        );
     }
-    nested_metadata_string_field(
+    let nested = nested_metadata_string_field(
         map,
         &[
-            "url",
             "sourceURL",
             "source_url",
+            "resolved_url",
+            "final_url",
+            "url",
             "imageUrl",
             "image_url",
             "ogUrl",
@@ -140,7 +166,8 @@ fn structured_result_locator(map: &Map<String, Value>) -> String {
             "requested_url",
         ],
         2_200,
-    )
+    );
+    canonical_search_result_locator(&nested, &[])
 }
 
 fn structured_result_status_code(map: &Map<String, Value>) -> i64 {
@@ -180,8 +207,7 @@ fn candidate_from_structured_result_object(
         if !direct.is_empty() {
             direct
         } else {
-            let metadata_title =
-                nested_metadata_string_field(map, &["title", "ogTitle"], 240);
+            let metadata_title = nested_metadata_string_field(map, &["title", "ogTitle"], 240);
             if metadata_title.is_empty() {
                 format!("Web result from {}", clean_text(&domain, 120))
             } else {
@@ -308,13 +334,7 @@ fn candidates_from_structured_search_payload(
     }
     let mut out = Vec::<Candidate>::new();
     collect_structured_search_candidates_from_value(
-        query,
-        payload,
-        "web",
-        false,
-        0,
-        max_rows,
-        &mut out,
+        query, payload, "web", false, 0, max_rows, &mut out,
     );
     let mut seen = HashSet::<String>::new();
     out.retain(|candidate| {
@@ -394,8 +414,14 @@ fn retained_provider_results_preview(query: &str, rows: &[Value], limit: usize) 
         if out.len() >= limit.max(1) {
             break;
         }
-        let locator = clean_text(row.get("locator").and_then(Value::as_str).unwrap_or(""), 2_200);
-        let summary = clean_text(row.get("summary").and_then(Value::as_str).unwrap_or(""), 1_200);
+        let locator = clean_text(
+            row.get("locator").and_then(Value::as_str).unwrap_or(""),
+            2_200,
+        );
+        let summary = clean_text(
+            row.get("summary").and_then(Value::as_str).unwrap_or(""),
+            1_200,
+        );
         if locator.is_empty() || summary.is_empty() {
             continue;
         }
@@ -421,13 +447,9 @@ fn retained_provider_results_preview(query: &str, rows: &[Value], limit: usize) 
             excerpt_hash: sha256_hex(&summary),
             timestamp: None,
             permissions: Some("public_web".to_string()),
-            status_code: row
-                .get("status_code")
-                .and_then(Value::as_i64)
-                .unwrap_or(0),
+            status_code: row.get("status_code").and_then(Value::as_i64).unwrap_or(0),
         };
-        if query_overlap_terms(query, &candidate) == 0
-            && source_trust_adjustment(&candidate) < 0.15
+        if query_overlap_terms(query, &candidate) == 0 && source_trust_adjustment(&candidate) < 0.15
         {
             continue;
         }
@@ -526,9 +548,6 @@ fn comparison_partial_preserves_actionable_evidence(
 ) -> bool {
     let min_covered_entities = comparison_entities.len().min(2);
     min_covered_entities > 0
-        && comparison_entity_coverage_count(
-            comparison_entities,
-            actionable_ranked,
-            retained_ranked,
-        ) >= min_covered_entities
+        && comparison_entity_coverage_count(comparison_entities, actionable_ranked, retained_ranked)
+            >= min_covered_entities
 }

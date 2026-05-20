@@ -147,9 +147,15 @@ mod quality_tests {
         let alpha_facet_lane = plan
             .queries
             .iter()
-            .position(|row| row.contains("\"Alpha Runtime\" deployment readiness official documentation"))
+            .position(|row| {
+                row.contains("\"Alpha Runtime\" deployment readiness official documentation")
+            })
             .expect("Alpha Runtime facet lane");
-        assert!(alpha_official_site < alpha_facet_lane, "{:#?}", plan.queries);
+        assert!(
+            alpha_official_site < alpha_facet_lane,
+            "{:#?}",
+            plan.queries
+        );
         assert!(
             plan.queries
                 .iter()
@@ -160,7 +166,8 @@ mod quality_tests {
         assert!(
             plan.queries
                 .iter()
-                .any(|row| row.contains("\"Alpha Runtime\" deployment readiness official documentation")),
+                .any(|row| row
+                    .contains("\"Alpha Runtime\" deployment readiness official documentation")),
             "{:#?}",
             plan.queries
         );
@@ -201,8 +208,7 @@ mod quality_tests {
 
     #[test]
     fn explicit_query_packs_cap_metadata_expansion_to_top_discovery_lanes() {
-        let query =
-            "Compare LangGraph vs CrewAI for building a multi-agent research assistant.";
+        let query = "Compare LangGraph vs CrewAI for building a multi-agent research assistant.";
         let request = json!({
             "source": "web",
             "query": query,
@@ -232,12 +238,16 @@ mod quality_tests {
 
         assert_eq!(plan.queries.len(), 8, "{:#?}", plan.queries);
         assert!(
-            plan.queries.iter().any(|row| row == "\"LangGraph\" official site"),
+            plan.queries
+                .iter()
+                .any(|row| row == "\"LangGraph\" official site"),
             "{:#?}",
             plan.queries
         );
         assert!(
-            plan.queries.iter().any(|row| row == "\"CrewAI\" official site"),
+            plan.queries
+                .iter()
+                .any(|row| row == "\"CrewAI\" official site"),
             "{:#?}",
             plan.queries
         );
@@ -348,12 +358,19 @@ mod quality_tests {
             plan.queries
         );
         assert!(
-            !plan.query_metadata.keywords.iter().any(|row| row == "current" || row == "focus"),
+            !plan
+                .query_metadata
+                .keywords
+                .iter()
+                .any(|row| row == "current" || row == "focus"),
             "{:#?}",
             plan.query_metadata
         );
         assert!(
-            plan.query_metadata.keywords.iter().any(|row| row == "production"),
+            plan.query_metadata
+                .keywords
+                .iter()
+                .any(|row| row == "production"),
             "{:#?}",
             plan.query_metadata
         );
@@ -404,8 +421,9 @@ mod quality_tests {
             source_kind: "web".to_string(),
             title: "Alpha Runtime deployment evidence".to_string(),
             locator: "https://alpha.example/docs".to_string(),
-            snippet: "Alpha Runtime release notes describe deployment readiness and operations evidence."
-                .to_string(),
+            snippet:
+                "Alpha Runtime release notes describe deployment readiness and operations evidence."
+                    .to_string(),
             excerpt_hash: "alpha".to_string(),
             timestamp: None,
             permissions: None,
@@ -472,15 +490,11 @@ mod quality_tests {
         let report = query_lane_attribution_report(&lane_sources, &[(alpha, 0.92)], &facets, 1);
         assert_eq!(report.get("status").and_then(Value::as_str), Some("mixed"));
         assert_eq!(
-            report
-                .get("selected_lane_count")
-                .and_then(Value::as_u64),
+            report.get("selected_lane_count").and_then(Value::as_u64),
             Some(1)
         );
         assert_eq!(
-            report
-                .get("unselected_lane_count")
-                .and_then(Value::as_u64),
+            report.get("unselected_lane_count").and_then(Value::as_u64),
             Some(2)
         );
         assert_eq!(
@@ -505,7 +519,9 @@ mod quality_tests {
             rows[0]
                 .get("covered_requested_texts")
                 .and_then(Value::as_array)
-                .map(|values| values.iter().any(|value| value.as_str() == Some("Alpha Runtime")))
+                .map(|values| values
+                    .iter()
+                    .any(|value| value.as_str() == Some("Alpha Runtime")))
                 .unwrap_or(false),
             "{report:#?}"
         );
@@ -536,14 +552,21 @@ mod quality_tests {
         );
         for expected in ["Infring", "LangGraph", "CrewAI", "AutoGen", "OpenHands"] {
             assert!(
-                plan.query_metadata.entities.iter().any(|row| row == expected),
+                plan.query_metadata
+                    .entities
+                    .iter()
+                    .any(|row| row == expected),
                 "{:#?}",
                 plan.query_metadata
             );
         }
         for unexpected in ["Use", "May"] {
             assert!(
-                !plan.query_metadata.entities.iter().any(|row| row == unexpected),
+                !plan
+                    .query_metadata
+                    .entities
+                    .iter()
+                    .any(|row| row == unexpected),
                 "{:#?}",
                 plan.query_metadata
             );
@@ -585,14 +608,21 @@ mod quality_tests {
         );
         for unexpected in ["should", "we", "use"] {
             assert!(
-                !plan.query_metadata.keywords.iter().any(|row| row == unexpected),
+                !plan
+                    .query_metadata
+                    .keywords
+                    .iter()
+                    .any(|row| row == unexpected),
                 "{:#?}",
                 plan.query_metadata
             );
         }
         for expected in ["data", "ai", "search", "crawling"] {
             assert!(
-                plan.query_metadata.keywords.iter().any(|row| row == expected),
+                plan.query_metadata
+                    .keywords
+                    .iter()
+                    .any(|row| row == expected),
                 "{:#?}",
                 plan.query_metadata
             );
@@ -610,9 +640,7 @@ mod quality_tests {
             plan.query_metadata
         );
         assert!(
-            plan.queries
-                .iter()
-                .any(|row| row.contains("Exa search")),
+            plan.queries.iter().any(|row| row.contains("Exa search")),
             "{:#?}",
             plan.queries
         );
@@ -655,7 +683,10 @@ mod quality_tests {
             plan.query_metadata
         );
         assert!(
-            plan.query_metadata.keywords.iter().any(|term| term == "2026"),
+            plan.query_metadata
+                .keywords
+                .iter()
+                .any(|term| term == "2026"),
             "{:#?}",
             plan.query_metadata
         );
@@ -684,7 +715,11 @@ mod quality_tests {
             plan.query_metadata.metadata_authority,
             "tool_structured_from_user_query_terms"
         );
-        for expected in ["prompt injection", "credential handling", "approval boundaries"] {
+        for expected in [
+            "prompt injection",
+            "credential handling",
+            "approval boundaries",
+        ] {
             assert!(
                 plan.query_metadata.facets.iter().any(|row| row == expected),
                 "{:#?}",
@@ -693,12 +728,20 @@ mod quality_tests {
         }
         for unexpected in ["focus on prompt injection", "and approval boundaries"] {
             assert!(
-                !plan.query_metadata.facets.iter().any(|row| row == unexpected),
+                !plan
+                    .query_metadata
+                    .facets
+                    .iter()
+                    .any(|row| row == unexpected),
                 "{:#?}",
                 plan.query_metadata
             );
         }
-        for expected in ["prompt injection", "credential handling", "approval boundaries"] {
+        for expected in [
+            "prompt injection",
+            "credential handling",
+            "approval boundaries",
+        ] {
             assert!(
                 plan.queries
                     .iter()
@@ -733,7 +776,10 @@ mod quality_tests {
 
         for expected in ["browser-use", "Playwright", "OpenHands"] {
             assert!(
-                plan.query_metadata.entities.iter().any(|row| row == expected),
+                plan.query_metadata
+                    .entities
+                    .iter()
+                    .any(|row| row == expected),
                 "{:#?}",
                 plan.query_metadata
             );
@@ -790,11 +836,7 @@ mod quality_tests {
             .position(|row| row.ends_with("primary source evidence"))
             .expect("generic primary source recovery lane");
 
-        assert!(
-            llama_lane < generic_recovery,
-            "{:#?}",
-            plan.queries
-        );
+        assert!(llama_lane < generic_recovery, "{:#?}", plan.queries);
     }
 
     #[test]
@@ -2174,7 +2216,8 @@ mod quality_tests {
             false,
         );
         assert!(
-            links.iter()
+            links
+                .iter()
                 .any(|link| link == "https://docs.langchain.com/oss/python/langgraph/overview"),
             "{links:?}"
         );
@@ -2203,8 +2246,10 @@ mod quality_tests {
             "{links:?}"
         );
         assert!(
-            !links.iter().any(|link| link.contains("caranddriver")
-                || link.contains("wikipedia.org/wiki/Model")),
+            !links
+                .iter()
+                .any(|link| link.contains("caranddriver")
+                    || link.contains("wikipedia.org/wiki/Model")),
             "{links:?}"
         );
     }
@@ -2232,7 +2277,8 @@ mod quality_tests {
     fn page_extraction_allows_contextual_citation_wrappers_for_materialization() {
         let query = "Research current security concerns around AI browser agents. Focus on prompt injection, credential handling, and approval boundaries.";
         let policy = default_policy();
-        let opaque_link = "https://news.google.com/rss/articles/CBMiYWdlbnRfc2VjdXJpdHlfcmVzdWx0?oc=5";
+        let opaque_link =
+            "https://news.google.com/rss/articles/CBMiYWdlbnRfc2VjdXJpdHlfcmVzdWx0?oc=5";
         let links = payload_links_for_page_extraction(
             query,
             &policy,
@@ -2282,6 +2328,56 @@ mod quality_tests {
             !candidate_retention_preview_eligible(query, &candidate, 0.62),
             "{candidate:#?}"
         );
+    }
+
+    #[test]
+    fn structured_result_locator_decodes_google_news_wrapper_urls() {
+        use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+        use base64::Engine;
+
+        let article = "https://example.org/agent-security-story";
+        let token = URL_SAFE_NO_PAD.encode(article.as_bytes());
+        let structured = json!({
+            "url": format!("https://news.google.com/rss/articles/{token}?oc=5"),
+            "title": "Agent security story",
+            "snippet": "A direct source-backed story."
+        });
+
+        assert_eq!(
+            structured_result_locator(structured.as_object().expect("object")),
+            article
+        );
+    }
+
+    #[test]
+    fn structured_result_locator_falls_back_to_source_url_when_wrapper_stays_opaque() {
+        let structured = json!({
+            "url": "https://news.google.com/rss/articles/CBMipAFBVV95cUxPdC10emd3S3BZY2R2Y2VKUTY2cEZ4b3dKeVY1QzJQN1VENUJGTl9lQVFUMWZieGFkUXp5MmwtYmktXzBBVHE5S3lCTmctOW5qeF9ITmxWQk1TdEhEWjZLUm83b1pHVWhZYVlkbnd5RU9zbWsycVNfSDRGSzh2QVVVeFo1cFliSUxYdVBJdDlKdmNEemR2Q0FZWjNtZTlRdnJHaDEwbA?oc=5",
+            "source_url": "https://aws.amazon.com/",
+            "title": "Opaque wrapper",
+            "snippet": "A provider result with a known publisher home page."
+        });
+
+        assert_eq!(
+            structured_result_locator(structured.as_object().expect("object")),
+            "https://aws.amazon.com/"
+        );
+    }
+
+    #[test]
+    fn rendered_search_rows_decode_google_news_wrapper_urls() {
+        use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+        use base64::Engine;
+
+        let article = "https://example.org/agent-security-story";
+        let token = URL_SAFE_NO_PAD.encode(article.as_bytes());
+        let row = format!(
+            "Agent security story — https://news.google.com/rss/articles/{token}?oc=5 — Direct source-backed summary."
+        );
+
+        let candidate = candidate_from_rendered_search_row("agent security story", &row, 200)
+            .expect("candidate");
+        assert_eq!(candidate.locator, article);
     }
 
     #[test]
@@ -2690,7 +2786,8 @@ mod quality_tests {
             source_kind: "web".to_string(),
             title: "Science result via news feed".to_string(),
             locator: "https://news.google.com/rss/articles/example".to_string(),
-            snippet: "Science result summary. Source: Example Science (science.example.org).".to_string(),
+            snippet: "Science result summary. Source: Example Science (science.example.org)."
+                .to_string(),
             excerpt_hash: "source-hint".to_string(),
             timestamp: None,
             permissions: None,
@@ -2706,7 +2803,8 @@ mod quality_tests {
             source_kind: "web".to_string(),
             title: "Some Definition & Meaning - Merriam-Webster".to_string(),
             locator: "https://www.merriam-webster.com/dictionary/some".to_string(),
-            snippet: "When some is used without a number, it may mean an unspecified amount.".to_string(),
+            snippet: "When some is used without a number, it may mean an unspecified amount."
+                .to_string(),
             excerpt_hash: "dictionary-some".to_string(),
             timestamp: None,
             permissions: None,
@@ -2749,7 +2847,8 @@ mod quality_tests {
             source_kind: "web".to_string(),
             title: "Compare text and find differences online".to_string(),
             locator: "https://example.com/compare-text".to_string(),
-            snippet: "Compare text online with a free diff checker for documents and files.".to_string(),
+            snippet: "Compare text online with a free diff checker for documents and files."
+                .to_string(),
             excerpt_hash: "generic-compare-site".to_string(),
             timestamp: None,
             permissions: None,
@@ -2849,7 +2948,11 @@ mod quality_tests {
             query,
             "medium",
         );
-        assert_eq!(out.get("status").and_then(Value::as_str), Some("ok"), "{out:#?}");
+        assert_eq!(
+            out.get("status").and_then(Value::as_str),
+            Some("ok"),
+            "{out:#?}"
+        );
         assert!(
             out.get("evidence_refs")
                 .and_then(Value::as_array)
@@ -3206,13 +3309,19 @@ mod quality_tests {
 
         assert_eq!(added, 1, "{selected:#?}");
         assert_eq!(selected.len(), 2, "{selected:#?}");
-        assert!(selected.iter().any(|(candidate, _)| {
-            candidate.locator.contains("docs.beta.example.com")
-                && candidate_coverage_facets(&facets, candidate, 1).len() == 1
-        }), "{selected:#?}");
-        assert!(!selected
-            .iter()
-            .any(|(candidate, _)| candidate.locator.contains("general-deployment")), "{selected:#?}");
+        assert!(
+            selected.iter().any(|(candidate, _)| {
+                candidate.locator.contains("docs.beta.example.com")
+                    && candidate_coverage_facets(&facets, candidate, 1).len() == 1
+            }),
+            "{selected:#?}"
+        );
+        assert!(
+            !selected
+                .iter()
+                .any(|(candidate, _)| candidate.locator.contains("general-deployment")),
+            "{selected:#?}"
+        );
     }
 
     #[test]
@@ -3267,9 +3376,12 @@ mod quality_tests {
 
         assert_eq!(added, 1, "{selected:#?}");
         assert_eq!(selected.len(), 2, "{selected:#?}");
-        assert!(selected
-            .iter()
-            .any(|(candidate, _)| candidate.locator.contains("docs.beta.example.com")), "{selected:#?}");
+        assert!(
+            selected
+                .iter()
+                .any(|(candidate, _)| candidate.locator.contains("docs.beta.example.com")),
+            "{selected:#?}"
+        );
         let covered = evidence_coverage_from_ranked_candidates(&facets, &selected, 1);
         assert_eq!(
             covered
@@ -3342,9 +3454,12 @@ mod quality_tests {
         );
 
         assert_eq!(added, 1, "{selected:#?}");
-        assert!(selected
-            .iter()
-            .any(|(candidate, _)| candidate.locator == "https://www.beta.example.com/"), "{selected:#?}");
+        assert!(
+            selected
+                .iter()
+                .any(|(candidate, _)| candidate.locator == "https://www.beta.example.com/"),
+            "{selected:#?}"
+        );
     }
 
     #[test]
@@ -3406,9 +3521,12 @@ mod quality_tests {
         );
 
         assert_eq!(added, 0, "{selected:#?}");
-        assert!(!selected
-            .iter()
-            .any(|(candidate, _)| citation_wrapper_link(&candidate.locator)), "{selected:#?}");
+        assert!(
+            !selected
+                .iter()
+                .any(|(candidate, _)| citation_wrapper_link(&candidate.locator)),
+            "{selected:#?}"
+        );
     }
 
     #[test]
@@ -3431,7 +3549,10 @@ mod quality_tests {
 
         let coverage = candidate_coverage_facets(&facets, &candidate, 2);
 
-        assert_eq!(coverage, vec!["facet_01".to_string(), "facet_02".to_string()]);
+        assert_eq!(
+            coverage,
+            vec!["facet_01".to_string(), "facet_02".to_string()]
+        );
     }
 
     #[test]
@@ -3442,7 +3563,8 @@ mod quality_tests {
             "Research a public policy question and cover cost evidence and safety risks evidence.";
         let cost_query = "public policy question cost evidence";
         let safety_query = "public policy question safety risks evidence";
-        let safety_recovery_query = "public policy question safety risks evidence source-backed evidence";
+        let safety_recovery_query =
+            "public policy question safety risks evidence source-backed evidence";
         let out = with_fixture(
             json!({
                 query: {
@@ -3597,9 +3719,7 @@ mod quality_tests {
             "{report:#?}"
         );
         assert_eq!(
-            report
-                .pointer("/top_reason/reason")
-                .and_then(Value::as_str),
+            report.pointer("/top_reason/reason").and_then(Value::as_str),
             Some("candidate_only_unfetched"),
             "{report:#?}"
         );
@@ -3608,8 +3728,7 @@ mod quality_tests {
                 .pointer("/reason_rows")
                 .and_then(Value::as_array)
                 .map(|rows| rows.iter().any(|row| {
-                    row.get("reason").and_then(Value::as_str)
-                        == Some("content_too_thin")
+                    row.get("reason").and_then(Value::as_str) == Some("content_too_thin")
                 }))
                 .unwrap_or(false),
             "{report:#?}"
