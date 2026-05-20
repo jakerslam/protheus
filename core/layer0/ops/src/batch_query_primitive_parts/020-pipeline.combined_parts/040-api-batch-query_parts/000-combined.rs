@@ -914,19 +914,6 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
         &evidence_ranked,
         budget.max_evidence,
     );
-    let research_brief = research_brief_value(
-        &query,
-        &query_plan.query_metadata,
-        &executed_queries,
-        &source,
-    );
-    let evidence_needs = evidence_needs_value(
-        &policy,
-        &query,
-        &query_plan.query_metadata,
-        &research_facets,
-        budget,
-    );
     let evidence_claims = evidence_claims_from_pack(
         &query_plan.query_metadata,
         &evidence_pack,
@@ -1171,8 +1158,6 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             "query_metadata": query_plan.query_metadata.to_value(),
             "search_scope": search_scope_value.clone()
         },
-        "research_brief": research_brief.clone(),
-        "evidence_needs": evidence_needs.clone(),
         "adapter_version": "web_conduit_v1",
         "provider_snapshot": provider_snapshot,
         "snapshot_id": provider_snapshot.get("id").cloned().unwrap_or(Value::Null),
@@ -1230,8 +1215,6 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             "query_metadata": query_plan.query_metadata.to_value(),
             "search_scope": search_scope_value.clone()
         },
-        "research_brief": research_brief.clone(),
-        "evidence_needs": evidence_needs.clone(),
         "evidence_claims": evidence_claims.clone(),
         "partial_failure_details": hard_partial_failures.clone(),
         "retrieval_telemetry": retrieval_telemetry.clone(),
@@ -1292,8 +1275,6 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             "query_plan_source": query_plan.query_plan_source,
             "query_metadata": query_plan.query_metadata.to_value(),
             "search_scope": search_scope_value,
-            "research_brief": research_brief,
-            "evidence_needs": evidence_needs,
             "evidence_claims": evidence_claims,
             "partial_failure_details": hard_partial_failures,
             "retrieval_telemetry": retrieval_telemetry,
