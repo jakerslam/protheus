@@ -4,6 +4,14 @@
   "workflow_role": "assistant_response_workflow",
   "default": false,
   "description": "ForgeCode-derived primitive for running repo-native validation commands with structured stdout, stderr, exit-code, and shell receipts.",
+  "primitive_first_contract": {
+    "case_specific_hardcoding_allowed": false,
+    "specificity_owner": "primitive",
+    "extension_surface": "workflow_cd",
+    "registered_capability_id": "workflow.validation_command_runner",
+    "special_case_policy": "Framework-specific validation commands must be supplied by caller context, config, or profiles rather than hardcoded in this primitive.",
+    "monotonic_lower_level_regression_policy": "Validation improvements must not force unnecessary command execution on tasks that did not request or require validation."
+  },
   "stages": [
     "input_normalization",
     "command_validation",

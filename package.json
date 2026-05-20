@@ -197,6 +197,7 @@
     "foundation:simplicity:capture-baseline": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/ops/simplicity_budget_gate.ts capture-baseline",
     "foundation:simplicity:offset-backfill": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/ops/simplicity_offset_backfill.ts run --apply=1",
     "foundation:simplicity:run": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/ops/simplicity_budget_gate.ts run --strict=1",
+    "ops:primitive-first:guard": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/primitive_first_doctrine_guard.ts --strict=1 --out-json=core/local/artifacts/primitive_first_doctrine_guard_current.json --out-markdown=local/workspace/reports/PRIMITIVE_FIRST_DOCTRINE_GUARD_CURRENT.md",
     "fractal:child:rollback": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/fractal/child_organ_runtime.ts rollback",
     "fractal:child:run": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/fractal/child_organ_runtime.ts run",
     "fractal:child:spawn": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/fractal/child_organ_runtime.ts spawn",
@@ -499,8 +500,8 @@
     "ops:kernel-sentinel:heartbeat": "cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin infring-ops -- kernel-sentinel heartbeat --strict=0 --cadence=heartbeat --schedule-artifact=core/local/artifacts/kernel_sentinel_heartbeat_current.json --auto-artifact=core/local/artifacts/kernel_sentinel_auto_run_current.json --quiet-success=1",
     "ops:kernel-sentinel:release-gate": "npm run -s ops:kernel-sentinel:stage-run:release && npm run -s ops:ksent:issue-quality:refresh && npm run -s ops:ksent:fresh-evidence:guard && npm run -s ops:ksent:trace-completeness:guard && npm run -s ops:ksent:report-retention:guard && npm run -s ops:ksent:dream-success:metrics",
     "ops:kernel-sentinel:schedule": "cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin infring-ops -- kernel-sentinel schedule --strict=0 --cadence=maintenance --schedule-artifact=core/local/artifacts/kernel_sentinel_schedule_current.json --auto-artifact=core/local/artifacts/kernel_sentinel_auto_run_current.json --quiet-success=1",
-    "ops:kernel-sentinel:stage-run:dream": "npm run -s ops:ksent:collector:refresh || true; node client/runtime/lib/ts_entrypoint.ts observability/sentinel/sentinel_full_run_stage_runner.ts --phase=all --cadence=dream --reset=1 --max-runtime-ms=120000",
-    "ops:kernel-sentinel:stage-run:release": "npm run -s ops:ksent:collector:refresh || true; node client/runtime/lib/ts_entrypoint.ts observability/sentinel/sentinel_full_run_stage_runner.ts --phase=all --cadence=release --reset=1 --max-runtime-ms=120000",
+    "ops:kernel-sentinel:stage-run:dream": "npm run -s ops:ksent:collector:refresh || true; npm run -s ops:ksent:source-artifacts:refresh || true; node client/runtime/lib/ts_entrypoint.ts observability/sentinel/sentinel_full_run_stage_runner.ts --phase=all --cadence=dream --reset=1 --max-runtime-ms=120000; npm run -s ops:ksent:daily-state:report || true",
+    "ops:kernel-sentinel:stage-run:release": "npm run -s ops:ksent:collector:refresh || true; npm run -s ops:ksent:source-artifacts:refresh || true; node client/runtime/lib/ts_entrypoint.ts observability/sentinel/sentinel_full_run_stage_runner.ts --phase=all --cadence=release --reset=1 --max-runtime-ms=120000; npm run -s ops:ksent:daily-state:report || true",
     "ops:knowledge-graph-query-acceleration:closure:guard": "npm run -s tooling:run -- --id=ops:knowledge-graph-query-acceleration:closure:guard --strict=1",
     "ops:ksent:boundedness-repair:guard": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/kernel_sentinel_boundedness_repair_lane_guard.ts --strict=1",
     "ops:ksent:empty-response-repair:guard": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/kernel_sentinel_empty_response_repair_lane_guard.ts --strict=1",
@@ -1207,8 +1208,15 @@
     "ops:ksent:dream-success:metrics": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/kernel_sentinel_dream_success_metrics.ts --strict=1",
     "ops:ksent:worktree-danger:report": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/kernel_sentinel_worktree_danger_report.ts --strict=0",
     "ops:ksent:feedback-summary:strict": "npm run -s ops:ksent:worktree-danger:report && node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/kernel_sentinel_feedback_summary.ts --strict=1",
-    "ops:ksent:anti-entropy:observer": "npm run -s ops:ksent:worktree-danger:report && node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/kernel_sentinel_anti_entropy_observer.ts --strict=0",
-    "ops:ksent:anti-entropy:observer:strict": "npm run -s ops:ksent:worktree-danger:report && node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/kernel_sentinel_anti_entropy_observer.ts --strict=1"
+    "ops:ksent:anti-entropy:observer": "npm run -s ops:ksent:source-artifacts:refresh; npm run -s ops:ksent:worktree-danger:report; node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/kernel_sentinel_anti_entropy_observer.ts --strict=0",
+    "ops:ksent:anti-entropy:observer:strict": "npm run -s ops:ksent:source-artifacts:refresh; npm run -s ops:ksent:worktree-danger:report; node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/kernel_sentinel_anti_entropy_observer.ts --strict=1",
+    "ops:ksent:artifact-freshness:guard": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/kernel_sentinel_artifact_freshness_guard.ts --strict=0",
+    "ops:ksent:command-entropy:report": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/kernel_sentinel_command_entropy_report.ts",
+    "ops:ksent:daily-state:report": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/kernel_sentinel_daily_state_report.ts",
+    "ops:ksent:source-artifacts:refresh": "npm run -s ops:ksent:feedback-summary; node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/command_operator_surface_guard.ts; npm run -s ops:real-work:workflow-proof:guard; node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/windows_installer_contract_guard.ts --strict=1; node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/sentinel_timing_trend_report.ts; node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/sentinel_timing_trend_guard.ts; npm run -s ops:ksent:command-entropy:report; npm run -s ops:ksent:artifact-freshness:guard; npm run -s ops:ci:surface-sprawl:report",
+    "ops:ksent:daily-state": "npm run -s ops:ksent:anti-entropy:observer; npm run -s ops:ksent:daily-state:report",
+    "ops:ksent:worktree-scope:report": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/kernel_sentinel_worktree_scope_report.ts",
+    "ops:ci:surface-sprawl:report": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/ci_surface_sprawl_report.ts"
   },
   "version": "0.4.0"
 }

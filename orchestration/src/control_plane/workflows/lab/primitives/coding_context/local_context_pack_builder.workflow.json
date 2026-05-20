@@ -4,6 +4,14 @@
   "workflow_role": "assistant_response_workflow",
   "default": false,
   "description": "Primitive for constructing a bounded local coding context pack before implementation. It selects the files, constraints, memory hints, validation commands, and open risks a coding executor needs without writing code.",
+  "primitive_first_contract": {
+    "case_specific_hardcoding_allowed": false,
+    "specificity_owner": "primitive",
+    "extension_surface": "workflow_cd",
+    "registered_capability_id": "workflow.local_context_pack_builder",
+    "special_case_policy": "Task-specific file selection rules must be expressed as context-pack inputs, schemas, policy/config, or eval fixtures rather than hardcoded prompt cases.",
+    "monotonic_lower_level_regression_policy": "Context enrichment must remain optional and bounded so context-free lower-level coding tasks do not regress."
+  },
   "stages": [
     "input_normalization",
     "project_root_and_task_scope_resolution",

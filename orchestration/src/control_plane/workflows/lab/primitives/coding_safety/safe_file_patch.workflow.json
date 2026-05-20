@@ -4,6 +4,14 @@
   "workflow_role": "assistant_response_workflow",
   "default": false,
   "description": "ForgeCode-derived primitive for exact-match local file patches with stale-context and ambiguity detection.",
+  "primitive_first_contract": {
+    "case_specific_hardcoding_allowed": false,
+    "specificity_owner": "primitive",
+    "extension_surface": "workflow_cd",
+    "registered_capability_id": "workflow.safe_file_patch",
+    "special_case_policy": "Source-shape preservation rules must be general patch invariants or caller-owned policy, not fixture-specific branches.",
+    "monotonic_lower_level_regression_policy": "Patch robustness changes must preserve exact-match generic editing behavior for lower-level consumers."
+  },
   "stages": [
     "input_normalization",
     "absolute_path_validation",

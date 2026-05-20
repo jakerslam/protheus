@@ -4,6 +4,14 @@
   "workflow_role": "assistant_response_workflow",
   "default": false,
   "description": "ForgeCode-derived primitive for guarded local file creation and overwrite with snapshots, validation, and content-hash receipts.",
+  "primitive_first_contract": {
+    "case_specific_hardcoding_allowed": false,
+    "specificity_owner": "primitive",
+    "extension_surface": "workflow_cd",
+    "registered_capability_id": "workflow.safe_file_write",
+    "special_case_policy": "File names, app types, languages, and benchmark fixtures must not change write semantics inside this primitive.",
+    "monotonic_lower_level_regression_policy": "Write-safety changes must preserve simple new-file creation and guarded overwrite behavior for lower-level consumers."
+  },
   "stages": [
     "input_normalization",
     "absolute_path_validation",

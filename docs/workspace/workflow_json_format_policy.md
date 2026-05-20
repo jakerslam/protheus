@@ -41,6 +41,28 @@ Acceptance rule:
 
 If changing a workflow JSON file cannot change the workflow's interaction behavior without editing Rust, that behavior is migration debt unless it is a new primitive/tool implementation, a safety policy, or a schema validator. Rust may reject an invalid CD; it must not secretly write a different CD while playing it.
 
+Primitive composition rule:
+
+Higher-level workflow changes must be monotonic over lower-level primitives. A composite may route to, sequence, and checkpoint child workflows, but it must not force level-specific policy into shared primitive behavior. If a harder workflow level breaks an easier workflow level, repair the composition boundary before adding more runtime special cases. See `docs/workspace/primitive_workflow_composition_doctrine.md`.
+
+Primitive-first anti-hardcoding rule:
+
+Production workflow behavior must follow the repo-wide Primitive-First System Doctrine in `docs/workspace/primitive_first_system_doctrine.md`. It must not be hardcoded to specific benchmark cases, prompt phrases, fixture file names, app shapes, languages, or framework examples. Specific-case hardcoding is allowed only inside eval and test fixtures. Production behavior must be represented as reusable primitives, composite workflow routing, declared lanes, tool contracts, schema validators, safety policies, or extensible data/config contracts.
+
+Registered production Workflow CDs and Tool CDs must declare a primitive-first contract or be covered by the primitive capability registry policy. The minimum contract shape is:
+
+```json
+{
+  "primitive_first_contract": {
+    "case_specific_hardcoding_allowed": false,
+    "specificity_owner": "primitive|composite|adapter_profile|policy|schema|test_eval_fixture",
+    "extension_surface": "workflow_cd|tool_cd|schema|policy|adapter_metadata|profile_config|composition"
+  }
+}
+```
+
+Rust must not infer a workflow route, research category, or expected answer shape from specific user prompt phrases such as "update", "landscape", "compare", or similar wording. If a workflow needs a raw-message recovery path after the workflow has already selected a tool family/tool, that recovery must be declared by the JSON/CD tool contract and bind the original user message without assuming a domain-specific query type.
+
 Reader implementation: `core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/190_route_blocks/agent_scope_full_parts/046a-workflow-reader.rs`
 
 Orchestration template reader implementation:
@@ -212,6 +234,31 @@ Lab workflows:
 5. Must not become runtime defaults until promoted through `lab -> candidate -> official -> default`.
 
 Promotion requires an explicit registry change, passing contract guard output, and an SRS update explaining why the workflow belongs in the supported runtime set.
+
+## Research Workflow Freeze Rule
+
+`research_synthesize_verify` is now treated as a stable official composite workflow CD while web tooling is the active experiment surface.
+
+Frozen workflow surface:
+
+1. Gate order and gate meaning
+2. Composition boundary and single terminal artifact return
+3. Tool request/observation/final-answer lifecycle semantics
+4. Final-output channel separation
+5. Low-evidence fallback acceptance semantics
+6. Workflow-visible trace/status ownership
+
+Permitted non-freeze lanes:
+
+1. Web retrieval Tool CDs
+2. Provider adapters and retrieval broker mechanics
+3. Evidence extraction, ranking, coverage, and quality metadata
+4. Research eval reporting, measurement split, and rubric diagnostics
+5. Golden data maintenance that records real failure shapes without changing workflow behavior
+
+Freeze exception rule:
+
+Changing the frozen workflow surface requires an explicit freeze exception note in the workflow CD, a passing workflow contract guard, a passing research-golden regression run, and an operator-facing reason explaining why the issue cannot be solved in tooling/evidence/rubric space. Improving retrieval quality, candidate quality, provider resilience, evidence-pack shape, or excellent scoring must not change the research workflow gate semantics.
 
 ## Sanitization + Length Limits
 

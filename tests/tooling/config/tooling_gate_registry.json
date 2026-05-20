@@ -169,6 +169,17 @@
         "local/workspace/reports/ARCHITECTURE_NEXUS_REQUIRED_ARTIFACT_GUARD_CURRENT.md"
       ]
     },
+    "ops:primitive-first:guard": {
+      "owner": "governance",
+      "description": "Repo-wide primitive-first doctrine guard that rejects production case hardcoding outside declared test/eval boundaries or allowlisted config/profile/policy exceptions.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:primitive-first:guard",
+      "artifact_paths": [
+        "core/local/artifacts/primitive_first_doctrine_guard_current.json",
+        "local/workspace/reports/PRIMITIVE_FIRST_DOCTRINE_GUARD_CURRENT.md"
+      ]
+    },
     "ops:repo-health:check": {
       "owner": "ops",
       "description": "Repo health gate for package-script budget, file-size exception debt, shared tooling adoption, and root-surface drift.",

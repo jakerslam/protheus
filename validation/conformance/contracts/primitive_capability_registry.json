@@ -1,0 +1,118 @@
+{
+  "schema_version": "1.0",
+  "policy_path": "docs/workspace/primitive_first_system_doctrine.md",
+  "purpose": "Track engine-grade primitives and composites so specific capabilities are built on declared reusable foundations instead of hidden production hardcoding.",
+  "entry_contract": {
+    "required_fields": [
+      "id",
+      "name",
+      "kind",
+      "owner_domain",
+      "layer",
+      "path",
+      "contract_surface",
+      "extension_surface",
+      "promotion_status"
+    ],
+    "allowed_kinds": [
+      "primitive",
+      "composite",
+      "adapter_profile",
+      "policy",
+      "schema",
+      "tool_cd",
+      "workflow_cd"
+    ],
+    "allowed_promotion_statuses": [
+      "seed",
+      "active",
+      "promoted",
+      "deprecated",
+      "migration_debt"
+    ]
+  },
+  "monotonic_regression_contract": {
+    "rule": "When a higher-level composite changes, lower-level primitives and stable lower-level eval gates that depend on the same capability family must not regress.",
+    "required_change_review_question": "Can this higher-level change slow, narrow, or break any lower-level primitive consumer?",
+    "failure_class": "primitive_composition_boundary_violation"
+  },
+  "primitives": [
+    {
+      "id": "workflow.coding_project_operator",
+      "name": "Coding Project Operator",
+      "kind": "composite",
+      "owner_domain": "orchestration",
+      "layer": "2",
+      "path": "orchestration/src/control_plane/workflows/official/coding_project_operator.workflow.json",
+      "contract_surface": "workflow_cd",
+      "extension_surface": "compose_child_workflows_or_declared_lanes",
+      "promotion_status": "active"
+    },
+    {
+      "id": "workflow.local_context_pack_builder",
+      "name": "Local Context Pack Builder",
+      "kind": "primitive",
+      "owner_domain": "orchestration",
+      "layer": "2",
+      "path": "orchestration/src/control_plane/workflows/lab/primitives/coding_context/local_context_pack_builder.workflow.json",
+      "contract_surface": "workflow_cd",
+      "extension_surface": "context_pack_schema",
+      "promotion_status": "active"
+    },
+    {
+      "id": "workflow.safe_file_read",
+      "name": "Safe File Read",
+      "kind": "primitive",
+      "owner_domain": "orchestration",
+      "layer": "2",
+      "path": "orchestration/src/control_plane/workflows/lab/primitives/coding_safety/safe_file_read.workflow.json",
+      "contract_surface": "workflow_cd",
+      "extension_surface": "file_tool_receipt_contract",
+      "promotion_status": "active"
+    },
+    {
+      "id": "workflow.safe_file_write",
+      "name": "Safe File Write",
+      "kind": "primitive",
+      "owner_domain": "orchestration",
+      "layer": "2",
+      "path": "orchestration/src/control_plane/workflows/lab/primitives/coding_safety/safe_file_write.workflow.json",
+      "contract_surface": "workflow_cd",
+      "extension_surface": "file_tool_receipt_contract",
+      "promotion_status": "active"
+    },
+    {
+      "id": "workflow.safe_file_patch",
+      "name": "Safe File Patch",
+      "kind": "primitive",
+      "owner_domain": "orchestration",
+      "layer": "2",
+      "path": "orchestration/src/control_plane/workflows/lab/primitives/coding_safety/safe_file_patch.workflow.json",
+      "contract_surface": "workflow_cd",
+      "extension_surface": "file_tool_receipt_contract",
+      "promotion_status": "active"
+    },
+    {
+      "id": "workflow.validation_command_runner",
+      "name": "Validation Command Runner",
+      "kind": "primitive",
+      "owner_domain": "orchestration",
+      "layer": "2",
+      "path": "orchestration/src/control_plane/workflows/lab/primitives/coding_safety/validation_command_runner.workflow.json",
+      "contract_surface": "workflow_cd",
+      "extension_surface": "command_receipt_contract",
+      "promotion_status": "active"
+    },
+    {
+      "id": "workflow.bounded_repair_loop",
+      "name": "Bounded Repair Loop",
+      "kind": "composite",
+      "owner_domain": "orchestration",
+      "layer": "2",
+      "path": "orchestration/src/control_plane/workflows/lab/primitives/coding_loop/bounded_repair_loop.workflow.json",
+      "contract_surface": "workflow_cd",
+      "extension_surface": "repair_policy_contract",
+      "promotion_status": "active"
+    }
+  ]
+}

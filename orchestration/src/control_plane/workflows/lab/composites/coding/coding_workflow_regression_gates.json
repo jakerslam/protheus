@@ -2,6 +2,22 @@
   "version": "coding_workflow_regression_gates_v1",
   "owner": "orchestration",
   "purpose": "Track live coding-workflow gates that must stay green before promoting higher-level coding workflow changes.",
+  "lower_level_regression_policy": {
+    "version": "lower_level_regression_policy_v1",
+    "required_for_higher_level_changes": true,
+    "failure_class": "primitive_composition_boundary_violation",
+    "rule": "A higher-level coding workflow change must not regress lower-level primitives or stable lower-level gates that depend on the same capability family.",
+    "promotion_blockers": [
+      "higher_level_change_breaks_lower_level_gate",
+      "eval_specific_behavior_leaks_into_shared_primitive",
+      "new_global_prompt_or_runtime_branch_slows_context_free_tasks",
+      "native_capability_claim_uses_codex_subagent_instead_of_infring_agent"
+    ],
+    "stable_lower_level_floor_gate_ids": [
+      "native_coding_useful_work_eval_v1"
+    ],
+    "review_question": "Can this higher-level coding change slow, narrow, or break any lower-level primitive consumer?"
+  },
   "gates": [
     {
       "gate_id": "coding_memory_live_level10_strict_20",

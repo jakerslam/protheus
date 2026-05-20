@@ -4,6 +4,14 @@
   "workflow_role": "assistant_response_workflow",
   "default": false,
   "description": "ForgeCode-derived primitive for bounded local file reads with line-range and content-hash receipts.",
+  "primitive_first_contract": {
+    "case_specific_hardcoding_allowed": false,
+    "specificity_owner": "primitive",
+    "extension_surface": "workflow_cd",
+    "registered_capability_id": "workflow.safe_file_read",
+    "special_case_policy": "Path, language, framework, and fixture-specific read behavior belongs in callers, policy/config, or eval fixtures rather than this primitive.",
+    "monotonic_lower_level_regression_policy": "Read safety improvements must preserve bounded generic file-read behavior for all lower-level consumers."
+  },
   "stages": [
     "input_normalization",
     "absolute_path_validation",

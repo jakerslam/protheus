@@ -20,6 +20,20 @@ Build what is useful. Make it reliable. Keep it simple enough to survive.
 
 These laws are ordered. A simple system that does nothing is not enough. A usable system that breaks is not enough. A reliable useful system that becomes incomprehensible will eventually collapse.
 
+## Primitive-First System Doctrine
+
+The Three Operating Laws require primitive-first implementation across the entire repo.
+
+Production behavior must be built from reusable primitives, declared contracts, policies, schemas, adapters, profile/config surfaces, and explicit composition layers. Hardcoding behavior for specific cases is forbidden in production paths except inside explicit eval or test boundaries.
+
+Specific cases may be tested, scored, demonstrated, or reproduced with hardcoded fixtures. They must not become hidden production branches, runtime prompt assumptions, shared controller logic, or primitive semantics.
+
+Canonical repo-wide doctrine:
+
+- [primitive_first_system_doctrine.md](/Users/jay/.openclaw/workspace/docs/workspace/primitive_first_system_doctrine.md)
+- [primitive_capability_registry_policy.md](/Users/jay/.openclaw/workspace/docs/workspace/primitive_capability_registry_policy.md)
+- [special_case_promotion_policy.md](/Users/jay/.openclaw/workspace/docs/workspace/special_case_promotion_policy.md)
+
 ## Admission Gates
 
 Every non-trivial work item should pass at least one gate:
@@ -79,6 +93,7 @@ Sentinel must treat repeated violations of this doctrine as system health findin
 - reliability paths that fail or hang without bounded diagnostics
 - complexity growth that adds representations, ownership ambiguity, or compatibility tails without protecting real work
 - recurring TODO, issue, or Sentinel findings that never become patchable tasks
+- production hardcoding of specific cases that should be primitives, contracts, policies, adapters, profiles, or eval/test fixtures
 
 Sentinel findings should label the violated law as `usability`, `reliability`, or `simplicity`.
 
@@ -131,4 +146,5 @@ Use high scores only when the item directly improves the sacred workflow or prot
 - Documentation must reference this doctrine for backlog intake, maintenance, and internal-agent recommendations.
 - TODO items should declare a work gate when they are active or urgent.
 - Sentinel must flag recurring doctrine violations as Observability findings.
+- Reviews must reject production special-case hardcoding unless it is quarantined to eval/test fixtures or represented through a declared primitive, contract, policy, adapter, profile, or composition layer.
 - Governance and Validation may use Sentinel doctrine findings as release or review inputs, but Sentinel cannot auto-apply patches.

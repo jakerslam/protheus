@@ -46,7 +46,10 @@ Required execution behavior:
 - Authorized modification scope includes `core/`, `orchestration/`, `shell/`, `client/`, `apps/`, `adapters/`, `tests/`, and `docs/`.
 - You may add crates/packages, change schemas, and remove/replace placeholder flows when needed.
 - Enforce Rust-kernel authority and thin-shell boundaries on every implementation.
-- Avoid hardcoding application-specific behaviors unless the user explicitly requested a one-off behavior. Prefer OS-style general primitives and declarative contracts over narrow product logic.
+- Enforce the repo-wide primitive-first doctrine in `docs/workspace/primitive_first_system_doctrine.md`: production behavior must be built from reusable primitives, declared contracts, policies, schemas, adapters, profile/config surfaces, or explicit composition layers.
+- Hardcoding behavior for specific cases is forbidden in production paths. Case-specific hardcoding is allowed only in explicit eval/test fixtures, reproduction tests, examples, or scoring rules, and must not leak into runtime prompts, shared controllers, primitive contracts, or production routing.
+- Before adding production behavior, answer the engine-boundary question: does this belong in the engine, or should it be content/config/profile/eval-specific behavior built on top of the engine?
+- Repeated or structural special cases must follow `docs/workspace/special_case_promotion_policy.md` and become a primitive, composite, contract, policy, schema, adapter/profile config, Tool CD, Workflow CD, or registered capability instead of a hidden branch.
 - Do not assume specific user prompt phrasings, benchmark prompts, or canned request shapes as runtime authority. If behavior depends on prompt interpretation, that behavior must live in a declared workflow/tool contract or a general-purpose primitive rather than Rust phrase matching.
 - Workflow CDs must be treated as typed programs:
   - Every registered Workflow CD must declare primitive/composite identity, typed child-CD calls, and exactly one terminal artifact return.

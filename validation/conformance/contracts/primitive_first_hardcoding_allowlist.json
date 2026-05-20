@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "policy_path": "docs/workspace/primitive_first_system_doctrine.md",
+  "purpose": "Quarantine any intentional production specificity that cannot yet be represented as a primitive, contract, adapter/profile config, or composition layer.",
+  "allowed_test_eval_boundaries": [
+    "tests/**",
+    "validation/evals/**",
+    "validation/benchmarks/**",
+    "validation/regression/**",
+    "**/fixtures/**",
+    "**/*_test.rs",
+    "**/*_tests.rs",
+    "**/*.test.ts",
+    "**/*.spec.ts"
+  ],
+  "entry_contract": {
+    "required_fields": [
+      "id",
+      "owner",
+      "path",
+      "kind",
+      "match",
+      "allowed_boundary",
+      "reason",
+      "why_not_primitive",
+      "review_by"
+    ],
+    "allowed_boundaries": [
+      "adapter_metadata",
+      "profile_config",
+      "policy_exception",
+      "schema_compatibility",
+      "migration_debt",
+      "test_eval_fixture"
+    ]
+  },
+  "entries": []
+}

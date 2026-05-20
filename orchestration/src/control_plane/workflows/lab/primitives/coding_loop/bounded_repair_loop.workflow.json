@@ -65,6 +65,14 @@
   },
   "default": false,
   "description": "ForgeCode-derived composite repair loop that diagnoses a failed coding slice, retries within the smallest safe scope, validates, and stops on explicit barriers.",
+  "primitive_first_contract": {
+    "case_specific_hardcoding_allowed": false,
+    "specificity_owner": "composite",
+    "extension_surface": "workflow_cd",
+    "registered_capability_id": "workflow.bounded_repair_loop",
+    "special_case_policy": "Repair behavior must be driven by failure classes, receipts, child workflow outputs, and policy budgets rather than named eval cases.",
+    "monotonic_lower_level_regression_policy": "Repair-loop changes must not alter child primitive semantics or make unrelated lower-level coding tasks enter repair."
+  },
   "stages": [
     "failure_receipt_ingest",
     "diagnosis",
