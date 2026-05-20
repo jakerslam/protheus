@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "name": "kernel_sentinel_daily_state_policy",
+  "owner_domain": "observability.sentinel",
+  "purpose": "Produce one compact daily Sentinel state report for humans: top risks, freshness, churn, command/CI entropy, and next action.",
+  "output_json": "core/local/artifacts/kernel_sentinel_daily_state_current.json",
+  "output_markdown": "local/workspace/reports/KERNEL_SENTINEL_DAILY_STATE_CURRENT.md",
+  "inputs": {
+    "anti_entropy": "core/local/artifacts/kernel_sentinel_anti_entropy_observer_current.json",
+    "feedback_summary": "core/local/artifacts/kernel_sentinel_feedback_summary_current.json",
+    "worktree_danger": "core/local/artifacts/kernel_sentinel_worktree_danger_current.json",
+    "worktree_scope": "core/local/artifacts/kernel_sentinel_worktree_scope_current.json",
+    "artifact_freshness": "core/local/artifacts/kernel_sentinel_artifact_freshness_guard_current.json",
+    "command_entropy": "core/local/artifacts/kernel_sentinel_command_entropy_current.json",
+    "ci_surface_sprawl": "core/local/artifacts/ci_surface_sprawl_report_current.json",
+    "timing_trend": "observability/reports/sentinel_timing_trend_report_2026-05-10.json"
+  },
+  "budgets": {
+    "max_top_risks": 5,
+    "max_markdown_bytes": 12000
+  }
+}

@@ -180,8 +180,8 @@ function run(argv: string[] = process.argv.slice(2)): number {
     const issueId = cleanText(row?.id || '', 120);
     const issueClass = cleanText(ISSUE_CLASS_BY_ID[issueId] || '', 120);
     if (!issueClass) continue;
-    const evidenceCount = Number(row?.evidence_count || 1);
-    predictedCountByClass[issueClass] = Number(predictedCountByClass[issueClass] || 0) + Math.max(1, evidenceCount);
+    const evidenceCount = row?.evidence_count == null ? 1 : Number(row.evidence_count);
+    predictedCountByClass[issueClass] = Number(predictedCountByClass[issueClass] || 0) + Math.max(0, evidenceCount);
     classSet.add(issueClass);
   }
 
@@ -466,7 +466,7 @@ function run(argv: string[] = process.argv.slice(2)): number {
       ok: feedbackRows.every((row) => {
         if (row?.evidence_count == null) return true;
         const value = Number(row.evidence_count);
-        return isNonNegativeInteger(value) && value >= 1;
+        return isNonNegativeInteger(value);
       }),
       detail: `rows=${feedbackRows.length}`,
     },

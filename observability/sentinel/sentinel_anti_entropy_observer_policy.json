@@ -29,7 +29,7 @@
   "thresholds": {
     "maximum_required_ci_workflows": 30,
     "maximum_total_ci_workflows": 45,
-    "maximum_package_scripts_before_entropy_finding": 1000,
+    "maximum_package_scripts_before_entropy_finding": 1200,
     "maximum_default_operator_commands": 80,
     "minimum_architecture_anchor_count": 4,
     "minimum_real_work_ready_operator_journeys": 2

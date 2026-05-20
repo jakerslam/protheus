@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "name": "ci_surface_sprawl_policy",
+  "owner_domain": "validation.conformance",
+  "purpose": "Classify GitHub workflow sprawl into required, advisory, scheduled, and unknown surfaces so branch protection can stay focused.",
+  "output_json": "core/local/artifacts/ci_surface_sprawl_report_current.json",
+  "output_markdown": "local/workspace/reports/CI_SURFACE_SPRAWL_REPORT_CURRENT.md",
+  "tier_manifest": "validation/conformance/contracts/ci_workflow_tier_manifest.json",
+  "workflow_dir": ".github/workflows",
+  "thresholds": {
+    "maximum_total_workflows": 45,
+    "maximum_required_workflows": 30,
+    "maximum_unknown_workflows": 0
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "name": "kernel_sentinel_command_entropy_policy",
+  "owner_domain": "observability.sentinel",
+  "purpose": "Track package script and operator command surface growth so command entropy is visible over time.",
+  "output_path": "core/local/artifacts/kernel_sentinel_command_entropy_current.json",
+  "history_path": "local/state/observability/sentinel/command_entropy_history.jsonl",
+  "thresholds": {
+    "maximum_package_scripts": 1200,
+    "package_script_warning_threshold": 1000,
+    "maximum_default_operator_commands": 80,
+    "warn_on_new_scripts_since_last_run": 5
+  },
+  "policy": {
+    "package_scripts_are_backing_compatibility_surface": true,
+    "operator_surface_is_primary_human_agent_surface": true,
+    "package_script_sprawl_above_warning_threshold_is_debt_not_immediate_failure": true
+  }
+}

@@ -28,20 +28,44 @@ const outJson = flag("out-json", "core/local/artifacts/kernel_sentinel_collector
 const collectorArtifact = flag("collector-artifact", "core/local/artifacts/kernel_sentinel_collector_current.json");
 const generatedAt = new Date().toISOString();
 const traceId = `observability:${generatedAt}:kernel-sentinel-collector-refresh`;
-const args = [
-  "run",
-  "--quiet",
-  "--manifest-path",
-  "core/layer0/ops/Cargo.toml",
-  "--bin",
-  "infring-ops",
-  "--",
+function resolveOpsBinary(): string | null {
+  const candidates = [
+    process.env.INFRING_SENTINEL_COLLECTOR_OPS_BINARY || "",
+    "target/debug/infring-ops",
+    "target/release/infring-ops",
+  ].filter(Boolean);
+  for (const candidate of candidates) {
+    const abs = path.isAbsolute(candidate) ? candidate : path.join(root, candidate);
+    try {
+      if (fs.statSync(abs).isFile()) return abs;
+    } catch {
+      // try next candidate
+    }
+  }
+  return null;
+}
+
+const opsBinary = resolveOpsBinary();
+const command = opsBinary || "cargo";
+const args = opsBinary ? [
   "kernel-sentinel",
   "collect",
   `--collector-artifact=${collectorArtifact}`,
-];
+]
+  : [
+      "run",
+      "--quiet",
+      "--manifest-path",
+      "core/layer0/ops/Cargo.toml",
+      "--bin",
+      "infring-ops",
+      "--",
+      "kernel-sentinel",
+      "collect",
+      `--collector-artifact=${collectorArtifact}`,
+    ];
 
-const child = spawn("cargo", args, { cwd: root, stdio: ["ignore", "pipe", "pipe"] });
+const child = spawn(command, args, { cwd: root, stdio: ["ignore", "pipe", "pipe"] });
 let stdout = "";
 let stderr = "";
 let timedOut = false;
@@ -78,6 +102,8 @@ child.on("close", (code, signal) => {
     timed_out: timedOut,
     exit_code: code,
     signal,
+    command,
+    used_prebuilt_ops_binary: Boolean(opsBinary),
     collector_artifact: collectorArtifact,
     stdout_tail: stdout.trim().slice(-4000),
     stderr_tail: stderr.trim().slice(-4000),

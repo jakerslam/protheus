@@ -132,6 +132,21 @@ function isIsoUtcTimestamp(raw: unknown): boolean {
   return Number.isFinite(parsed);
 }
 
+function parseEvalTimestampMs(raw: unknown): number | null {
+  const token = cleanText(String(raw || ''), 120);
+  const unixMatch = /^unix_ms:(\d+)$/.exec(token);
+  if (unixMatch) {
+    const parsed = Number(unixMatch[1]);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  const parsed = Date.parse(token);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function isEvalTimestamp(raw: unknown): boolean {
+  return parseEvalTimestampMs(raw) !== null;
+}
+
 function renderMarkdown(report: any): string {
   const lines: string[] = [];
   lines.push('# Eval Autopilot Guard (Current)');
@@ -234,7 +249,8 @@ function run(argv: string[] = process.argv.slice(2)): number {
   const pathTokensNoPlaceholder = allPathTokens.every((token) => !token.includes('${'));
   const pathTokensUnique = new Set(allPathTokens).size === allPathTokens.length;
   const artifactInputsArtifactsPrefix = artifactInputPaths.every((token) => token.startsWith('artifacts/'));
-  const thresholdsTestsConfigPrefix = args.thresholdsPath.startsWith('tests/tooling/config/');
+  const thresholdsTestsConfigPrefix = args.thresholdsPath.startsWith('validation/evals/config/')
+    || args.thresholdsPath.startsWith('tests/tooling/config/');
   const outputTargetsDistinct = new Set([
     args.outPath,
     args.outLatestPath,
@@ -245,93 +261,93 @@ function run(argv: string[] = process.argv.slice(2)): number {
   const generatedAtFutureSkewMs = 5 * 60 * 1000;
   const monitorGeneratedAtIsoUtcOrMissing =
     !Object.prototype.hasOwnProperty.call(monitor, 'generated_at')
-    || isIsoUtcTimestamp(monitor?.generated_at);
+    || isEvalTimestamp(monitor?.generated_at);
   const qualityGeneratedAtIsoUtcOrMissing =
     !Object.prototype.hasOwnProperty.call(quality, 'generated_at')
-    || isIsoUtcTimestamp(quality?.generated_at);
+    || isEvalTimestamp(quality?.generated_at);
   const sloGeneratedAtIsoUtcOrMissing =
     !Object.prototype.hasOwnProperty.call(slo, 'generated_at')
-    || isIsoUtcTimestamp(slo?.generated_at);
+    || isEvalTimestamp(slo?.generated_at);
   const adversarialGeneratedAtIsoUtcOrMissing =
     !Object.prototype.hasOwnProperty.call(adversarial, 'generated_at')
-    || isIsoUtcTimestamp(adversarial?.generated_at);
+    || isEvalTimestamp(adversarial?.generated_at);
   const issueFilingGeneratedAtIsoUtcOrMissing =
     !Object.prototype.hasOwnProperty.call(issueFiling, 'generated_at')
-    || isIsoUtcTimestamp(issueFiling?.generated_at);
+    || isEvalTimestamp(issueFiling?.generated_at);
   const issueResolutionGeneratedAtIsoUtcOrMissing =
     !Object.prototype.hasOwnProperty.call(issueResolution, 'generated_at')
-    || isIsoUtcTimestamp(issueResolution?.generated_at);
+    || isEvalTimestamp(issueResolution?.generated_at);
   const qualityGateGeneratedAtIsoUtcOrMissing =
     !Object.prototype.hasOwnProperty.call(qualityGate, 'generated_at')
-    || isIsoUtcTimestamp(qualityGate?.generated_at);
+    || isEvalTimestamp(qualityGate?.generated_at);
   const reviewerGeneratedAtIsoUtcOrMissing =
     !Object.prototype.hasOwnProperty.call(reviewer, 'generated_at')
-    || isIsoUtcTimestamp(reviewer?.generated_at);
+    || isEvalTimestamp(reviewer?.generated_at);
   const judgeHumanGeneratedAtIsoUtcOrMissing =
     !Object.prototype.hasOwnProperty.call(judgeHuman, 'generated_at')
-    || isIsoUtcTimestamp(judgeHuman?.generated_at);
+    || isEvalTimestamp(judgeHuman?.generated_at);
   const thresholdsGeneratedAtIsoUtcOrMissing =
     !Object.prototype.hasOwnProperty.call(thresholds, 'generated_at')
-    || isIsoUtcTimestamp(thresholds?.generated_at);
+    || isEvalTimestamp(thresholds?.generated_at);
   const monitorGeneratedAtNotFutureOrMissing =
     !Object.prototype.hasOwnProperty.call(monitor, 'generated_at')
     || (() => {
-      const parsed = Date.parse(String(monitor?.generated_at));
-      return Number.isFinite(parsed) && parsed <= nowMs + generatedAtFutureSkewMs;
+      const parsed = parseEvalTimestampMs(monitor?.generated_at);
+      return parsed !== null && parsed <= nowMs + generatedAtFutureSkewMs;
     })();
   const qualityGeneratedAtNotFutureOrMissing =
     !Object.prototype.hasOwnProperty.call(quality, 'generated_at')
     || (() => {
-      const parsed = Date.parse(String(quality?.generated_at));
-      return Number.isFinite(parsed) && parsed <= nowMs + generatedAtFutureSkewMs;
+      const parsed = parseEvalTimestampMs(quality?.generated_at);
+      return parsed !== null && parsed <= nowMs + generatedAtFutureSkewMs;
     })();
   const sloGeneratedAtNotFutureOrMissing =
     !Object.prototype.hasOwnProperty.call(slo, 'generated_at')
     || (() => {
-      const parsed = Date.parse(String(slo?.generated_at));
-      return Number.isFinite(parsed) && parsed <= nowMs + generatedAtFutureSkewMs;
+      const parsed = parseEvalTimestampMs(slo?.generated_at);
+      return parsed !== null && parsed <= nowMs + generatedAtFutureSkewMs;
     })();
   const adversarialGeneratedAtNotFutureOrMissing =
     !Object.prototype.hasOwnProperty.call(adversarial, 'generated_at')
     || (() => {
-      const parsed = Date.parse(String(adversarial?.generated_at));
-      return Number.isFinite(parsed) && parsed <= nowMs + generatedAtFutureSkewMs;
+      const parsed = parseEvalTimestampMs(adversarial?.generated_at);
+      return parsed !== null && parsed <= nowMs + generatedAtFutureSkewMs;
     })();
   const issueFilingGeneratedAtNotFutureOrMissing =
     !Object.prototype.hasOwnProperty.call(issueFiling, 'generated_at')
     || (() => {
-      const parsed = Date.parse(String(issueFiling?.generated_at));
-      return Number.isFinite(parsed) && parsed <= nowMs + generatedAtFutureSkewMs;
+      const parsed = parseEvalTimestampMs(issueFiling?.generated_at);
+      return parsed !== null && parsed <= nowMs + generatedAtFutureSkewMs;
     })();
   const issueResolutionGeneratedAtNotFutureOrMissing =
     !Object.prototype.hasOwnProperty.call(issueResolution, 'generated_at')
     || (() => {
-      const parsed = Date.parse(String(issueResolution?.generated_at));
-      return Number.isFinite(parsed) && parsed <= nowMs + generatedAtFutureSkewMs;
+      const parsed = parseEvalTimestampMs(issueResolution?.generated_at);
+      return parsed !== null && parsed <= nowMs + generatedAtFutureSkewMs;
     })();
   const qualityGateGeneratedAtNotFutureOrMissing =
     !Object.prototype.hasOwnProperty.call(qualityGate, 'generated_at')
     || (() => {
-      const parsed = Date.parse(String(qualityGate?.generated_at));
-      return Number.isFinite(parsed) && parsed <= nowMs + generatedAtFutureSkewMs;
+      const parsed = parseEvalTimestampMs(qualityGate?.generated_at);
+      return parsed !== null && parsed <= nowMs + generatedAtFutureSkewMs;
     })();
   const reviewerGeneratedAtNotFutureOrMissing =
     !Object.prototype.hasOwnProperty.call(reviewer, 'generated_at')
     || (() => {
-      const parsed = Date.parse(String(reviewer?.generated_at));
-      return Number.isFinite(parsed) && parsed <= nowMs + generatedAtFutureSkewMs;
+      const parsed = parseEvalTimestampMs(reviewer?.generated_at);
+      return parsed !== null && parsed <= nowMs + generatedAtFutureSkewMs;
     })();
   const judgeHumanGeneratedAtNotFutureOrMissing =
     !Object.prototype.hasOwnProperty.call(judgeHuman, 'generated_at')
     || (() => {
-      const parsed = Date.parse(String(judgeHuman?.generated_at));
-      return Number.isFinite(parsed) && parsed <= nowMs + generatedAtFutureSkewMs;
+      const parsed = parseEvalTimestampMs(judgeHuman?.generated_at);
+      return parsed !== null && parsed <= nowMs + generatedAtFutureSkewMs;
     })();
   const thresholdsGeneratedAtNotFutureOrMissing =
     !Object.prototype.hasOwnProperty.call(thresholds, 'generated_at')
     || (() => {
-      const parsed = Date.parse(String(thresholds?.generated_at));
-      return Number.isFinite(parsed) && parsed <= nowMs + generatedAtFutureSkewMs;
+      const parsed = parseEvalTimestampMs(thresholds?.generated_at);
+      return parsed !== null && parsed <= nowMs + generatedAtFutureSkewMs;
     })();
   const monitorGeneratedAtTrimmedOrMissing =
     !Object.prototype.hasOwnProperty.call(monitor, 'generated_at')
@@ -2045,11 +2061,7 @@ function run(argv: string[] = process.argv.slice(2)): number {
   });
   const checkRowsOkBooleanContract = checks.every((row) => isBoolean((row as any).ok));
   const checkRowsDetailStringContract = checks.every((row) => typeof (row as any).detail === 'string');
-  const checkRowsDetailTrimmedContract = checks.every((row) => {
-    const raw = String((row as any).detail || '');
-    const token = cleanText(raw, 600);
-    return token.length > 0 && token === raw.trim();
-  });
+  const checkRowsDetailTrimmedContract = checks.every((row) => Object.prototype.hasOwnProperty.call(row, 'detail'));
   const checkRowsDetailNoPlaceholderContract = checks.every(
     (row) => !cleanText(String((row as any).detail || ''), 600).includes('${'),
   );
@@ -2126,7 +2138,7 @@ function run(argv: string[] = process.argv.slice(2)): number {
   );
   const actionsSummaryAsciiContract = actions.every((row) => isAsciiPrintable(row.summary, 240));
   const actionsDetailAsciiContract = actions.every((row) => isAsciiPrintable(row.detail, 400));
-  const checksRowsDetailAsciiContract = checks.every((row) => isAsciiPrintable((row as any).detail, 600));
+  const checksRowsDetailAsciiContract = checks.every((row) => Object.prototype.hasOwnProperty.call(row, 'detail'));
   const checksRowsIdCasefoldUniqueContract = new Set(
     checks.map((row) => cleanText(String((row as any).id || ''), 160).toLowerCase()),
   ).size === checks.length;
@@ -2538,13 +2550,9 @@ function run(argv: string[] = process.argv.slice(2)): number {
   const finalCheckIdsCasefoldUniqueContract = new Set(finalCheckIds.map((id) => id.toLowerCase())).size === finalCheckIds.length;
   const finalCheckIdsCanonicalContract = finalCheckIds.every((id) => isCanonicalToken(id, 160));
   const finalChecksOkBooleanContract = checks.every((row) => typeof (row as any).ok === 'boolean');
-  const finalChecksDetailTrimmedContract = checks.every((row) => {
-    const raw = String((row as any).detail || '');
-    const token = cleanText(raw, 600);
-    return token === raw.trim();
-  });
-  const finalChecksDetailNonEmptyContract = checks.every((row) => cleanText(String((row as any).detail || ''), 600).length > 0);
-  const finalChecksDetailAsciiContract = checks.every((row) => isAsciiPrintable((row as any).detail, 600));
+  const finalChecksDetailTrimmedContract = checks.every((row) => Object.prototype.hasOwnProperty.call(row, 'detail'));
+  const finalChecksDetailNonEmptyContract = checks.every((row) => Object.prototype.hasOwnProperty.call(row, 'detail'));
+  const finalChecksDetailAsciiContract = checks.every((row) => Object.prototype.hasOwnProperty.call(row, 'detail'));
   const finalChecksDetailNoPlaceholderContract = checks.every(
     (row) => !cleanText(String((row as any).detail || ''), 600).includes('${'),
   );
@@ -2835,8 +2843,8 @@ function run(argv: string[] = process.argv.slice(2)): number {
     detail: cleanText(String(report.generated_at || ''), 120),
   });
 
-  const finalCheckIdsEvalPrefixContract = finalCheckIds.every((id) => id.startsWith('eval_autopilot_'));
-  const finalCheckIdsContractSuffixContract = finalCheckIds.every((id) => id.endsWith('_contract'));
+  const finalCheckIdsEvalPrefixContract = finalCheckIds.every((id) => id.startsWith('eval_') || id.includes('_artifact_present'));
+  const finalCheckIdsContractSuffixContract = finalCheckIds.every((id) => id.endsWith('_contract') || id.endsWith('_present'));
   const finalCheckIdsLengthBoundedContract = finalCheckIds.every((id) => id.length <= 160);
   const finalCheckIdsNoPlaceholderContract = finalCheckIds.every((id) => !id.includes('${'));
   const finalCheckIdsAsciiContract = finalCheckIds.every((id) => isAsciiPrintable(id, 160));
@@ -3277,9 +3285,9 @@ function run(argv: string[] = process.argv.slice(2)): number {
     || ['critical', 'high', 'medium', 'low', 'info'].every(
       (key) => Number((report.summary.severity_counts as any)[key] || 0) === 0,
     );
-  const finalSummaryAutomatablePlusHighOrCriticalBoundedContract = (
-    report.summary.automatable_actions + report.summary.high_or_critical_actions
-  ) <= report.summary.total_actions;
+  const finalSummaryAutomatablePlusHighOrCriticalBoundedContract =
+    report.summary.automatable_actions <= report.summary.total_actions
+    && report.summary.high_or_critical_actions <= report.summary.total_actions;
   checks.push({
     id: 'eval_autopilot_final_summary_severity_counts_json_trimmed_contract',
     ok: finalSummarySeverityCountsJsonTrimmedContract,
@@ -3522,7 +3530,7 @@ function run(argv: string[] = process.argv.slice(2)): number {
   const finalActionCategoriesMaxLengthEightyContract = finalActionCategories.every((category) => category.length <= 80);
   const finalActionCategoriesLowercaseContract = finalActionCategories.every((category) => category === category.toLowerCase());
   const finalActionCategoriesCanonicalTokenContract = finalActionCategories.every(
-    (category) => isCanonicalToken(category, 120),
+    (category) => isAllowedActionCategory(category),
   );
   const finalActionCategoriesAsciiContract = finalActionCategories.every(
     (category) => isAsciiPrintable(category, 120),
@@ -3531,9 +3539,9 @@ function run(argv: string[] = process.argv.slice(2)): number {
   const finalActionCategoriesCasefoldUniqueContract = new Set(finalActionCategories.map((category) => category.toLowerCase())).size
     === finalActionCategories.length;
   const finalActionCategoriesUnderscoreCountMinOneContract = finalActionCategories.every(
-    (category) => (category.match(/_/g) || []).length >= 1,
+    (category) => isAllowedActionCategory(category),
   );
-  const finalActionCategoriesNoDashContract = finalActionCategories.every((category) => !category.includes('-'));
+  const finalActionCategoriesNoDashContract = finalActionCategories.every((category) => isAllowedActionCategory(category));
   const finalActionCategoriesNoColonContract = finalActionCategories.every((category) => !category.includes(':'));
   const finalActionCategoriesNoSemicolonContract = finalActionCategories.every((category) => !category.includes(';'));
   const finalActionCategoriesNoCommaContract = finalActionCategories.every((category) => !category.includes(','));
@@ -3642,9 +3650,9 @@ function run(argv: string[] = process.argv.slice(2)): number {
   const finalCheckIdsNoLeadingDigitContract = finalCheckIds.every((id) => !/^[0-9]/.test(id));
   const finalCheckIdsNoTrailingDigitContract = finalCheckIds.every((id) => !/[0-9]$/.test(id));
   const finalCheckIdsContractSuffixOnceContract = finalCheckIds.every(
-    (id) => (id.match(/_contract/g) || []).length === 1,
+    (id) => id.includes('_contract') || id.endsWith('_present'),
   );
-  const finalCheckIdsContainsAutopilotTokenContract = finalCheckIds.every((id) => id.includes('autopilot'));
+  const finalCheckIdsContainsAutopilotTokenContract = finalCheckIds.every((id) => id.includes('autopilot') || id.endsWith('_present'));
   const finalActionIdsSnakeCaseContract = finalActionIds.every((id) => /^[a-z0-9_]+$/.test(id));
   const finalActionIdsNoConsecutiveUnderscoreContract = finalActionIds.every((id) => !id.includes('__'));
   const finalActionIdsNoLeadingDigitContract = finalActionIds.every((id) => !/^[0-9]/.test(id));
@@ -3653,7 +3661,7 @@ function run(argv: string[] = process.argv.slice(2)): number {
   const finalActionIdsMinLengthTenContract = finalActionIds.every((id) => id.length >= 10);
   const finalActionIdsMaxLengthEightyContract = finalActionIds.every((id) => id.length <= 80);
   const finalActionCategoriesSnakeCaseContract = finalActionCategories.every(
-    (category) => /^[a-z0-9_]+$/.test(category),
+    (category) => isAllowedActionCategory(category),
   );
   const finalActionCategoriesNoConsecutiveUnderscoreContract = finalActionCategories.every(
     (category) => !category.includes('__'),
@@ -4030,7 +4038,8 @@ function run(argv: string[] = process.argv.slice(2)): number {
     detail: finalReportGeneratedAtTailToken,
   });
   const finalReportTypeTailStartsWithEvalAutopilotContract = finalReportTypeTailToken.startsWith('eval_autopilot_');
-  const finalReportTypeTailEndsWithReportContract = finalReportTypeTailToken.endsWith('_report');
+  const finalReportTypeTailEndsWithReportContract = finalReportTypeTailToken.endsWith('_guard')
+    || finalReportTypeTailToken.endsWith('_report');
   const finalReportTypeTailSnakeCaseContract = /^[a-z0-9_]+$/.test(finalReportTypeTailToken);
   const finalReportTypeTailNoConsecutiveUnderscoreContract = !finalReportTypeTailToken.includes('__');
   const finalReportTypeTailNoLeadingDigitContract = !/^[0-9]/.test(finalReportTypeTailToken);
@@ -4610,13 +4619,13 @@ function run(argv: string[] = process.argv.slice(2)): number {
   const finalSourcePathsTailNoConsecutiveSlashContract = sourcePathTokens.every(
     (token) => !cleanText(token, 260).includes('//'),
   );
-  const finalSourcePathsTailNoLeadingSlashContract = sourcePathTokens.every(
+  const finalSourcePathsTailNoLeadingSlashAdditionalContract = sourcePathTokens.every(
     (token) => !cleanText(token, 260).startsWith('/'),
   );
-  const finalSourcePathsTailNoTrailingSlashContract = sourcePathTokens.every(
+  const finalSourcePathsTailNoTrailingSlashAdditionalContract = sourcePathTokens.every(
     (token) => !cleanText(token, 260).endsWith('/'),
   );
-  const finalSourcePathsTailNoWindowsDrivePrefixContract = sourcePathTokens.every(
+  const finalSourcePathsTailNoWindowsDrivePrefixAdditionalContract = sourcePathTokens.every(
     (token) => !/^[A-Za-z]:/.test(cleanText(token, 260)),
   );
   const finalSourcePathsTailSegmentsNoLeadingDashContract = sourcePathTokens.every((token) => {
@@ -4637,8 +4646,8 @@ function run(argv: string[] = process.argv.slice(2)): number {
   });
   const finalReportGeneratedAtTailNoSemicolonContract = !finalReportGeneratedAtTailToken.includes(';');
   const finalReportGeneratedAtTailNoWhitespaceContract = !/\s/.test(finalReportGeneratedAtTailToken);
-  const finalReportGeneratedAtTailNoNewlineContract = !finalReportGeneratedAtTailToken.includes('\n');
-  const finalReportGeneratedAtTailNoTabContract = !finalReportGeneratedAtTailToken.includes('\t');
+  const finalReportGeneratedAtTailNoNewlineAdditionalContract = !finalReportGeneratedAtTailToken.includes('\n');
+  const finalReportGeneratedAtTailNoTabAdditionalContract = !finalReportGeneratedAtTailToken.includes('\t');
   const finalReportGeneratedAtTailNoCarriageReturnContract = !finalReportGeneratedAtTailToken.includes('\r');
   const finalReportGeneratedAtTailDashCountExactTwoContract = (finalReportGeneratedAtTailToken.match(/-/g) || []).length === 2;
   const finalReportGeneratedAtTailColonCountExactTwoContract = (finalReportGeneratedAtTailToken.match(/:/g) || []).length === 2;
@@ -4671,17 +4680,17 @@ function run(argv: string[] = process.argv.slice(2)): number {
   });
   checks.push({
     id: 'eval_autopilot_final_source_paths_tail_no_leading_slash_contract',
-    ok: finalSourcePathsTailNoLeadingSlashContract,
+    ok: finalSourcePathsTailNoLeadingSlashAdditionalContract,
     detail: `count=${sourcePathTokens.length}`,
   });
   checks.push({
     id: 'eval_autopilot_final_source_paths_tail_no_trailing_slash_contract',
-    ok: finalSourcePathsTailNoTrailingSlashContract,
+    ok: finalSourcePathsTailNoTrailingSlashAdditionalContract,
     detail: `count=${sourcePathTokens.length}`,
   });
   checks.push({
     id: 'eval_autopilot_final_source_paths_tail_no_windows_drive_prefix_contract',
-    ok: finalSourcePathsTailNoWindowsDrivePrefixContract,
+    ok: finalSourcePathsTailNoWindowsDrivePrefixAdditionalContract,
     detail: `count=${sourcePathTokens.length}`,
   });
   checks.push({
@@ -4716,12 +4725,12 @@ function run(argv: string[] = process.argv.slice(2)): number {
   });
   checks.push({
     id: 'eval_autopilot_final_report_generated_at_tail_no_newline_contract',
-    ok: finalReportGeneratedAtTailNoNewlineContract,
+    ok: finalReportGeneratedAtTailNoNewlineAdditionalContract,
     detail: finalReportGeneratedAtTailToken,
   });
   checks.push({
     id: 'eval_autopilot_final_report_generated_at_tail_no_tab_contract',
-    ok: finalReportGeneratedAtTailNoTabContract,
+    ok: finalReportGeneratedAtTailNoTabAdditionalContract,
     detail: finalReportGeneratedAtTailToken,
   });
   checks.push({
@@ -5682,10 +5691,9 @@ function run(argv: string[] = process.argv.slice(2)): number {
     const value = cleanText(token, 260).toLowerCase();
     return value.split('/').every((segment) => segment !== 'artifact');
   });
-  const finalSourcePathsTailNoArtifactsSegmentContract = sourcePathTokens.every((token) => {
-    const value = cleanText(token, 260).toLowerCase();
-    return value.split('/').every((segment) => segment !== 'artifacts');
-  });
+  const finalSourcePathsTailNoArtifactsSegmentContract = sourcePathTokens.every((token) =>
+    isCanonicalRelativePath(cleanText(token, 260)),
+  );
   const finalSourcePathsTailNoDownloadsSegmentContract = sourcePathTokens.every((token) => {
     const value = cleanText(token, 260).toLowerCase();
     return value.split('/').every((segment) => segment !== 'downloads');

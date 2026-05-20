@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "name": "kernel_sentinel_artifact_freshness_policy",
+  "owner_domain": "observability.sentinel",
+  "purpose": "Ensure Sentinel source artifacts needed for anti-entropy feedback are present and fresh before humans rely on Sentinel state.",
+  "source_policy": "observability/sentinel/sentinel_anti_entropy_observer_policy.json",
+  "output_path": "core/local/artifacts/kernel_sentinel_artifact_freshness_guard_current.json",
+  "policy": {
+    "missing_source_artifacts_are_actionable": true,
+    "stale_source_artifacts_are_actionable": true,
+    "freshness_guard_is_observational_not_runtime_authority": true,
+    "dream_maintenance_should_refresh_all_required_sources": true
+  }
+}

@@ -5,8 +5,8 @@
   "source_domain": "validation",
   "type": "ci_workflow_tier_manifest",
   "schema_version": 1,
-  "generated_at": "2026-05-10T21:43:43.362Z",
-  "workflow_count": 53,
+  "generated_at": "2026-05-20T06:10:33.215Z",
+  "workflow_count": 54,
   "workflows": [
     {
       "file": ".github/workflows/alpha-smoke.yml",
@@ -378,6 +378,13 @@
       "tier": "release_gate",
       "required_for_release": true,
       "allowed_to_be_advisory": false
+    },
+    {
+      "file": ".github/workflows/ci-tier-enforcement.yml",
+      "name": "CI Tier Enforcement",
+      "tier": "validation_guard",
+      "required_for_release": false,
+      "allowed_to_be_advisory": true
     }
   ],
   "governance": {

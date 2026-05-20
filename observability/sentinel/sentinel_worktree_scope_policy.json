@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "name": "kernel_sentinel_worktree_scope_policy",
+  "owner_domain": "observability.sentinel",
+  "purpose": "Classify current worktree churn into commit-safe scopes without modifying unrelated or fragile lanes.",
+  "output_json": "core/local/artifacts/kernel_sentinel_worktree_scope_current.json",
+  "output_markdown": "local/workspace/reports/KERNEL_SENTINEL_WORKTREE_SCOPE_CURRENT.md",
+  "restricted_lanes": [
+    "client/",
+    "shell/",
+    "orchestration/"
+  ],
+  "scope_prefixes": {
+    "kernel": ["core/"],
+    "observability": ["observability/", "local/state/observability/"],
+    "validation": ["validation/", "tests/tooling/"],
+    "tools": ["tools/", "package.json"],
+    "installer": ["install.ps1", "install.sh", "install/"],
+    "docs": ["docs/", "README.md", "ARCHITECTURE.md"],
+    "github": [".github/"]
+  },
+  "policy": {
+    "report_only": true,
+    "do_not_stage_or_commit": true,
+    "restricted_lanes_need_explicit_user_permission": true
+  }
+}
