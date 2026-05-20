@@ -185,6 +185,243 @@ fn tool_query_metadata_value(tool: &Value) -> Option<Value> {
     }
 }
 
+fn synthesis_metadata_string_array(
+    metadata: Option<&Value>,
+    pointer: &str,
+    limit: usize,
+    item_len: usize,
+) -> Vec<String> {
+    metadata
+        .and_then(|row| row.pointer(pointer))
+        .and_then(Value::as_array)
+        .map(|rows| {
+            rows.iter()
+                .filter_map(Value::as_str)
+                .map(|row| clean_text(row, item_len))
+                .filter(|row| !row.is_empty())
+                .take(limit)
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default()
+}
+
+fn synthesis_message_is_current_intent(message: &str) -> bool {
+    let lowered = clean_text(message, 800).to_ascii_lowercase();
+    [
+        "today",
+        "this week",
+        "this month",
+        "current",
+        "latest",
+        "recent",
+        "news",
+        "update",
+        "updates",
+        "landscape",
+        "state of",
+    ]
+    .iter()
+    .any(|marker| lowered.contains(marker))
+}
+
+fn synthesis_message_is_comparison_intent(message: &str) -> bool {
+    let lowered = clean_text(message, 800).to_ascii_lowercase();
+    [
+        "compare",
+        "comparison",
+        "versus",
+        " vs ",
+        "tradeoff",
+        "tradeoffs",
+        "benchmark",
+        "benchmarks",
+        "best ",
+        "which ",
+    ]
+    .iter()
+    .any(|marker| lowered.contains(marker))
+}
+
+fn synthesis_answer_shape(message: &str) -> &'static str {
+    if synthesis_message_is_comparison_intent(message) {
+        "comparison"
+    } else if synthesis_message_is_current_intent(message) {
+        "update"
+    } else {
+        "briefing"
+    }
+}
+
+fn synthesis_source_preferences(message: &str, metadata: Option<&Value>) -> Vec<String> {
+    let mut out = Vec::<String>::new();
+    let mut seen = HashSet::<String>::new();
+    let entities = synthesis_metadata_string_array(metadata, "/required_coverage/entities", 8, 120);
+    let comparison_intent = synthesis_message_is_comparison_intent(message);
+    let current_intent = synthesis_message_is_current_intent(message);
+    if current_intent {
+        for value in [
+            "announcement_or_news",
+            "public_institution",
+            "documentation_or_reference",
+            "scholarly_or_research",
+        ] {
+            push_unique_clean_string(&mut out, &mut seen, value, 80);
+        }
+    }
+    if comparison_intent || !entities.is_empty() {
+        for value in [
+            "documentation_or_reference",
+            "repository_or_dataset",
+            "public_institution",
+            "community_or_forum",
+        ] {
+            push_unique_clean_string(&mut out, &mut seen, value, 80);
+        }
+    }
+    if out.is_empty() {
+        for value in [
+            "documentation_or_reference",
+            "public_institution",
+            "scholarly_or_research",
+            "repository_or_dataset",
+            "community_or_forum",
+        ] {
+            push_unique_clean_string(&mut out, &mut seen, value, 80);
+        }
+    }
+    out.into_iter().take(6).collect()
+}
+
+fn synthesis_query_plan_strings(tool: &Value, limit: usize) -> Vec<String> {
+    tool_hidden_array(tool, "query_plan")
+        .into_iter()
+        .filter_map(|row| row.as_str().map(|value| clean_text(value, 220)))
+        .filter(|value| !value.is_empty())
+        .take(limit)
+        .collect()
+}
+
+fn synthesis_query_source(tool: &Value) -> String {
+    clean_text(
+        tool_hidden_value(tool, "source")
+            .and_then(Value::as_str)
+            .unwrap_or_else(|| tool.get("name").and_then(Value::as_str).unwrap_or("tool")),
+        80,
+    )
+}
+
+fn derived_research_brief_for_tools(message: &str, response_tools: &[Value]) -> Value {
+    let existing = synthesis_first_hidden_object(response_tools, "research_brief");
+    if existing.is_object() {
+        return existing;
+    }
+    let Some(tool) = response_tools
+        .iter()
+        .find(|tool| tool_query_metadata_value(tool).is_some() || tool_hidden_value(tool, "query").is_some())
+    else {
+        return Value::Null;
+    };
+    let metadata = tool_query_metadata_value(tool);
+    let mut open_dimensions = synthesis_metadata_string_array(
+        metadata.as_ref(),
+        "/required_coverage/facets",
+        8,
+        180,
+    );
+    let mut open_seen = open_dimensions
+        .iter()
+        .map(|row| row.to_ascii_lowercase())
+        .collect::<HashSet<_>>();
+    if open_dimensions.is_empty() {
+        for lane in synthesis_query_plan_strings(tool, 4).into_iter().skip(1).take(3) {
+            push_unique_clean_string(&mut open_dimensions, &mut open_seen, &lane, 220);
+        }
+    }
+    let known_constraints =
+        synthesis_metadata_string_array(metadata.as_ref(), "/negative_terms", 8, 120);
+    json!({
+        "schema_version": "research_brief_v1",
+        "original_user_goal": clean_text(message, 1_200),
+        "research_objective": clean_text(message, 1_200),
+        "open_dimensions": open_dimensions,
+        "known_constraints": known_constraints,
+        "date_context": chrono::Utc::now().date_naive().to_string(),
+        "source": synthesis_query_source(tool),
+        "source_preferences": synthesis_source_preferences(message, metadata.as_ref()),
+        "answer_shape": synthesis_answer_shape(message),
+        "metadata_authority": clean_text(
+            metadata
+                .as_ref()
+                .and_then(|row| row.pointer("/compilation/authority"))
+                .and_then(Value::as_str)
+                .unwrap_or("dashboard_tool_handoff"),
+            120,
+        )
+    })
+}
+
+fn derived_evidence_needs_for_tools(message: &str, response_tools: &[Value]) -> Value {
+    let existing = synthesis_first_hidden_object(response_tools, "evidence_needs");
+    if existing.is_object() {
+        return existing;
+    }
+    let Some(tool) = response_tools
+        .iter()
+        .find(|tool| tool_query_metadata_value(tool).is_some() || tool_hidden_value(tool, "query").is_some())
+    else {
+        return Value::Null;
+    };
+    let metadata = tool_query_metadata_value(tool);
+    let entities = synthesis_metadata_string_array(metadata.as_ref(), "/required_coverage/entities", 8, 120);
+    let mut coverage_facets =
+        synthesis_metadata_string_array(metadata.as_ref(), "/required_coverage/facets", 8, 180);
+    let mut seen = coverage_facets
+        .iter()
+        .map(|row| row.to_ascii_lowercase())
+        .collect::<HashSet<_>>();
+    if !entities.is_empty() {
+        push_unique_clean_string(&mut coverage_facets, &mut seen, "entity_coverage", 80);
+    }
+    if synthesis_message_is_current_intent(message) {
+        push_unique_clean_string(&mut coverage_facets, &mut seen, "freshness", 80);
+    }
+    if synthesis_message_is_comparison_intent(message) {
+        push_unique_clean_string(&mut coverage_facets, &mut seen, "cross_comparison", 80);
+    }
+    if coverage_facets.is_empty() {
+        push_unique_clean_string(&mut coverage_facets, &mut seen, "overall_objective", 80);
+    }
+    let minimum_claims = if synthesis_message_is_comparison_intent(message)
+        || synthesis_message_is_current_intent(message)
+    {
+        3
+    } else {
+        2
+    };
+    let minimum_distinct_domains = if entities.len() > 1 || synthesis_message_is_comparison_intent(message) {
+        3
+    } else {
+        2
+    };
+    json!({
+        "schema_version": "evidence_needs_v1",
+        "coverage_facets": coverage_facets,
+        "source_classes": synthesis_source_preferences(message, metadata.as_ref()),
+        "required_materialization": "materialized_or_trusted_feed",
+        "minimum_claims": minimum_claims,
+        "minimum_distinct_domains": minimum_distinct_domains,
+        "citation_expectation": "claim_backed_source_refs",
+        "recency_window": if synthesis_message_is_current_intent(message) {
+            json!({
+                "mode": "current_context",
+                "anchor_date": chrono::Utc::now().date_naive().to_string()
+            })
+        } else {
+            Value::Null
+        }
+    })
+}
+
 fn synthesis_coverage_lane_key(kind: &str, requested_text: &str) -> String {
     format!(
         "{}:{}",
@@ -597,8 +834,8 @@ fn workflow_synthesis_input_for_final_response(
         "schema_version": "live_synthesis_input_v1",
         "source": "dashboard_tool_observation_handoff",
         "user_goal": clean_text(message, 1_200),
-        "research_brief": synthesis_first_hidden_object(response_tools, "research_brief"),
-        "evidence_needs": synthesis_first_hidden_object(response_tools, "evidence_needs"),
+        "research_brief": derived_research_brief_for_tools(message, response_tools),
+        "evidence_needs": derived_evidence_needs_for_tools(message, response_tools),
         "tool_result_quality": synthesis_tool_result_quality(response_tools),
         "tool_receipt_refs": synthesis_tool_receipt_refs(response_tools),
         "evidence_pack": synthesis_evidence_pack_for_tools(response_tools, 8),

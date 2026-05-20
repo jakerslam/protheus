@@ -1,0 +1,8 @@
+{
+  "type": "sentinel_staged_compact_report",
+  "trace_id": "observability:2026-05-16T18:02:47.510Z:sentinel-staged-compact-report",
+  "parent_span_id": null,
+  "generated_at": "2026-05-16T18:02:47.510Z",
+  "findings": [],
+  "raw_evidence_embedded": false
+}
