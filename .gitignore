@@ -439,5 +439,8 @@ __pycache__/
 # Local Claude worktrees (external session workspaces)
 .claude/worktrees/
 
+# External research/reference checkouts (assimilated through ledgers, not tracked raw)
+/references/
+
 # Core-local generated workspace reports
 /core/workspace/reports/

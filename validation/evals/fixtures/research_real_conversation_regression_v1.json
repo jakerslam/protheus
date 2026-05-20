@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "dataset_id": "research_real_conversation_regression_v1",
+  "domain": "research",
+  "created_at": "2026-05-17",
+  "description": "Small live-conversation regression set for user-facing research quality. These cases should fail if the system returns a source-list scaffold, unrelated web rows, or generic low-evidence boilerplate instead of a useful answer or an honest retrieval failure.",
+  "answer_key_policy": {
+    "exact_answer_matching": false,
+    "requires_live_or_recorded_evidence": true,
+    "allow_reasoned_uncertainty": true,
+    "hidden_expected_entities_are_not_hard_answer_keys": true
+  },
+  "reliability_thresholds": {
+    "min_cases_for_reliability_claim": 2,
+    "workflow_gate_pass_min": 0.95,
+    "research_success_min": 1.0,
+    "excellent_research_success_min": 0.95,
+    "max_empty_responses": 0,
+    "max_raw_tool_leaks": 0,
+    "max_tool_choice_as_final_response": 0,
+    "max_unsupported_factual_claims": 0
+  },
+  "scoring_contract": {
+    "total_points": 100,
+    "pass_score": 85,
+    "excellent_score": 95
+  },
+  "cases": [
+    {
+      "id": "real_research_001_scientific_breakthroughs_2026",
+      "category": "current_state",
+      "prompt": "what are some scientific breakthroughs 2026?",
+      "expected_gate_path": {
+        "gate_1": "tool_required",
+        "gate_2": "web_research",
+        "gate_3": "web_search",
+        "gate_4_required_fields": ["query", "aperture"]
+      },
+      "required_answer_traits": [
+        "Gives a coherent answer if retrieval returns relevant source-backed findings.",
+        "If retrieval is weak, states that plainly without presenting source titles as the answer.",
+        "Does not use generic bounded-answer boilerplate."
+      ],
+      "forbidden": [
+        "Only summarizes source titles.",
+        "Claims a complete 2026 breakthrough list from speculative or unrelated sources.",
+        "Says the current turn does not support a complete answer while also marking the result as useful."
+      ]
+    },
+    {
+      "id": "real_research_002_ai_agentic_landscape_may_2026",
+      "category": "current_state",
+      "prompt": "give me an update on the AI agentic landscape in May 2026",
+      "expected_gate_path": {
+        "gate_1": "tool_required",
+        "gate_2": "web_research",
+        "gate_3": "web_search",
+        "gate_4_required_fields": ["query", "aperture"]
+      },
+      "required_entities": ["AI", "agentic"],
+      "required_answer_traits": [
+        "Uses retrieved evidence that is actually about AI agents or agentic systems.",
+        "Rejects unrelated web rows instead of using them as evidence.",
+        "Gives a concise landscape update or an honest retrieval failure."
+      ],
+      "forbidden": [
+        "Treats sports, legal, psychology, or finance rows as evidence for AI-agent research.",
+        "Only tells the user to broaden retrieval.",
+        "Presents tool/source summaries as the final answer."
+      ]
+    }
+  ]
+}

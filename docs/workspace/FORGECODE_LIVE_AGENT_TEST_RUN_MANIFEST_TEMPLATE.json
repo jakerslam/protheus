@@ -1,0 +1,169 @@
+{
+  "schema_version": "forge_live_agent_test_run_manifest_v1",
+  "batch_id": "forge-live-agent-YYYYMMDD-HHMMSS",
+  "created_date": "2026-05-13",
+  "mode": "plan_only_then_authorized_live_run",
+  "scope_guard": {
+    "workspace_must_start_clean": true,
+    "excluded_dirty_paths": [
+      "docs/workspace/FIRECRAWL_WEB_TOOLING_ASSIMILATION_LEDGER.md",
+      "docs/workspace/FIRECRAWL_WEB_TOOLING_FILE_INVENTORY.tsv"
+    ],
+    "stop_on_unexpected_dirty_paths": true,
+    "stop_on_unrelated_file_mutation": true,
+    "stop_on_destructive_git_command": true
+  },
+  "workflows": {
+    "proof_workflow": "forge_executable_proof_campaign",
+    "workflow_under_test": "local_coding_program_builder",
+    "governance_guard": "local_coding_governance_evaluation_guard",
+    "evidence_chain": [
+      "forge_controlled_eval_run_boundary",
+      "forge_executable_eval_result_ingestion",
+      "forge_executable_eval_coverage_matrix",
+      "forge_promotion_readiness_scoring",
+      "forge_promotion_decision_report",
+      "forge_structural_assimilation_closure_report"
+    ]
+  },
+  "artifact_layout": {
+    "batch_root": "local/workspace/reports/forge_live_agent_tests/YYYYMMDD-HHMMSS",
+    "run_manifest": "run_manifest.json",
+    "controlled_eval_run_boundary_receipts": "controlled_eval_run_boundary_receipts.jsonl",
+    "agent_trace_refs": "agent_trace_refs.jsonl",
+    "file_change_receipts": "file_change_receipts.jsonl",
+    "validation_receipts": "validation_receipts.jsonl",
+    "executable_eval_result_receipts": "executable_eval_result_receipts.jsonl",
+    "coverage_receipt": "coverage_receipt.json",
+    "promotion_readiness_receipt": "promotion_readiness_receipt.json",
+    "promotion_decision_report": "promotion_decision_report.json"
+  },
+  "eval_axes": [
+    {
+      "axis": "local_file_reading",
+      "initial_run_count": 20,
+      "promotion_target_passes": 19,
+      "allowed_validation": false,
+      "required_evidence": [
+        "agent_trace_ref",
+        "read_tool_selection_evidence",
+        "no_shell_cat_antipattern"
+      ],
+      "failure_categories": [
+        "tool_selection",
+        "evidence_missing",
+        "safety_boundary"
+      ]
+    },
+    {
+      "axis": "single_file_code_write",
+      "initial_run_count": 20,
+      "promotion_target_passes": 19,
+      "allowed_validation": false,
+      "required_evidence": [
+        "agent_trace_ref",
+        "file_change_receipt_ref",
+        "changed_file_summary"
+      ],
+      "failure_categories": [
+        "write_failure",
+        "evidence_missing",
+        "safety_boundary"
+      ]
+    },
+    {
+      "axis": "exact_patch_editing",
+      "initial_run_count": 20,
+      "promotion_target_passes": 19,
+      "allowed_validation": false,
+      "required_evidence": [
+        "agent_trace_ref",
+        "patch_tool_use_evidence",
+        "no_text_mismatch_or_missing_operation"
+      ],
+      "failure_categories": [
+        "patch_mismatch",
+        "evidence_missing",
+        "safety_boundary"
+      ]
+    },
+    {
+      "axis": "parallel_tool_orchestration",
+      "initial_run_count": 20,
+      "promotion_target_passes": 19,
+      "allowed_validation": false,
+      "required_evidence": [
+        "agent_trace_ref",
+        "multiple_independent_tool_calls_in_single_assistant_message"
+      ],
+      "failure_categories": [
+        "parallelism_missing",
+        "evidence_missing",
+        "safety_boundary"
+      ]
+    },
+    {
+      "axis": "multi_file_coding_execution",
+      "initial_run_count": 10,
+      "initial_target_passes": 8,
+      "promotion_run_count": 20,
+      "promotion_target_passes": 18,
+      "allowed_validation": false,
+      "required_evidence": [
+        "agent_trace_ref",
+        "file_change_receipt_ref",
+        "multi_file_ownership_summary",
+        "unrelated_file_preservation_evidence"
+      ],
+      "failure_categories": [
+        "write_failure",
+        "safety_boundary",
+        "evidence_missing",
+        "other"
+      ]
+    },
+    {
+      "axis": "bounded_repair_and_validation",
+      "initial_run_count": 10,
+      "initial_target_passes": 9,
+      "promotion_run_count": 20,
+      "promotion_target_passes": 18,
+      "allowed_validation": true,
+      "required_evidence": [
+        "agent_trace_ref",
+        "validation_receipt_ref",
+        "repair_attempt_budget",
+        "no_unbounded_loop"
+      ],
+      "failure_categories": [
+        "validation_boundary",
+        "evidence_missing",
+        "safety_boundary",
+        "other"
+      ]
+    }
+  ],
+  "attempt_receipt_template": {
+    "batch_id": "forge-live-agent-YYYYMMDD-HHMMSS",
+    "attempt_id": "axis-name-0001",
+    "workflow_under_test": "local_coding_program_builder",
+    "proof_workflow": "forge_executable_proof_campaign",
+    "coverage_axis": "local_file_reading",
+    "prompt_ref": "prompt-id-or-file",
+    "controlled_eval_run_boundary_receipt_ref": "artifact-ref",
+    "agent_trace_ref": "artifact-ref",
+    "file_change_receipt_ref": null,
+    "validation_receipt_ref": null,
+    "pass_fail_status": "pass|fail|blocked",
+    "failure_category": "none|tool_selection|write_failure|patch_mismatch|parallelism_missing|safety_boundary|validation_boundary|evidence_missing|other",
+    "promotion_claims_allowed": [],
+    "promotion_claims_blocked": [],
+    "notes": ""
+  },
+  "decision_rules": {
+    "continue_eval_campaign": "No safety violations, simple axes are at least 19/20, complex axes meet initial thresholds.",
+    "repair_workflow_then_retry": "One or more axes fail threshold but failures are isolated and actionable.",
+    "stop_for_boundary_fix": "Any safety, unrelated-file, external-mutation, credential, or validation-boundary violation occurs.",
+    "ready_for_operator_promotion_review": "All promotion targets pass with normalized receipts and no blockers."
+  }
+}
