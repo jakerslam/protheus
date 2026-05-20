@@ -1,0 +1,317 @@
+{
+  "name": "existing_project_evidence_contract",
+  "workflow_type": "control_plane_orchestration_workflow",
+  "workflow_role": "assistant_response_workflow",
+  "default": false,
+  "description": "Primitive for enforcing canonical machine-readable evidence before finalizing an existing-project coding checkpoint.",
+  "stages": [
+    "existing_project_applicability_check",
+    "canonical_template_projection",
+    "planning_and_handoff_field_check",
+    "preservation_receipt_field_check",
+    "change_and_repair_receipt_field_check",
+    "validation_receipt_field_check",
+    "checkpoint_handoff_field_check",
+    "evidence_contract_result_packaging"
+  ],
+  "workflow_composition": {
+    "primitive_level": 0,
+    "composed_of_workflow_ids": []
+  },
+  "final_response_policy": "control_plane_packaged_response",
+  "final_output_contract": {
+    "schema_version": "existing_project_evidence_contract_final_output_contract_v1",
+    "source": "workflow_cd",
+    "visible_chat_source": "llm_final_answer_only",
+    "required_summary_fields": [
+      "applicable",
+      "contract_status",
+      "missing_required_fields",
+      "required_artifact_paths",
+      "repair_instruction",
+      "failure_result_envelope"
+    ],
+    "internal_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace"
+    ],
+    "quality_contract": {
+      "answer_user_goal": "prevent final handoff until existing-project evidence is packaged in canonical machine-readable files",
+      "scope_boundary": "check only evidence artifacts for the current existing-project checkpoint",
+      "validation_calibration": "distinguish app validation failures from evidence contract failures",
+      "failure_routing": "return a repairable evidence failure instead of asking the user when fields can be generated from local context",
+      "visibility": "surface concise missing-field summaries without raw hidden reasoning"
+    }
+  },
+  "existing_project_evidence_contract": {
+    "version": "existing_project_evidence_contract_v1",
+    "applicability": [
+      "initialized_existing_project",
+      "multi_file_or_multi_boundary_change",
+      "caller_requires_existing_project_evidence_contract"
+    ],
+    "canonical_artifact_paths": [
+      "workflow_artifacts/slice_handoff.json",
+      "receipts/preservation_receipt.json",
+      "receipts/change_receipt.json",
+      "receipts/repair_receipt.json",
+      "receipts/checkpoint_handoff.json",
+      "VALIDATION_RECEIPT.md"
+    ],
+    "required_machine_fields": [
+      "slice_handoff",
+      "planning_confidence_score",
+      "tactical_readiness_score",
+      "slice_execution_readiness",
+      "parent_owned_decisions",
+      "immutable_decisions",
+      "slice_id",
+      "changed_files",
+      "preserved_files",
+      "unchanged_files",
+      "unrelated_file_preservation",
+      "repair_policy",
+      "repair_events",
+      "max_repair_attempts",
+      "checkpoint_handoff",
+      "final_checkpoint",
+      "recommended_next_checkpoint"
+    ],
+    "required_templates": {
+      "workflow_artifacts/slice_handoff.json": {
+        "slice_handoff": true,
+        "planning_confidence_score": 0,
+        "tactical_readiness_score": 0,
+        "slice_execution_readiness": "ready|needs_repair|blocked",
+        "parent_owned_decisions": [],
+        "immutable_decisions": [],
+        "acceptance_criteria": [],
+        "slice_ids": []
+      },
+      "receipts/preservation_receipt.json": {
+        "slice_id": "existing_project_preservation",
+        "preserved_files": [],
+        "unchanged_files": [],
+        "unrelated_file_preservation": true,
+        "baseline_regression_tests": []
+      },
+      "receipts/change_receipt.json": {
+        "slice_id": "implementation",
+        "changed_files": [],
+        "files_changed": [],
+        "file_change_receipt": true
+      },
+      "receipts/repair_receipt.json": {
+        "slice_id": "repair_and_validation",
+        "repair_policy": {
+          "max_repair_attempts": 2,
+          "allowed_repairs": []
+        },
+        "repair_events": []
+      },
+      "receipts/checkpoint_handoff.json": {
+        "checkpoint_handoff": true,
+        "final_checkpoint": "",
+        "recommended_next_checkpoint": "",
+        "known_limits": []
+      }
+    },
+    "pre_final_gate": {
+      "must_run_before": "checkpoint_handoff_visible_final_answer",
+      "on_missing_contract_field": "repair_evidence_receipts_before_final_answer",
+      "on_app_validation_failure": "route_to_bounded_repair_loop",
+      "on_legitimate_user_blocker": "return_failure_result_envelope_with_requires_user_input_true"
+    },
+    "required_behavior": [
+      "emit_canonical_json_even_when_human_readable_plan_exists",
+      "do_not_count_human_readable_receipts_as_contract_complete_without_machine_fields",
+      "repair_missing_evidence_fields_from_local_context_before_user_followup",
+      "include_changed_files_and_preserved_files_as arrays",
+      "include_planning_confidence_score_and_tactical_readiness_score_as_numbers",
+      "include_checkpoint_handoff_true_before_final_answer"
+    ]
+  },
+  "gate_contract": "control_plane_lifecycle_v1",
+  "observation_lifecycle_contract": {
+    "version": "run_observation_lifecycle_v1",
+    "policy_ref": "orchestration/config/run_observation_lifecycle_policy.json",
+    "purpose": "Record compact existing-project evidence-contract checks, missing fields, and repair routing.",
+    "required_lanes": [
+      "compact_ledger",
+      "artifact_ref_retention",
+      "failure_lifecycle_archive",
+      "hot_ring_buffer"
+    ],
+    "non_goals": [
+      "do_not_hide_current_failures",
+      "do_not_store_raw_tool_payloads",
+      "do_not_replace_app_validation",
+      "do_not_accept_human_readable_receipts_without_machine_fields"
+    ]
+  },
+  "typed_execution_contract": {
+    "gate_kind": "structured_control_plane_gate",
+    "input_kind": "multiple_choice_or_text_input",
+    "allowed_transitions": [
+      "existing_project_applicability_check->canonical_template_projection",
+      "canonical_template_projection->planning_and_handoff_field_check",
+      "planning_and_handoff_field_check->preservation_receipt_field_check",
+      "preservation_receipt_field_check->change_and_repair_receipt_field_check",
+      "change_and_repair_receipt_field_check->validation_receipt_field_check",
+      "validation_receipt_field_check->checkpoint_handoff_field_check",
+      "checkpoint_handoff_field_check->evidence_contract_result_packaging",
+      "evidence_contract_result_packaging->completed",
+      "planning_and_handoff_field_check->failed",
+      "preservation_receipt_field_check->failed",
+      "change_and_repair_receipt_field_check->failed",
+      "validation_receipt_field_check->failed",
+      "checkpoint_handoff_field_check->failed"
+    ],
+    "timeout_ms": 30000,
+    "retry_policy": {
+      "max_retries": 0,
+      "on_failure": "return_structured_failure"
+    },
+    "terminal_states": [
+      "completed",
+      "blocked",
+      "needs_input",
+      "failed",
+      "aborted"
+    ],
+    "telemetry_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace",
+      "final_answer"
+    ],
+    "tool_family_contracts": [
+      "workspace",
+      "web",
+      "memory",
+      "agent",
+      "shell",
+      "browser"
+    ],
+    "visible_chat_policy": "llm_final_only_no_system_injection",
+    "run_budgets": {
+      "max_stages": 8,
+      "max_model_turns": 1,
+      "max_tool_calls": 4,
+      "token_budget": 6000,
+      "loop_signature_detector": "existing_project_evidence_contract_v1"
+    }
+  },
+  "workflow_source_of_truth_contract": {
+    "interaction_source": "json_workflow_spec",
+    "rust_reader_role": "validate_execute_trace_only",
+    "hardcoded_interaction_behavior_allowed": false,
+    "json_owns": [
+      "interaction_gates",
+      "gate_options",
+      "gate_transitions",
+      "tool_family_menus",
+      "tool_input_schemas",
+      "confirmation_states",
+      "loopbacks",
+      "final_output_contract"
+    ],
+    "rust_owns": [
+      "json_loading",
+      "schema_validation",
+      "state_transition_execution",
+      "tool_execution_handoff",
+      "receipt_binding",
+      "trace_export",
+      "kernel_policy_enforcement"
+    ]
+  },
+  "interaction_gate_contract": {
+    "version": "llm_toolbox_gate_contract_v1",
+    "tool_family_menu_stage": "gate_2_tool_family_menu",
+    "tool_request_payload_stage": "gate_4_request_payload_input",
+    "tool_observation_stage": "tool_observation",
+    "final_answer_stage": "gate_6_llm_final_output",
+    "recovery_stage": "evidence_contract_result_packaging",
+    "gates": [
+      {
+        "stage": "gate_1_need_tool_access_menu",
+        "parser_kind": "need_tools",
+        "true_values": [
+          "yes",
+          "y",
+          "true",
+          "t",
+          "1"
+        ],
+        "false_values": [
+          "no",
+          "n",
+          "false",
+          "f",
+          "0"
+        ]
+      },
+      {
+        "stage": "gate_2_tool_family_menu",
+        "parser_kind": "tool_family",
+        "choice_base": 1
+      },
+      {
+        "stage": "gate_3_tool_menu",
+        "parser_kind": "tool_name"
+      },
+      {
+        "stage": "gate_4_request_payload_input",
+        "parser_kind": "request_payload"
+      },
+      {
+        "stage": "gate_5_post_tool_menu",
+        "parser_kind": "post_tool",
+        "finish_values": [
+          "finish",
+          "done",
+          "submit"
+        ],
+        "another_tool_values": [
+          "another",
+          "another tool",
+          "use another tool"
+        ]
+      }
+    ]
+  },
+  "workflow_composition_contract": {
+    "version": "workflow_composition_contract_v1",
+    "cd_kind": "primitive",
+    "returns_exactly_one_terminal_artifact": true,
+    "terminal_artifact_contract": {
+      "artifact_schema": "workflow_terminal_artifact_v1",
+      "allowed_kinds": [
+        "completed_final_answer",
+        "clarification_request",
+        "structured_failure",
+        "delegated_workflow_result"
+      ],
+      "parent_receives": "terminal_artifact_only_refs_for_internals"
+    },
+    "child_workflow_calls": [],
+    "non_goals": [
+      "do_not_replace_app_validation",
+      "do_not_generate_product_scope",
+      "do_not_accept_non_machine_readable_existing_project_receipts",
+      "do_not_embed_eval_level_names_or_fixture_paths"
+    ]
+  },
+  "primitive_first_contract": {
+    "case_specific_hardcoding_allowed": false,
+    "specificity_owner": "primitive",
+    "extension_surface": "workflow_cd",
+    "registered_capability_id": "workflow.existing_project_evidence_contract",
+    "special_case_policy": "Project-specific, eval-specific, or level-specific evidence requirements must be supplied by caller inputs, profiles, or eval fixtures rather than embedded in this primitive.",
+    "monotonic_lower_level_regression_policy": "Evidence requirements must remain generic and must not slow or block lower-level greenfield and single-file coding tasks."
+  }
+}

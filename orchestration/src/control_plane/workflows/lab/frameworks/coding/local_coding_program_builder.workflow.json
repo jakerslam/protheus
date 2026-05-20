@@ -186,10 +186,74 @@
         "internal_trace_visibility": "refs_only"
       },
       {
-        "capability": "level6_existing_project_evidence_contract",
-        "workflow_id": "level6_existing_project_evidence_contract",
-        "input_contract": "level6_existing_project_evidence_contract_input_envelope_v1",
-        "output_artifact": "level6_existing_project_evidence_contract_result_artifact_v1",
+        "capability": "existing_project_evidence_contract",
+        "workflow_id": "existing_project_evidence_contract",
+        "input_contract": "existing_project_evidence_contract_input_envelope_v1",
+        "output_artifact": "existing_project_evidence_contract_result_artifact_v1",
+        "return_policy": "return_single_terminal_artifact_to_parent",
+        "internal_trace_visibility": "refs_only"
+      },
+      {
+        "capability": "sandbox_session_runtime",
+        "workflow_id": "sandbox_session_runtime",
+        "input_contract": "sandbox_session_runtime_input_envelope_v1",
+        "output_artifact": "sandbox_session_runtime_result_artifact_v1",
+        "return_policy": "return_single_terminal_artifact_to_parent",
+        "internal_trace_visibility": "refs_only"
+      },
+      {
+        "capability": "step_budgeted_trajectory_runtime",
+        "workflow_id": "step_budgeted_trajectory_runtime",
+        "input_contract": "step_budgeted_trajectory_runtime_input_envelope_v1",
+        "output_artifact": "step_budgeted_trajectory_runtime_result_artifact_v1",
+        "return_policy": "return_single_terminal_artifact_to_parent",
+        "internal_trace_visibility": "refs_only"
+      },
+      {
+        "capability": "incremental_receipt_journal",
+        "workflow_id": "incremental_receipt_journal",
+        "input_contract": "incremental_receipt_journal_input_envelope_v1",
+        "output_artifact": "incremental_receipt_journal_result_artifact_v1",
+        "return_policy": "return_single_terminal_artifact_to_parent",
+        "internal_trace_visibility": "refs_only"
+      },
+      {
+        "capability": "context_provider_registry",
+        "workflow_id": "context_provider_registry",
+        "input_contract": "context_provider_registry_input_envelope_v1",
+        "output_artifact": "context_provider_registry_result_artifact_v1",
+        "return_policy": "return_single_terminal_artifact_to_parent",
+        "internal_trace_visibility": "refs_only"
+      },
+      {
+        "capability": "mode_manifest_registry",
+        "workflow_id": "mode_manifest_registry",
+        "input_contract": "mode_manifest_registry_input_envelope_v1",
+        "output_artifact": "mode_manifest_registry_result_artifact_v1",
+        "return_policy": "return_single_terminal_artifact_to_parent",
+        "internal_trace_visibility": "refs_only"
+      },
+      {
+        "capability": "patch_artifact_synthesis",
+        "workflow_id": "patch_artifact_synthesis",
+        "input_contract": "patch_artifact_synthesis_input_envelope_v1",
+        "output_artifact": "patch_artifact_synthesis_result_artifact_v1",
+        "return_policy": "return_single_terminal_artifact_to_parent",
+        "internal_trace_visibility": "refs_only"
+      },
+      {
+        "capability": "public_interface_verification",
+        "workflow_id": "public_interface_verification",
+        "input_contract": "public_interface_verification_input_envelope_v1",
+        "output_artifact": "public_interface_verification_result_artifact_v1",
+        "return_policy": "return_single_terminal_artifact_to_parent",
+        "internal_trace_visibility": "refs_only"
+      },
+      {
+        "capability": "final_receipt_synthesis",
+        "workflow_id": "final_receipt_synthesis",
+        "input_contract": "final_receipt_synthesis_input_envelope_v1",
+        "output_artifact": "final_receipt_synthesis_result_artifact_v1",
         "return_policy": "return_single_terminal_artifact_to_parent",
         "internal_trace_visibility": "refs_only"
       }
@@ -216,6 +280,8 @@
     "tooling_surface_guard_initialization",
     "runtime_execution_loop_initialization",
     "runtime_observability_guard_initialization",
+    "step_budgeted_trajectory_initialization",
+    "incremental_receipt_journal_initialization",
     "checkpoint_definition",
     "project_initialization_assessment",
     "architecture_contract_definition",
@@ -223,8 +289,9 @@
     "local_code_execution_loop",
     "integration_review",
     "validation_routing",
+    "public_interface_verification",
     "repair_loop",
-    "level6_evidence_contract_self_check",
+    "existing_project_evidence_contract_self_check",
     "checkpoint_memory_write",
     "result_packaging",
     "verification_closure"
@@ -307,7 +374,15 @@
       "bounded_repair_loop",
       "checkpoint_handoff",
       "checkpoint_memory_write",
-      "level6_existing_project_evidence_contract"
+      "sandbox_session_runtime",
+      "step_budgeted_trajectory_runtime",
+      "incremental_receipt_journal",
+      "context_provider_registry",
+      "mode_manifest_registry",
+      "patch_artifact_synthesis",
+      "public_interface_verification",
+      "final_receipt_synthesis",
+      "existing_project_evidence_contract"
     ]
   },
   "native_runtime_tooling": {
@@ -412,94 +487,6 @@
       "do_not_store_large_raw_files_in_memory_rows",
       "do_not_write_checkpoint_memory_before validation_or_structured_failure"
     ]
-  },
-  "level6_existing_project_evidence_contract": {
-    "version": "level6_existing_project_evidence_contract_v1",
-    "applies_when": [
-      "project_state == initialized",
-      "checkpoint_kind == existing_project_modification",
-      "requested_work_spans_multiple_existing_boundaries"
-    ],
-    "purpose": "Require canonical machine-readable planning, preservation, change, repair, validation, and checkpoint evidence before a Level 6 existing-project coding checkpoint can be finalized.",
-    "required_artifact_paths": [
-      "workflow_artifacts/level6_slice_handoff.json",
-      "receipts/level6_preservation_receipt.json",
-      "receipts/level6_change_receipt.json",
-      "receipts/level6_repair_receipt.json",
-      "receipts/checkpoint_handoff.json",
-      "VALIDATION_RECEIPT.md"
-    ],
-    "required_machine_fields": [
-      "slice_handoff",
-      "planning_confidence_score",
-      "tactical_readiness_score",
-      "slice_execution_readiness",
-      "parent_owned_decisions",
-      "immutable_decisions",
-      "slice_id",
-      "changed_files",
-      "preserved_files",
-      "unchanged_files",
-      "unrelated_file_preservation",
-      "repair_policy",
-      "repair_events",
-      "max_repair_attempts",
-      "checkpoint_handoff",
-      "final_checkpoint",
-      "recommended_next_checkpoint"
-    ],
-    "pre_final_self_check": {
-      "must_run_before": "result_packaging",
-      "missing_required_field_result": "repair_evidence_receipts_before_final_answer",
-      "must_not_finalize_when": [
-        "planning_confidence_score_missing",
-        "tactical_readiness_score_missing",
-        "changed_files_missing",
-        "unrelated_file_preservation_missing",
-        "repair_policy_missing",
-        "checkpoint_handoff_missing",
-        "validation_receipt_missing_or_failed"
-      ]
-    },
-    "template_contract": {
-      "workflow_artifacts/level6_slice_handoff.json": {
-        "slice_handoff": true,
-        "planning_confidence_score": 0.0,
-        "tactical_readiness_score": 0.0,
-        "slice_execution_readiness": "ready|needs_repair|blocked",
-        "parent_owned_decisions": [],
-        "immutable_decisions": [],
-        "acceptance_criteria": [],
-        "slice_ids": []
-      },
-      "receipts/level6_preservation_receipt.json": {
-        "slice_id": "existing_project_preservation",
-        "preserved_files": [],
-        "unchanged_files": [],
-        "unrelated_file_preservation": true,
-        "baseline_regression_tests": []
-      },
-      "receipts/level6_change_receipt.json": {
-        "slice_id": "implementation",
-        "changed_files": [],
-        "files_changed": [],
-        "file_change_receipt": true
-      },
-      "receipts/level6_repair_receipt.json": {
-        "slice_id": "repair_and_validation",
-        "repair_policy": {
-          "max_repair_attempts": 2,
-          "allowed_repairs": []
-        },
-        "repair_events": []
-      },
-      "receipts/checkpoint_handoff.json": {
-        "checkpoint_handoff": true,
-        "final_checkpoint": "",
-        "recommended_next_checkpoint": "",
-        "known_limits": []
-      }
-    }
   },
   "final_response_policy": "control_plane_packaged_response",
   "public_reasoning_trace_contract": {
@@ -1828,5 +1815,122 @@
       "parent_owned_decisions_are_immutable_during_slice_execution": true,
       "tactical_plan_changes_that_affect_strategy_must_return_to_parent": true
     }
+  },
+  "existing_project_evidence_contract": {
+    "version": "existing_project_evidence_contract_v1",
+    "applies_when": [
+      "project_state == initialized",
+      "checkpoint_kind == existing_project_modification",
+      "requested_work_spans_multiple_existing_boundaries"
+    ],
+    "purpose": "Require canonical machine-readable planning, preservation, change, repair, validation, and checkpoint evidence before an existing-project coding checkpoint can be finalized.",
+    "required_artifact_paths": [
+      "workflow_artifacts/slice_handoff.json",
+      "receipts/preservation_receipt.json",
+      "receipts/change_receipt.json",
+      "receipts/repair_receipt.json",
+      "receipts/checkpoint_handoff.json",
+      "VALIDATION_RECEIPT.md"
+    ],
+    "required_machine_fields": [
+      "slice_handoff",
+      "planning_confidence_score",
+      "tactical_readiness_score",
+      "slice_execution_readiness",
+      "parent_owned_decisions",
+      "immutable_decisions",
+      "slice_id",
+      "changed_files",
+      "preserved_files",
+      "unchanged_files",
+      "unrelated_file_preservation",
+      "repair_policy",
+      "repair_events",
+      "max_repair_attempts",
+      "checkpoint_handoff",
+      "final_checkpoint",
+      "recommended_next_checkpoint"
+    ],
+    "pre_final_self_check": {
+      "must_run_before": "result_packaging",
+      "missing_required_field_result": "repair_evidence_receipts_before_final_answer",
+      "must_not_finalize_when": [
+        "planning_confidence_score_missing",
+        "tactical_readiness_score_missing",
+        "changed_files_missing",
+        "unrelated_file_preservation_missing",
+        "repair_policy_missing",
+        "checkpoint_handoff_missing",
+        "validation_receipt_missing_or_failed"
+      ]
+    },
+    "template_contract": {
+      "workflow_artifacts/slice_handoff.json": {
+        "slice_handoff": true,
+        "planning_confidence_score": 0,
+        "tactical_readiness_score": 0,
+        "slice_execution_readiness": "ready|needs_repair|blocked",
+        "parent_owned_decisions": [],
+        "immutable_decisions": [],
+        "acceptance_criteria": [],
+        "slice_ids": []
+      },
+      "receipts/preservation_receipt.json": {
+        "slice_id": "existing_project_preservation",
+        "preserved_files": [],
+        "unchanged_files": [],
+        "unrelated_file_preservation": true,
+        "baseline_regression_tests": []
+      },
+      "receipts/change_receipt.json": {
+        "slice_id": "implementation",
+        "changed_files": [],
+        "files_changed": [],
+        "file_change_receipt": true
+      },
+      "receipts/repair_receipt.json": {
+        "slice_id": "repair_and_validation",
+        "repair_policy": {
+          "max_repair_attempts": 2,
+          "allowed_repairs": []
+        },
+        "repair_events": []
+      },
+      "receipts/checkpoint_handoff.json": {
+        "checkpoint_handoff": true,
+        "final_checkpoint": "",
+        "recommended_next_checkpoint": "",
+        "known_limits": []
+      }
+    }
+  },
+  "primitive_foundation_reset_contract": {
+    "version": "primitive_coding_foundation_reset_v1",
+    "purpose": "Rebuild local coding execution from reusable primitives instead of eval-level or project-specific branches.",
+    "primitive_spine": [
+      "sandbox_session_runtime",
+      "step_budgeted_trajectory_runtime",
+      "incremental_receipt_journal",
+      "context_provider_registry",
+      "mode_manifest_registry",
+      "local_context_pack_builder",
+      "safe_file_read",
+      "safe_file_write",
+      "safe_file_patch",
+      "patch_artifact_synthesis",
+      "validation_command_runner",
+      "public_interface_verification",
+      "bounded_repair_loop",
+      "existing_project_evidence_contract",
+      "checkpoint_handoff",
+      "final_receipt_synthesis"
+    ],
+    "source_artifact_corpus": "references/coding-agent-systems",
+    "monotonic_rule": "Higher-level project-operator behavior must compose these primitives without slowing or narrowing lower-level greenfield and single-file tasks.",
+    "non_goals": [
+      "do_not_embed_eval_level_names",
+      "do_not_hardcode_project_or_fixture_names",
+      "do_not_patch_runtime_branches_for_specific_prompts"
+    ]
   }
 }

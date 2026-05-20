@@ -1,0 +1,191 @@
+{
+  "name": "final_receipt_synthesis",
+  "workflow_type": "control_plane_orchestration_workflow",
+  "workflow_role": "assistant_response_workflow",
+  "default": false,
+  "description": "Primitive contract for synthesizing final coding answers from tool, mutation, validation, blocker, checkpoint, and public reasoning receipts.",
+  "primitive_first_contract": {
+    "case_specific_hardcoding_allowed": false,
+    "specificity_owner": "primitive",
+    "extension_surface": "workflow_cd",
+    "registered_capability_id": "workflow.final_receipt_synthesis",
+    "special_case_policy": "System-specific behavior must enter through inputs, profiles, adapters, or eval fixtures rather than hidden primitive branches.",
+    "monotonic_lower_level_regression_policy": "This primitive must stay optional, bounded, and reusable so higher-level coding composites cannot regress simpler coding tasks."
+  },
+  "provenance_contract": {
+    "source_systems": [
+      "ForgeCode",
+      "OpenHands",
+      "SWE-agent"
+    ],
+    "import_rule": "assimilate_mechanics_not_product_specific_hacks",
+    "artifact_corpus_ref": "references/coding-agent-systems"
+  },
+  "stages": [
+    "receipt_bundle_intake",
+    "requirement_coverage_projection",
+    "validation_and_blocker_calibration",
+    "final_receipt_result_packaging"
+  ],
+  "workflow_composition": {
+    "primitive_level": 0,
+    "composed_of_workflow_ids": []
+  },
+  "final_response_policy": "control_plane_packaged_response",
+  "final_output_contract": {
+    "schema_version": "final_receipt_synthesis_final_output_contract_v1",
+    "source": "workflow_cd",
+    "visible_chat_source": "llm_final_answer_only",
+    "required_summary_fields": [
+      "changed_files",
+      "validation_summary",
+      "requirement_coverage",
+      "blockers",
+      "receipt_refs",
+      "public_reasoning_rollup"
+    ],
+    "internal_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace"
+    ],
+    "quality_contract": {
+      "answer_user_goal": "Primitive contract for synthesizing final coding answers from tool, mutation, validation, blocker, checkpoint, and public reasoning receipts.",
+      "scope_boundary": "emit a reusable primitive artifact only; do not perform unrelated project execution",
+      "validation_calibration": "separate primitive contract failure from downstream implementation failure",
+      "visibility": "return compact refs and summaries without raw hidden reasoning"
+    }
+  },
+  "final_receipt_synthesis_contract": {
+    "version": "final_receipt_synthesis_v1",
+    "purpose": "Prevent false success by making final coding responses derive from receipts and explicit requirement coverage.",
+    "required_inputs": [
+      "tool_receipt_refs",
+      "mutation_receipt_refs",
+      "validation_receipt_refs",
+      "requirement_checklist"
+    ],
+    "required_behaviors": [
+      "do_not_claim_unreceipted_file_changes",
+      "do_not_call_baseline_validation_success_when_mutation_required",
+      "mark_uncovered_requirements_as_partial_or_blocked",
+      "include_public_reasoning_rollup_without_hidden_chain_of_thought"
+    ],
+    "output_artifacts": [
+      "final_receipt_bundle_ref",
+      "requirement_coverage_receipt",
+      "public_reasoning_rollup_ref"
+    ]
+  },
+  "gate_contract": "control_plane_lifecycle_v1",
+  "observation_lifecycle_contract": {
+    "version": "run_observation_lifecycle_v1",
+    "policy_ref": "orchestration/config/run_observation_lifecycle_policy.json",
+    "purpose": "Record compact final_receipt_synthesis primitive receipts and blocker summaries.",
+    "required_lanes": [
+      "compact_ledger",
+      "artifact_ref_retention",
+      "failure_lifecycle_archive",
+      "hot_ring_buffer"
+    ],
+    "non_goals": [
+      "do_not_hide_current_failures",
+      "do_not_store_raw_tool_payloads",
+      "do_not_repair_code",
+      "do_not_generate_hidden_chain_of_thought"
+    ]
+  },
+  "typed_execution_contract": {
+    "gate_kind": "structured_control_plane_gate",
+    "input_kind": "multiple_choice_or_text_input",
+    "allowed_transitions": [
+      "receipt_bundle_intake->requirement_coverage_projection",
+      "requirement_coverage_projection->validation_and_blocker_calibration",
+      "validation_and_blocker_calibration->final_receipt_result_packaging",
+      "final_receipt_result_packaging->completed"
+    ],
+    "timeout_ms": 30000,
+    "retry_policy": {
+      "max_retries": 0,
+      "on_failure": "return_structured_failure"
+    },
+    "terminal_states": [
+      "completed",
+      "blocked",
+      "needs_input",
+      "failed",
+      "aborted"
+    ],
+    "telemetry_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace",
+      "final_answer"
+    ],
+    "tool_family_contracts": [
+      "workspace",
+      "web",
+      "memory",
+      "agent",
+      "shell",
+      "browser"
+    ],
+    "visible_chat_policy": "llm_final_only_no_system_injection",
+    "run_budgets": {
+      "max_stages": 4,
+      "max_model_turns": 1,
+      "max_tool_calls": 4,
+      "token_budget": 6000,
+      "loop_signature_detector": "final_receipt_synthesis_v1"
+    }
+  },
+  "workflow_source_of_truth_contract": {
+    "interaction_source": "json_workflow_spec",
+    "rust_reader_role": "validate_execute_trace_only",
+    "hardcoded_interaction_behavior_allowed": false,
+    "json_owns": [
+      "interaction_gates",
+      "gate_options",
+      "gate_transitions",
+      "tool_family_menus",
+      "tool_input_schemas",
+      "confirmation_states",
+      "loopbacks",
+      "final_output_contract"
+    ],
+    "rust_owns": [
+      "json_loading",
+      "schema_validation",
+      "state_transition_execution",
+      "tool_execution_handoff",
+      "receipt_binding",
+      "trace_export",
+      "kernel_policy_enforcement"
+    ]
+  },
+  "workflow_composition_contract": {
+    "version": "workflow_composition_contract_v1",
+    "cd_kind": "primitive",
+    "returns_exactly_one_terminal_artifact": true,
+    "terminal_artifact_contract": {
+      "artifact_schema": "workflow_terminal_artifact_v1",
+      "allowed_kinds": [
+        "completed_final_answer",
+        "clarification_request",
+        "structured_failure",
+        "delegated_workflow_result"
+      ],
+      "parent_receives": "terminal_artifact_only_refs_for_internals"
+    },
+    "child_workflow_calls": [],
+    "non_goals": [
+      "do_not_call_child_workflows",
+      "do_not_return_raw_tool_payloads",
+      "do_not_expose_internal_trace",
+      "do_not_repair_code",
+      "do_not_generate_hidden_chain_of_thought"
+    ]
+  }
+}

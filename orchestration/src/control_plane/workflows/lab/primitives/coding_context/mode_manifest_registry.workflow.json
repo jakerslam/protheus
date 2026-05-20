@@ -1,0 +1,192 @@
+{
+  "name": "mode_manifest_registry",
+  "workflow_type": "control_plane_orchestration_workflow",
+  "workflow_role": "assistant_response_workflow",
+  "default": false,
+  "description": "Primitive contract for declaring coding modes as manifests with role, allowed tools, model/profile hints, stop conditions, and handoff boundaries.",
+  "primitive_first_contract": {
+    "case_specific_hardcoding_allowed": false,
+    "specificity_owner": "primitive",
+    "extension_surface": "workflow_cd",
+    "registered_capability_id": "workflow.mode_manifest_registry",
+    "special_case_policy": "System-specific behavior must enter through inputs, profiles, adapters, or eval fixtures rather than hidden primitive branches.",
+    "monotonic_lower_level_regression_policy": "This primitive must stay optional, bounded, and reusable so higher-level coding composites cannot regress simpler coding tasks."
+  },
+  "provenance_contract": {
+    "source_systems": [
+      "Roo Code",
+      "Cline",
+      "OpenFang",
+      "ForgeCode"
+    ],
+    "import_rule": "assimilate_mechanics_not_product_specific_hacks",
+    "artifact_corpus_ref": "references/coding-agent-systems"
+  },
+  "stages": [
+    "mode_request_normalization",
+    "mode_manifest_resolution",
+    "tool_and_boundary_projection",
+    "mode_manifest_artifact_packaging"
+  ],
+  "workflow_composition": {
+    "primitive_level": 0,
+    "composed_of_workflow_ids": []
+  },
+  "final_response_policy": "control_plane_packaged_response",
+  "final_output_contract": {
+    "schema_version": "mode_manifest_registry_final_output_contract_v1",
+    "source": "workflow_cd",
+    "visible_chat_source": "llm_final_answer_only",
+    "required_summary_fields": [
+      "mode_id",
+      "mode_role",
+      "allowed_tool_families",
+      "handoff_boundary",
+      "stop_conditions"
+    ],
+    "internal_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace"
+    ],
+    "quality_contract": {
+      "answer_user_goal": "Primitive contract for declaring coding modes as manifests with role, allowed tools, model/profile hints, stop conditions, and handoff boundaries.",
+      "scope_boundary": "emit a reusable primitive artifact only; do not perform unrelated project execution",
+      "validation_calibration": "separate primitive contract failure from downstream implementation failure",
+      "visibility": "return compact refs and summaries without raw hidden reasoning"
+    }
+  },
+  "mode_manifest_registry_contract": {
+    "version": "mode_manifest_registry_v1",
+    "purpose": "Avoid prompt-level role hardcoding by making Code, Architect, Ask, Debug, Orchestrator, and custom roles data-driven manifests.",
+    "required_manifest_fields": [
+      "mode_id",
+      "role",
+      "allowed_tool_families",
+      "input_contract",
+      "output_contract",
+      "stop_conditions",
+      "handoff_policy"
+    ],
+    "required_behaviors": [
+      "resolve_mode_from_parent_intent_or_explicit_profile",
+      "do_not_embed_role_policy_in_runtime_code",
+      "record_mode_receipt",
+      "fail_closed_when_required_mode_tools_are_unavailable"
+    ],
+    "output_artifacts": [
+      "mode_manifest_ref",
+      "mode_resolution_receipt",
+      "handoff_boundary_receipt"
+    ]
+  },
+  "gate_contract": "control_plane_lifecycle_v1",
+  "observation_lifecycle_contract": {
+    "version": "run_observation_lifecycle_v1",
+    "policy_ref": "orchestration/config/run_observation_lifecycle_policy.json",
+    "purpose": "Record compact mode_manifest_registry primitive receipts and blocker summaries.",
+    "required_lanes": [
+      "compact_ledger",
+      "artifact_ref_retention",
+      "failure_lifecycle_archive",
+      "hot_ring_buffer"
+    ],
+    "non_goals": [
+      "do_not_hide_current_failures",
+      "do_not_store_raw_tool_payloads",
+      "do_not_select_provider_models_inside_this_primitive"
+    ]
+  },
+  "typed_execution_contract": {
+    "gate_kind": "structured_control_plane_gate",
+    "input_kind": "multiple_choice_or_text_input",
+    "allowed_transitions": [
+      "mode_request_normalization->mode_manifest_resolution",
+      "mode_manifest_resolution->tool_and_boundary_projection",
+      "tool_and_boundary_projection->mode_manifest_artifact_packaging",
+      "mode_manifest_artifact_packaging->completed"
+    ],
+    "timeout_ms": 30000,
+    "retry_policy": {
+      "max_retries": 0,
+      "on_failure": "return_structured_failure"
+    },
+    "terminal_states": [
+      "completed",
+      "blocked",
+      "needs_input",
+      "failed",
+      "aborted"
+    ],
+    "telemetry_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace",
+      "final_answer"
+    ],
+    "tool_family_contracts": [
+      "workspace",
+      "web",
+      "memory",
+      "agent",
+      "shell",
+      "browser"
+    ],
+    "visible_chat_policy": "llm_final_only_no_system_injection",
+    "run_budgets": {
+      "max_stages": 4,
+      "max_model_turns": 1,
+      "max_tool_calls": 4,
+      "token_budget": 6000,
+      "loop_signature_detector": "mode_manifest_registry_v1"
+    }
+  },
+  "workflow_source_of_truth_contract": {
+    "interaction_source": "json_workflow_spec",
+    "rust_reader_role": "validate_execute_trace_only",
+    "hardcoded_interaction_behavior_allowed": false,
+    "json_owns": [
+      "interaction_gates",
+      "gate_options",
+      "gate_transitions",
+      "tool_family_menus",
+      "tool_input_schemas",
+      "confirmation_states",
+      "loopbacks",
+      "final_output_contract"
+    ],
+    "rust_owns": [
+      "json_loading",
+      "schema_validation",
+      "state_transition_execution",
+      "tool_execution_handoff",
+      "receipt_binding",
+      "trace_export",
+      "kernel_policy_enforcement"
+    ]
+  },
+  "workflow_composition_contract": {
+    "version": "workflow_composition_contract_v1",
+    "cd_kind": "primitive",
+    "returns_exactly_one_terminal_artifact": true,
+    "terminal_artifact_contract": {
+      "artifact_schema": "workflow_terminal_artifact_v1",
+      "allowed_kinds": [
+        "completed_final_answer",
+        "clarification_request",
+        "structured_failure",
+        "delegated_workflow_result"
+      ],
+      "parent_receives": "terminal_artifact_only_refs_for_internals"
+    },
+    "child_workflow_calls": [],
+    "non_goals": [
+      "do_not_call_child_workflows",
+      "do_not_return_raw_tool_payloads",
+      "do_not_expose_internal_trace",
+      "do_not_select_provider_models_inside_this_primitive"
+    ]
+  }
+}

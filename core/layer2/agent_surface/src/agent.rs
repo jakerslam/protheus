@@ -343,12 +343,7 @@ impl AgentContract {
                 .map(|response| (response, Vec::new(), 1, "ok".to_string()));
         }
 
-        let max_turns = self
-            .metadata
-            .get("native_tool_max_turns")
-            .and_then(Value::as_u64)
-            .unwrap_or(8)
-            .clamp(1, 16);
+        let max_turns = native_tool_max_turns(&self.metadata);
         let mut prompt = native_tool_initial_prompt(&self.initial_prompt, &self.metadata);
         let system = if self.preamble.trim().is_empty() {
             dispatcher.tool_protocol_prompt()
@@ -1134,6 +1129,24 @@ fn native_tool_wall_timeout(metadata: &Value) -> Option<Duration> {
     }
 }
 
+fn native_tool_max_turns(metadata: &Value) -> u64 {
+    metadata
+        .get("native_tool_max_turns")
+        .and_then(Value::as_u64)
+        .or_else(|| {
+            metadata
+                .pointer("/native_success_criteria/max_provider_turns")
+                .and_then(Value::as_u64)
+        })
+        .or_else(|| {
+            metadata
+                .pointer("/workflow/native_success_criteria/max_provider_turns")
+                .and_then(Value::as_u64)
+        })
+        .unwrap_or(6)
+        .clamp(1, 12)
+}
+
 fn native_tool_partial_progress_on_timeout(metadata: &Value) -> bool {
     metadata
         .get("partial_progress_on_timeout")
@@ -1563,6 +1576,11 @@ fn native_tool_product_source_stage_satisfied(
     if !native_tool_has_successful_product_mutation(receipts) {
         return false;
     }
+    if native_tool_prompt_requires_product_mutation(&original_prompt.to_ascii_lowercase())
+        && !native_tool_has_successful_implementation_source_mutation(receipts)
+    {
+        return false;
+    }
     if native_tool_preserved_api_source_paths_from_workspace(original_prompt)
         .into_iter()
         .any(|path| !native_tool_changed_paths_include(receipts, &path))
@@ -1577,6 +1595,44 @@ fn native_tool_product_source_stage_satisfied(
                 .map(native_tool_path_is_product_mutation_path)
                 .unwrap_or(false)
         })
+}
+
+fn native_tool_has_successful_implementation_source_mutation(
+    receipts: &[NativeToolReceipt],
+) -> bool {
+    receipts.iter().any(|receipt| {
+        if receipt.status != "ok"
+            || !(receipt.tool_name == "file_write" || receipt.tool_name == "file_patch")
+        {
+            return false;
+        }
+        let Some(path) = receipt.result.get("path").and_then(Value::as_str) else {
+            return false;
+        };
+        native_tool_path_is_implementation_source_path(path)
+    })
+}
+
+fn native_tool_path_is_implementation_source_path(path: &str) -> bool {
+    if !native_tool_path_is_product_mutation_path(path) {
+        return false;
+    }
+    let lower = path.replace('\\', "/").to_ascii_lowercase();
+    if lower.ends_with("/__init__.py")
+        || lower.ends_with("/index.ts")
+        || lower.ends_with("/index.tsx")
+        || lower.ends_with("/index.js")
+        || lower.ends_with("/index.jsx")
+        || lower.ends_with("/mod.rs")
+    {
+        return false;
+    }
+    lower.ends_with(".py")
+        || lower.ends_with(".rs")
+        || lower.ends_with(".ts")
+        || lower.ends_with(".tsx")
+        || lower.ends_with(".js")
+        || lower.ends_with(".jsx")
 }
 
 fn native_tool_live_stage_repair_reasons(

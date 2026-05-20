@@ -600,6 +600,62 @@ Required reset action:
 
 - Keep local coding capability engine-owned and expose it through Shell/API/CLI as projections, not separate implementations.
 
+### 20. Step-budgeted trajectory runtime
+
+Source evidence:
+
+- mini-SWE-agent `agents/default.py`
+- Cline runtime turn streaming
+- Continue stream thunk wrappers
+- OpenHands event/action/observation controller patterns
+
+Portable pattern:
+
+- Coding runs should persist a trajectory before they rely on a final response.
+- Each model turn and tool result should become durable run evidence.
+- Step limit, tool-call limit, time budget, cost budget, and terminal reason should be explicit runtime state.
+- Timeout or abort should return a structured partial artifact, not erase receipts because final stdout was missing.
+
+Infring target:
+
+- `step_budgeted_trajectory_runtime`
+- `incremental_receipt_journal`
+- native Infring agent run lane
+- final receipt synthesis
+
+Required reset action:
+
+- Treat missing final stdout as an incomplete run with partial receipts, not as proof that no work happened.
+- Add runtime support for flushing model/tool/mutation/validation receipts before each risky boundary.
+
+### 21. Public-interface verification
+
+Source evidence:
+
+- Aider validation and repair loop docs
+- SWE-agent issue-to-patch framing
+- OpenHands action/observation protocol
+- Continue tool-call and policy evaluation flow
+
+Portable pattern:
+
+- Passing generic validation is not enough when the user requested a named public surface.
+- Public surface requirements include functions, classes, constructor args, exports, CLI commands, file outputs, API routes, schema fields, and configuration keys.
+- Language-specific probes should live in adapters/profiles, not in the primitive.
+- Missing or malformed public surface is a semantic failure that routes to bounded repair or a structured blocker.
+
+Infring target:
+
+- `public_interface_verification`
+- `validation_command_runner`
+- `bounded_repair_loop`
+- `final_receipt_synthesis`
+
+Required reset action:
+
+- Add a public-interface requirement artifact between mutation/validation and final synthesis.
+- Do not hardcode Python, CSV, pricing, router, or benchmark-specific probes in production runtime.
+
 ## Canonical primitive library proposal
 
 ### Level 0 primitives
@@ -623,9 +679,12 @@ Required reset action:
 | `stream_event_dedupe` | Cline, OpenHands, ForgeCode | Observability/Shell projection | Should suppress duplicate tool/progress projection without owning runtime truth. |
 | `permission_scope_tracker` | Cline, ForgeCode | Kernel/Governance | Should track scoped auto-approval and confirmation boundaries. |
 | `sandbox_session_runtime` | SWE-ReX, OpenHands | Kernel/Orchestration/Gateway | Should abstract local/Docker/cloud command sessions with receipts. |
+| `step_budgeted_trajectory_runtime` | mini-SWE-agent, Cline, Continue, OpenHands | Orchestration/native runtime | Seed primitive for step limits, terminal status, and durable partial trajectories. |
+| `incremental_receipt_journal` | mini-SWE-agent, Cline, Continue, OpenHands | Orchestration/native runtime | Seed primitive for append-only model/tool/mutation/validation receipts. |
 | `context_provider_registry` | Continue, Aider, Cline | Orchestration/Tooling/Shell projection | Should make context sources pluggable and receipt-bearing. |
 | `mode_manifest_registry` | Roo Code, OpenFang, ForgeCode | Orchestration/Governance | Should define roles/modes without runtime hardcoding. |
 | `patch_artifact_synthesis` | SWE-agent, Aider | Orchestration/Validation | Should produce issue-fix patches/diffs as terminal artifacts when task shape requires. |
+| `public_interface_verification` | Aider, SWE-agent, OpenHands, Continue | Orchestration/Validation | Seed primitive for requested public surface verification before final success. |
 
 ### Level 1 composites
 

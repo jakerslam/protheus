@@ -1,0 +1,106 @@
+{
+  "name": "public_interface_verification",
+  "workflow_type": "control_plane_orchestration_workflow",
+  "workflow_role": "assistant_response_workflow",
+  "default": false,
+  "description": "Primitive contract for verifying that implemented code exposes the user-requested public interface before final success is synthesized.",
+  "primitive_first_contract": {
+    "case_specific_hardcoding_allowed": false,
+    "specificity_owner": "primitive",
+    "extension_surface": "workflow_cd",
+    "registered_capability_id": "workflow.public_interface_verification",
+    "special_case_policy": "Language and framework details belong in adapters or profiles; task-specific examples belong in eval fixtures only.",
+    "monotonic_lower_level_regression_policy": "Public-interface verification must be optional and cheap for greenfield direct-write tasks, and stricter only when the task or caller provides named interface requirements."
+  },
+  "provenance_contract": {
+    "source_systems": [
+      "Aider",
+      "SWE-agent",
+      "OpenHands",
+      "Continue"
+    ],
+    "import_rule": "assimilate_mechanics_not_product_specific_hacks",
+    "artifact_corpus_ref": "references/coding-agent-systems"
+  },
+  "stages": [
+    "public_interface_requirement_extraction",
+    "language_profile_probe_projection",
+    "interface_validation_receipt_collection",
+    "semantic_failure_routing",
+    "interface_verification_result_packaging"
+  ],
+  "workflow_composition": {
+    "primitive_level": 0,
+    "composed_of_workflow_ids": []
+  },
+  "final_response_policy": "control_plane_packaged_response",
+  "public_interface_verification_contract": {
+    "version": "public_interface_verification_v1",
+    "purpose": "Prevent false success where generic validation passes but the user-requested callable, command, file, schema, or exported surface is missing or shaped incorrectly.",
+    "required_inputs": [
+      "task_goal",
+      "changed_file_refs",
+      "mutation_receipt_refs",
+      "validation_receipt_refs"
+    ],
+    "optional_inputs": [
+      "declared_public_interface_requirements",
+      "language_profile",
+      "framework_profile",
+      "caller_acceptance_criteria"
+    ],
+    "public_interface_requirement_kinds": [
+      "named_function",
+      "named_class",
+      "constructor_argument",
+      "method_or_attribute",
+      "module_export",
+      "cli_command",
+      "file_output_contract",
+      "api_route",
+      "schema_field",
+      "configuration_key"
+    ],
+    "required_behaviors": [
+      "derive_public_interface_requirements_from_user_goal_and_acceptance_criteria",
+      "prefer_declared_requirements_over_inferred_requirements",
+      "project_language_or_framework_probe_through_adapter_profile",
+      "treat_missing_public_surface_as_semantic_failure",
+      "route_semantic_failure_to_bounded_repair_loop_or_structured_blocker",
+      "do_not_finalize_success_when_required_public_interface_status_is_failed_or_unknown"
+    ],
+    "output_artifacts": [
+      "public_interface_requirement_ref",
+      "public_interface_probe_receipt_ref",
+      "public_interface_verification_result_ref"
+    ],
+    "non_goals": [
+      "do_not_hardcode_language_specific_probe_logic_inside_the_primitive",
+      "do_not_replace_validation_command_runner",
+      "do_not_require_existing_project_context_for_tasks_without_public_surface_requirements"
+    ]
+  },
+  "gate_contract": "control_plane_lifecycle_v1",
+  "workflow_composition_contract": {
+    "version": "workflow_composition_contract_v1",
+    "cd_kind": "primitive",
+    "returns_exactly_one_terminal_artifact": true,
+    "terminal_artifact_contract": {
+      "artifact_schema": "workflow_terminal_artifact_v1",
+      "allowed_kinds": [
+        "completed_final_answer",
+        "clarification_request",
+        "structured_failure",
+        "delegated_workflow_result"
+      ],
+      "parent_receives": "terminal_artifact_only_refs_for_internals"
+    },
+    "child_workflow_calls": [],
+    "non_goals": [
+      "do_not_call_child_workflows",
+      "do_not_return_raw_tool_payloads",
+      "do_not_expose_internal_trace",
+      "do_not_embed_eval_fixture_logic"
+    ]
+  }
+}

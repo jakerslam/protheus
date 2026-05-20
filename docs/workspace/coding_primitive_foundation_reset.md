@@ -54,13 +54,35 @@ Completed in this reset wave:
 
 0. Use the cross-system primitive architecture ledger before inventing new coding primitives:
    `docs/workspace/primitive_coding_architecture_assimilation_ledger.md`
-1. Run the primitive-first guard against the new `existing_project_evidence_contract` and primitive spine once validation is authorized.
-2. Move Existing-project artifact names and fixture paths into eval fixtures only.
-3. Register the general existing-project evidence contract in the primitive capability registry.
-4. Re-run `ops:primitive-first:guard` and fix true positives before allowlisting anything.
-5. Audit the native agent runtime for remaining level/eval-specific branches.
-6. Decide whether public API preservation and new-file fast path are valid primitives, then register or remove them.
-7. Restart coding evals from Level 1 upward only after the primitive foundation is clean enough that higher-level work cannot poison lower levels.
+1. Implement the artifact-backed missing primitives before adding more task-specific eval repair:
+   `step_budgeted_trajectory_runtime`, `incremental_receipt_journal`, and `public_interface_verification`.
+2. Run the primitive-first guard against the new `existing_project_evidence_contract` and primitive spine once validation is authorized.
+3. Move Existing-project artifact names and fixture paths into eval fixtures only.
+4. Register the general existing-project evidence contract in the primitive capability registry.
+5. Re-run `ops:primitive-first:guard` and fix true positives before allowlisting anything.
+6. Audit the native agent runtime for remaining level/eval-specific branches.
+7. Move Python-only/public API preservation behavior into the language/profile surface of `public_interface_verification`.
+8. Keep the new-file fast path only if it remains context-free, receipt-bearing, and does not slow existing-project paths.
+9. Restart coding evals from Level 1 upward only after the primitive foundation is clean enough that higher-level work cannot poison lower levels.
+
+## Artifact-backed primitive fix for current regression
+
+The current Level 1/2 regression should not be repaired with another benchmark-shaped prompt or runtime branch.
+
+The pulled coding-system artifacts point to a primitive fix:
+
+- mini-SWE-agent persists trajectory after each step and enforces step/cost limits.
+- SWE-ReX separates runtime liveness, command timeout, exit code, output, and failure reason.
+- Cline and Continue stream tool-call lifecycle events and keep pending/failed tool calls explicit.
+- Aider treats edit/validation failure as structured repair input rather than final-answer optimism.
+
+Infring should therefore solve the issue at these reusable seams:
+
+- `step_budgeted_trajectory_runtime`: every coding run has step/tool/time budgets, terminal status, and partial result refs.
+- `incremental_receipt_journal`: model turns, tool starts, tool completions, mutations, validations, blockers, and terminal status are appended before risky boundaries.
+- `public_interface_verification`: user-requested public surfaces are extracted into an artifact and verified through language/profile adapters before final success.
+
+These primitives are intentionally not Python-specific, level-specific, CSV-specific, or benchmark-specific.
 
 ## Non-goals
 

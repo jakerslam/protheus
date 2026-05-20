@@ -1,0 +1,91 @@
+{
+  "name": "incremental_receipt_journal",
+  "workflow_type": "control_plane_orchestration_workflow",
+  "workflow_role": "assistant_response_workflow",
+  "default": false,
+  "description": "Primitive contract for appending durable coding receipts as model, tool, validation, and failure events occur.",
+  "primitive_first_contract": {
+    "case_specific_hardcoding_allowed": false,
+    "specificity_owner": "primitive",
+    "extension_surface": "workflow_cd",
+    "registered_capability_id": "workflow.incremental_receipt_journal",
+    "special_case_policy": "Receipt shape may be extended through schemas and adapters, not task-specific runtime branches.",
+    "monotonic_lower_level_regression_policy": "Receipt journaling must remain cheap and generic so fast simple tasks do not require heavyweight project discovery."
+  },
+  "provenance_contract": {
+    "source_systems": [
+      "mini-SWE-agent",
+      "Cline",
+      "Continue",
+      "OpenHands"
+    ],
+    "import_rule": "assimilate_mechanics_not_product_specific_hacks",
+    "artifact_corpus_ref": "references/coding-agent-systems"
+  },
+  "stages": [
+    "journal_ref_initialization",
+    "event_schema_projection",
+    "receipt_append_policy",
+    "partial_failure_snapshot_policy",
+    "journal_summary_packaging"
+  ],
+  "workflow_composition": {
+    "primitive_level": 0,
+    "composed_of_workflow_ids": []
+  },
+  "final_response_policy": "control_plane_packaged_response",
+  "incremental_receipt_journal_contract": {
+    "version": "incremental_receipt_journal_v1",
+    "purpose": "Avoid all-or-nothing final stdout by appending receipts throughout the run.",
+    "required_receipt_kinds": [
+      "model_turn_receipt",
+      "tool_call_start_receipt",
+      "tool_call_end_receipt",
+      "mutation_receipt",
+      "validation_receipt",
+      "blocker_receipt",
+      "terminal_status_receipt"
+    ],
+    "required_behaviors": [
+      "append_tool_call_start_before_tool_execution",
+      "append_tool_call_end_or_failure_after_tool_execution",
+      "append_mutation_receipt_before_validation",
+      "append_validation_receipt_before_repair",
+      "flush_journal_before_blocking_or_timeout_boundary",
+      "make_partial_journal_available_to_final_receipt_synthesis"
+    ],
+    "output_artifacts": [
+      "receipt_journal_ref",
+      "receipt_index_ref",
+      "partial_failure_snapshot_ref"
+    ],
+    "non_goals": [
+      "do_not_store_private_chain_of_thought",
+      "do_not_make_final_success_decisions",
+      "do_not_require_existing_project_context_for_new_file_tasks"
+    ]
+  },
+  "gate_contract": "control_plane_lifecycle_v1",
+  "workflow_composition_contract": {
+    "version": "workflow_composition_contract_v1",
+    "cd_kind": "primitive",
+    "returns_exactly_one_terminal_artifact": true,
+    "terminal_artifact_contract": {
+      "artifact_schema": "workflow_terminal_artifact_v1",
+      "allowed_kinds": [
+        "completed_final_answer",
+        "clarification_request",
+        "structured_failure",
+        "delegated_workflow_result"
+      ],
+      "parent_receives": "terminal_artifact_only_refs_for_internals"
+    },
+    "child_workflow_calls": [],
+    "non_goals": [
+      "do_not_call_child_workflows",
+      "do_not_return_raw_tool_payloads",
+      "do_not_expose_internal_trace",
+      "do_not_decide_task_success"
+    ]
+  }
+}

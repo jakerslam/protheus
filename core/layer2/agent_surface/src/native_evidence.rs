@@ -464,6 +464,21 @@ pub(crate) fn native_tool_product_slice_gaps(
         .filter(|path| !native_tool_is_handoff_artifact_path(path))
         .collect::<Vec<_>>();
     let mut reasons = Vec::<String>::new();
+    let changed_implementation_paths = changed_product_paths
+        .iter()
+        .filter(|path| native_tool_is_implementation_source_path(path))
+        .cloned()
+        .collect::<Vec<_>>();
+    if changed_implementation_paths.is_empty() {
+        reasons.push("missing_product_source_evidence:implementation_source".to_string());
+    }
+    let changed_implementation_text =
+        native_tool_changed_product_source_text(&changed_implementation_paths);
+    for name in native_tool_prompt_requested_public_api_names(original_prompt) {
+        if !native_tool_public_interface_text_mentions(&changed_implementation_text, &name) {
+            reasons.push(format!("missing_public_interface_evidence:{name}"));
+        }
+    }
     if native_tool_prompt_requires_multi_file_product_slice(&prompt_lower)
         && changed_product_paths.len() < 3
     {
@@ -512,6 +527,103 @@ fn native_tool_changed_paths_include_product_and_test(paths: &[String]) -> bool 
         }
     }
     has_product_source && has_test_source
+}
+
+fn native_tool_is_implementation_source_path(path: &str) -> bool {
+    let lower = path.replace('\\', "/").to_ascii_lowercase();
+    if native_tool_is_handoff_artifact_path(&lower)
+        || lower.contains("/test/")
+        || lower.contains("/tests/")
+        || lower.contains("test_")
+        || lower.ends_with("_test.py")
+        || lower.ends_with(".test.js")
+        || lower.ends_with(".spec.js")
+        || lower.ends_with("/__init__.py")
+        || lower.ends_with("/index.ts")
+        || lower.ends_with("/index.tsx")
+        || lower.ends_with("/index.js")
+        || lower.ends_with("/index.jsx")
+        || lower.ends_with("/mod.rs")
+    {
+        return false;
+    }
+    lower.ends_with(".py")
+        || lower.ends_with(".rs")
+        || lower.ends_with(".ts")
+        || lower.ends_with(".tsx")
+        || lower.ends_with(".js")
+        || lower.ends_with(".jsx")
+}
+
+fn native_tool_prompt_requested_public_api_names(original_prompt: &str) -> Vec<String> {
+    let mut names = Vec::<String>::new();
+    for token in original_prompt.split(|ch: char| !(ch.is_ascii_alphanumeric() || ch == '_')) {
+        let token = token.trim();
+        if !native_tool_token_looks_like_public_api(token) {
+            continue;
+        }
+        let lower = token.to_ascii_lowercase();
+        if matches!(
+            lower.as_str(),
+            "pythonpath"
+                | "native"
+                | "coding"
+                | "useful"
+                | "work"
+                | "eval"
+                | "infring"
+                | "json"
+                | "api"
+                | "project_root"
+                | "receipt_backed"
+                | "current"
+                | "existing"
+                | "regression"
+                | "validation"
+        ) {
+            continue;
+        }
+        if !names.iter().any(|existing| existing == token) {
+            names.push(token.to_string());
+        }
+    }
+    names
+}
+
+fn native_tool_token_looks_like_public_api(token: &str) -> bool {
+    if token.len() < 3 || token.len() > 80 {
+        return false;
+    }
+    if token.chars().all(|ch| ch.is_ascii_uppercase()) {
+        return false;
+    }
+    let has_underscore = token.contains('_');
+    let starts_upper = token
+        .chars()
+        .next()
+        .map(|ch| ch.is_ascii_uppercase())
+        .unwrap_or(false);
+    let has_lower = token.chars().any(|ch| ch.is_ascii_lowercase());
+    let has_digit = token.chars().any(|ch| ch.is_ascii_digit());
+    (has_underscore || (starts_upper && has_lower) || has_digit)
+        && token
+            .chars()
+            .all(|ch| ch.is_ascii_alphanumeric() || ch == '_')
+}
+
+fn native_tool_public_interface_text_mentions(text: &str, name: &str) -> bool {
+    let lower = text.to_ascii_lowercase();
+    let name = name.to_ascii_lowercase();
+    lower.contains(&format!("def {name}("))
+        || lower.contains(&format!("class {name}"))
+        || lower.contains(&format!("function {name}("))
+        || lower.contains(&format!("const {name}"))
+        || lower.contains(&format!("let {name}"))
+        || lower.contains(&format!("var {name}"))
+        || lower.contains(&format!("pub fn {name}("))
+        || lower.contains(&format!("struct {name}"))
+        || lower.contains(&format!("enum {name}"))
+        || lower.contains(&name)
 }
 
 fn native_tool_prompt_mentions_any(prompt_lower: &str, needles: &[&str]) -> bool {

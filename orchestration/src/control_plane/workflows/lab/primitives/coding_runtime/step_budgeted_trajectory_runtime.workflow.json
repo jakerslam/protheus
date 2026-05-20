@@ -1,0 +1,134 @@
+{
+  "name": "step_budgeted_trajectory_runtime",
+  "workflow_type": "control_plane_orchestration_workflow",
+  "workflow_role": "assistant_response_workflow",
+  "default": false,
+  "description": "Primitive contract for running a coding agent as bounded steps with durable trajectory, terminal status, and partial-result preservation.",
+  "primitive_first_contract": {
+    "case_specific_hardcoding_allowed": false,
+    "specificity_owner": "primitive",
+    "extension_surface": "workflow_cd",
+    "registered_capability_id": "workflow.step_budgeted_trajectory_runtime",
+    "special_case_policy": "Task-specific behavior must enter through inputs, profiles, adapters, or eval fixtures rather than hidden runtime branches.",
+    "monotonic_lower_level_regression_policy": "Higher-level coding composites may add budgets and policies, but must not disable incremental trajectory persistence for simpler tasks."
+  },
+  "provenance_contract": {
+    "source_systems": [
+      "mini-SWE-agent",
+      "Cline",
+      "Continue",
+      "OpenHands"
+    ],
+    "import_rule": "assimilate_mechanics_not_product_specific_hacks",
+    "artifact_corpus_ref": "references/coding-agent-systems"
+  },
+  "stages": [
+    "step_budget_projection",
+    "trajectory_artifact_initialization",
+    "per_step_observation_recording",
+    "terminal_status_classification",
+    "partial_result_packaging"
+  ],
+  "workflow_composition": {
+    "primitive_level": 0,
+    "composed_of_workflow_ids": []
+  },
+  "final_response_policy": "control_plane_packaged_response",
+  "final_output_contract": {
+    "schema_version": "step_budgeted_trajectory_runtime_final_output_contract_v1",
+    "source": "workflow_cd",
+    "visible_chat_source": "llm_final_answer_only",
+    "required_summary_fields": [
+      "trajectory_ref",
+      "step_count",
+      "terminal_status",
+      "budget_status",
+      "partial_result_ref",
+      "blocker_summary"
+    ],
+    "internal_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace"
+    ],
+    "quality_contract": {
+      "answer_user_goal": "Primitive contract for preserving a coding run step-by-step with bounded budgets and structured terminal status.",
+      "scope_boundary": "emit a reusable runtime artifact only; do not choose project architecture or task-specific fixes",
+      "validation_calibration": "separate timeout, step exhaustion, tool failure, and task failure",
+      "visibility": "return compact refs and summaries without raw hidden reasoning"
+    }
+  },
+  "step_budgeted_trajectory_runtime_contract": {
+    "version": "step_budgeted_trajectory_runtime_v1",
+    "purpose": "Prevent hangs and lost receipts by making each agent step durable before the next model or tool action begins.",
+    "input_contract": {
+      "schema": "step_budgeted_trajectory_runtime_input_envelope_v1",
+      "required_fields": [
+        "task_goal",
+        "session_runtime_ref",
+        "budget_policy"
+      ],
+      "optional_fields": [
+        "turn_timeout_ms",
+        "step_limit",
+        "tool_call_limit",
+        "token_budget",
+        "cost_budget",
+        "artifact_root"
+      ]
+    },
+    "required_behaviors": [
+      "initialize_trajectory_before_first_model_turn",
+      "persist_model_response_before_tool_execution",
+      "persist_tool_receipt_before_next_model_turn",
+      "classify_timeout_as_structured_partial_result",
+      "classify_step_limit_as_structured_partial_result",
+      "preserve_partial_mutation_and_validation_receipts_on_abort",
+      "return_terminal_artifact_even_when_task_incomplete"
+    ],
+    "terminal_statuses": [
+      "completed",
+      "needs_input",
+      "blocked",
+      "failed",
+      "timed_out",
+      "step_limit_exceeded",
+      "aborted"
+    ],
+    "output_artifacts": [
+      "trajectory_ref",
+      "step_receipt_refs",
+      "partial_result_ref",
+      "terminal_status_receipt"
+    ],
+    "non_goals": [
+      "do_not_infer_task_semantics",
+      "do_not_hide_partial_progress_until_final_stdout",
+      "do_not_execute_tools_without_receipt_persistence"
+    ]
+  },
+  "gate_contract": "control_plane_lifecycle_v1",
+  "workflow_composition_contract": {
+    "version": "workflow_composition_contract_v1",
+    "cd_kind": "primitive",
+    "returns_exactly_one_terminal_artifact": true,
+    "terminal_artifact_contract": {
+      "artifact_schema": "workflow_terminal_artifact_v1",
+      "allowed_kinds": [
+        "completed_final_answer",
+        "clarification_request",
+        "structured_failure",
+        "delegated_workflow_result"
+      ],
+      "parent_receives": "terminal_artifact_only_refs_for_internals"
+    },
+    "child_workflow_calls": [],
+    "non_goals": [
+      "do_not_call_child_workflows",
+      "do_not_return_raw_tool_payloads",
+      "do_not_expose_internal_trace",
+      "do_not_infer_task_semantics"
+    ]
+  }
+}

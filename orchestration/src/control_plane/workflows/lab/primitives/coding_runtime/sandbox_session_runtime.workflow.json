@@ -1,0 +1,204 @@
+{
+  "name": "sandbox_session_runtime",
+  "workflow_type": "control_plane_orchestration_workflow",
+  "workflow_role": "assistant_response_workflow",
+  "default": false,
+  "description": "Primitive contract for creating a bounded coding execution session with workspace identity, command receipts, output limits, timeout policy, and explicit isolation risk state.",
+  "primitive_first_contract": {
+    "case_specific_hardcoding_allowed": false,
+    "specificity_owner": "primitive",
+    "extension_surface": "workflow_cd",
+    "registered_capability_id": "workflow.sandbox_session_runtime",
+    "special_case_policy": "System-specific behavior must enter through inputs, profiles, adapters, or eval fixtures rather than hidden primitive branches.",
+    "monotonic_lower_level_regression_policy": "This primitive must stay optional, bounded, and reusable so higher-level coding composites cannot regress simpler coding tasks."
+  },
+  "provenance_contract": {
+    "source_systems": [
+      "SWE-ReX",
+      "OpenHands",
+      "Goose"
+    ],
+    "import_rule": "assimilate_mechanics_not_product_specific_hacks",
+    "artifact_corpus_ref": "references/coding-agent-systems"
+  },
+  "stages": [
+    "session_request_normalization",
+    "workspace_identity_binding",
+    "isolation_profile_selection",
+    "command_receipt_policy_projection",
+    "session_runtime_artifact_packaging"
+  ],
+  "workflow_composition": {
+    "primitive_level": 0,
+    "composed_of_workflow_ids": []
+  },
+  "final_response_policy": "control_plane_packaged_response",
+  "final_output_contract": {
+    "schema_version": "sandbox_session_runtime_final_output_contract_v1",
+    "source": "workflow_cd",
+    "visible_chat_source": "llm_final_answer_only",
+    "required_summary_fields": [
+      "session_id",
+      "workspace_ref",
+      "isolation_profile",
+      "command_receipt_policy",
+      "timeout_policy",
+      "risk_state"
+    ],
+    "internal_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace"
+    ],
+    "quality_contract": {
+      "answer_user_goal": "Primitive contract for creating a bounded coding execution session with workspace identity, command receipts, output limits, timeout policy, and explicit isolation risk state.",
+      "scope_boundary": "emit a reusable primitive artifact only; do not perform unrelated project execution",
+      "validation_calibration": "separate primitive contract failure from downstream implementation failure",
+      "visibility": "return compact refs and summaries without raw hidden reasoning"
+    }
+  },
+  "sandbox_session_runtime_contract": {
+    "version": "sandbox_session_runtime_v1",
+    "purpose": "Abstract local, container, remote, or cloud coding execution sessions behind one receipt-bearing runtime contract.",
+    "input_contract": {
+      "schema": "sandbox_session_runtime_input_envelope_v1",
+      "required_fields": [
+        "workspace_root",
+        "task_goal",
+        "isolation_requirement"
+      ],
+      "optional_fields": [
+        "timeout_policy",
+        "allowed_commands",
+        "environment_profile"
+      ]
+    },
+    "required_behaviors": [
+      "bind_workspace_identity_before_command_execution",
+      "emit_exit_code_stdout_stderr_duration_and_truncation_receipts",
+      "treat_no_sandbox_local_execution_as_explicit_risk_state",
+      "separate_session_liveness_from_command_success",
+      "surface_runtime_unavailable_as_structured_blocker"
+    ],
+    "output_artifacts": [
+      "session_runtime_ref",
+      "workspace_identity_receipt",
+      "isolation_profile_receipt",
+      "command_receipt_policy"
+    ],
+    "non_goals": [
+      "do_not_run_product_commands_inside_this_contract",
+      "do_not_choose_project_architecture"
+    ]
+  },
+  "gate_contract": "control_plane_lifecycle_v1",
+  "observation_lifecycle_contract": {
+    "version": "run_observation_lifecycle_v1",
+    "policy_ref": "orchestration/config/run_observation_lifecycle_policy.json",
+    "purpose": "Record compact sandbox_session_runtime primitive receipts and blocker summaries.",
+    "required_lanes": [
+      "compact_ledger",
+      "artifact_ref_retention",
+      "failure_lifecycle_archive",
+      "hot_ring_buffer"
+    ],
+    "non_goals": [
+      "do_not_hide_current_failures",
+      "do_not_store_raw_tool_payloads",
+      "do_not_execute_arbitrary_commands_from_this_contract"
+    ]
+  },
+  "typed_execution_contract": {
+    "gate_kind": "structured_control_plane_gate",
+    "input_kind": "multiple_choice_or_text_input",
+    "allowed_transitions": [
+      "session_request_normalization->workspace_identity_binding",
+      "workspace_identity_binding->isolation_profile_selection",
+      "isolation_profile_selection->command_receipt_policy_projection",
+      "command_receipt_policy_projection->session_runtime_artifact_packaging",
+      "session_runtime_artifact_packaging->completed"
+    ],
+    "timeout_ms": 30000,
+    "retry_policy": {
+      "max_retries": 0,
+      "on_failure": "return_structured_failure"
+    },
+    "terminal_states": [
+      "completed",
+      "blocked",
+      "needs_input",
+      "failed",
+      "aborted"
+    ],
+    "telemetry_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace",
+      "final_answer"
+    ],
+    "tool_family_contracts": [
+      "workspace",
+      "web",
+      "memory",
+      "agent",
+      "shell",
+      "browser"
+    ],
+    "visible_chat_policy": "llm_final_only_no_system_injection",
+    "run_budgets": {
+      "max_stages": 5,
+      "max_model_turns": 1,
+      "max_tool_calls": 4,
+      "token_budget": 6000,
+      "loop_signature_detector": "sandbox_session_runtime_v1"
+    }
+  },
+  "workflow_source_of_truth_contract": {
+    "interaction_source": "json_workflow_spec",
+    "rust_reader_role": "validate_execute_trace_only",
+    "hardcoded_interaction_behavior_allowed": false,
+    "json_owns": [
+      "interaction_gates",
+      "gate_options",
+      "gate_transitions",
+      "tool_family_menus",
+      "tool_input_schemas",
+      "confirmation_states",
+      "loopbacks",
+      "final_output_contract"
+    ],
+    "rust_owns": [
+      "json_loading",
+      "schema_validation",
+      "state_transition_execution",
+      "tool_execution_handoff",
+      "receipt_binding",
+      "trace_export",
+      "kernel_policy_enforcement"
+    ]
+  },
+  "workflow_composition_contract": {
+    "version": "workflow_composition_contract_v1",
+    "cd_kind": "primitive",
+    "returns_exactly_one_terminal_artifact": true,
+    "terminal_artifact_contract": {
+      "artifact_schema": "workflow_terminal_artifact_v1",
+      "allowed_kinds": [
+        "completed_final_answer",
+        "clarification_request",
+        "structured_failure",
+        "delegated_workflow_result"
+      ],
+      "parent_receives": "terminal_artifact_only_refs_for_internals"
+    },
+    "child_workflow_calls": [],
+    "non_goals": [
+      "do_not_call_child_workflows",
+      "do_not_return_raw_tool_payloads",
+      "do_not_expose_internal_trace",
+      "do_not_execute_arbitrary_commands_from_this_contract"
+    ]
+  }
+}

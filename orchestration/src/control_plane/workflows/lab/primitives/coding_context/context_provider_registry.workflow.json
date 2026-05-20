@@ -1,0 +1,197 @@
+{
+  "name": "context_provider_registry",
+  "workflow_type": "control_plane_orchestration_workflow",
+  "workflow_role": "assistant_response_workflow",
+  "default": false,
+  "description": "Primitive contract for declaring pluggable coding context providers such as file, codebase, diff, terminal, diagnostics, tree, memory, and repo-map context.",
+  "primitive_first_contract": {
+    "case_specific_hardcoding_allowed": false,
+    "specificity_owner": "primitive",
+    "extension_surface": "workflow_cd",
+    "registered_capability_id": "workflow.context_provider_registry",
+    "special_case_policy": "System-specific behavior must enter through inputs, profiles, adapters, or eval fixtures rather than hidden primitive branches.",
+    "monotonic_lower_level_regression_policy": "This primitive must stay optional, bounded, and reusable so higher-level coding composites cannot regress simpler coding tasks."
+  },
+  "provenance_contract": {
+    "source_systems": [
+      "Continue",
+      "Aider",
+      "Cline"
+    ],
+    "import_rule": "assimilate_mechanics_not_product_specific_hacks",
+    "artifact_corpus_ref": "references/coding-agent-systems"
+  },
+  "stages": [
+    "provider_request_normalization",
+    "provider_capability_matching",
+    "context_budget_projection",
+    "provider_receipt_packaging"
+  ],
+  "workflow_composition": {
+    "primitive_level": 0,
+    "composed_of_workflow_ids": []
+  },
+  "final_response_policy": "control_plane_packaged_response",
+  "final_output_contract": {
+    "schema_version": "context_provider_registry_final_output_contract_v1",
+    "source": "workflow_cd",
+    "visible_chat_source": "llm_final_answer_only",
+    "required_summary_fields": [
+      "provider_ids",
+      "selected_providers",
+      "context_budget",
+      "provider_receipts",
+      "excluded_providers"
+    ],
+    "internal_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace"
+    ],
+    "quality_contract": {
+      "answer_user_goal": "Primitive contract for declaring pluggable coding context providers such as file, codebase, diff, terminal, diagnostics, tree, memory, and repo-map context.",
+      "scope_boundary": "emit a reusable primitive artifact only; do not perform unrelated project execution",
+      "validation_calibration": "separate primitive contract failure from downstream implementation failure",
+      "visibility": "return compact refs and summaries without raw hidden reasoning"
+    }
+  },
+  "context_provider_registry_contract": {
+    "version": "context_provider_registry_v1",
+    "purpose": "Make context sources typed, pluggable, bounded, and receipt-bearing before local coding execution consumes them.",
+    "provider_kinds": [
+      "file",
+      "codebase",
+      "diff",
+      "terminal",
+      "diagnostics",
+      "tree",
+      "memory",
+      "repo_map",
+      "search",
+      "user_supplied"
+    ],
+    "required_behaviors": [
+      "select_providers_by_task_need_not_static_level",
+      "emit_budget_and_rationale_per_provider",
+      "prefer_refs_over_large_raw_payloads",
+      "downgrade_unavailable_provider_to_structured_gap",
+      "preserve_current_workspace_files_as_authority"
+    ],
+    "output_artifacts": [
+      "context_provider_manifest",
+      "provider_selection_receipt",
+      "context_budget_receipt"
+    ]
+  },
+  "gate_contract": "control_plane_lifecycle_v1",
+  "observation_lifecycle_contract": {
+    "version": "run_observation_lifecycle_v1",
+    "policy_ref": "orchestration/config/run_observation_lifecycle_policy.json",
+    "purpose": "Record compact context_provider_registry primitive receipts and blocker summaries.",
+    "required_lanes": [
+      "compact_ledger",
+      "artifact_ref_retention",
+      "failure_lifecycle_archive",
+      "hot_ring_buffer"
+    ],
+    "non_goals": [
+      "do_not_hide_current_failures",
+      "do_not_store_raw_tool_payloads",
+      "do_not_replace_local_context_pack_builder",
+      "do_not_store_full_repository_snapshots"
+    ]
+  },
+  "typed_execution_contract": {
+    "gate_kind": "structured_control_plane_gate",
+    "input_kind": "multiple_choice_or_text_input",
+    "allowed_transitions": [
+      "provider_request_normalization->provider_capability_matching",
+      "provider_capability_matching->context_budget_projection",
+      "context_budget_projection->provider_receipt_packaging",
+      "provider_receipt_packaging->completed"
+    ],
+    "timeout_ms": 30000,
+    "retry_policy": {
+      "max_retries": 0,
+      "on_failure": "return_structured_failure"
+    },
+    "terminal_states": [
+      "completed",
+      "blocked",
+      "needs_input",
+      "failed",
+      "aborted"
+    ],
+    "telemetry_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace",
+      "final_answer"
+    ],
+    "tool_family_contracts": [
+      "workspace",
+      "web",
+      "memory",
+      "agent",
+      "shell",
+      "browser"
+    ],
+    "visible_chat_policy": "llm_final_only_no_system_injection",
+    "run_budgets": {
+      "max_stages": 4,
+      "max_model_turns": 1,
+      "max_tool_calls": 4,
+      "token_budget": 6000,
+      "loop_signature_detector": "context_provider_registry_v1"
+    }
+  },
+  "workflow_source_of_truth_contract": {
+    "interaction_source": "json_workflow_spec",
+    "rust_reader_role": "validate_execute_trace_only",
+    "hardcoded_interaction_behavior_allowed": false,
+    "json_owns": [
+      "interaction_gates",
+      "gate_options",
+      "gate_transitions",
+      "tool_family_menus",
+      "tool_input_schemas",
+      "confirmation_states",
+      "loopbacks",
+      "final_output_contract"
+    ],
+    "rust_owns": [
+      "json_loading",
+      "schema_validation",
+      "state_transition_execution",
+      "tool_execution_handoff",
+      "receipt_binding",
+      "trace_export",
+      "kernel_policy_enforcement"
+    ]
+  },
+  "workflow_composition_contract": {
+    "version": "workflow_composition_contract_v1",
+    "cd_kind": "primitive",
+    "returns_exactly_one_terminal_artifact": true,
+    "terminal_artifact_contract": {
+      "artifact_schema": "workflow_terminal_artifact_v1",
+      "allowed_kinds": [
+        "completed_final_answer",
+        "clarification_request",
+        "structured_failure",
+        "delegated_workflow_result"
+      ],
+      "parent_receives": "terminal_artifact_only_refs_for_internals"
+    },
+    "child_workflow_calls": [],
+    "non_goals": [
+      "do_not_call_child_workflows",
+      "do_not_return_raw_tool_payloads",
+      "do_not_expose_internal_trace",
+      "do_not_replace_local_context_pack_builder",
+      "do_not_store_full_repository_snapshots"
+    ]
+  }
+}

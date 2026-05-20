@@ -953,19 +953,19 @@
       ]
     },
     {
-      "workflow_id": "level6_existing_project_evidence_contract",
+      "workflow_id": "existing_project_evidence_contract",
       "tier": "lab",
-      "source_framework": "local_coding_level6_observability_layer",
-      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_loop/level6_existing_project_evidence_contract.workflow.json",
+      "source_framework": "local_coding_existing_project_evidence_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_loop/existing_project_evidence_contract.workflow.json",
       "runtime_selectable": false,
       "promotion_status": "lab",
       "test_scenarios": [
-        "level6_existing_project_machine_readable_receipts",
-        "missing_level6_evidence_fields_route_to_repair"
+        "existing_project_machine_readable_receipts",
+        "missing_existing_project_evidence_fields_route_to_repair"
       ],
       "promotion_requirements": [
         "schema_valid",
-        "level6_evidence_contract_eval_passes",
+        "existing_project_evidence_contract_eval_passes",
         "operator_promotion_approval"
       ]
     },
@@ -1764,6 +1764,134 @@
         "schema_valid",
         "framework_assumption_reviewed",
         "parity_scorecard_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "sandbox_session_runtime",
+      "tier": "lab",
+      "source_framework": "swe_rex_openhands_assimilated_runtime_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_runtime/sandbox_session_runtime.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "session_runtime_receipt_contract"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "primitive_contract_reviewed",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "step_budgeted_trajectory_runtime",
+      "tier": "lab",
+      "source_framework": "mini_swe_agent_cline_continue_assimilated_runtime_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_runtime/step_budgeted_trajectory_runtime.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "bounded_step_trajectory_persists_partial_results"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "primitive_contract_reviewed",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "incremental_receipt_journal",
+      "tier": "lab",
+      "source_framework": "mini_swe_agent_cline_continue_assimilated_receipt_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_runtime/incremental_receipt_journal.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "receipt_journal_survives_timeout_or_abort"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "primitive_contract_reviewed",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "context_provider_registry",
+      "tier": "lab",
+      "source_framework": "continue_aider_cline_assimilated_context_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_context/context_provider_registry.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "provider_manifest_receipts"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "primitive_contract_reviewed",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "mode_manifest_registry",
+      "tier": "lab",
+      "source_framework": "roo_cline_forgecode_assimilated_mode_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_context/mode_manifest_registry.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "mode_manifest_receipts"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "primitive_contract_reviewed",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "patch_artifact_synthesis",
+      "tier": "lab",
+      "source_framework": "swe_agent_aider_cline_assimilated_artifact_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_artifacts/patch_artifact_synthesis.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "patch_artifact_from_mutation_receipts"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "primitive_contract_reviewed",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "public_interface_verification",
+      "tier": "lab",
+      "source_framework": "aider_swe_agent_openhands_assimilated_validation_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_validation/public_interface_verification.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "requested_public_interface_verified_before_final_success"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "primitive_contract_reviewed",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "final_receipt_synthesis",
+      "tier": "lab",
+      "source_framework": "forgecode_openhands_assimilated_receipt_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_artifacts/final_receipt_synthesis.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "receipt_backed_final_answer"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "primitive_contract_reviewed",
         "operator_promotion_approval"
       ]
     }

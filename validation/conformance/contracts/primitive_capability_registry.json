@@ -137,6 +137,28 @@
       "promotion_status": "seed"
     },
     {
+      "id": "workflow.step_budgeted_trajectory_runtime",
+      "name": "Step Budgeted Trajectory Runtime",
+      "kind": "primitive",
+      "owner_domain": "orchestration",
+      "layer": "2",
+      "path": "orchestration/src/control_plane/workflows/lab/primitives/coding_runtime/step_budgeted_trajectory_runtime.workflow.json",
+      "contract_surface": "workflow_cd",
+      "extension_surface": "trajectory_runtime_contract",
+      "promotion_status": "seed"
+    },
+    {
+      "id": "workflow.incremental_receipt_journal",
+      "name": "Incremental Receipt Journal",
+      "kind": "primitive",
+      "owner_domain": "orchestration",
+      "layer": "2",
+      "path": "orchestration/src/control_plane/workflows/lab/primitives/coding_runtime/incremental_receipt_journal.workflow.json",
+      "contract_surface": "workflow_cd",
+      "extension_surface": "receipt_journal_contract",
+      "promotion_status": "seed"
+    },
+    {
       "id": "workflow.context_provider_registry",
       "name": "Context Provider Registry",
       "kind": "primitive",
@@ -167,6 +189,17 @@
       "path": "orchestration/src/control_plane/workflows/lab/primitives/coding_artifacts/patch_artifact_synthesis.workflow.json",
       "contract_surface": "workflow_cd",
       "extension_surface": "patch_artifact_contract",
+      "promotion_status": "seed"
+    },
+    {
+      "id": "workflow.public_interface_verification",
+      "name": "Public Interface Verification",
+      "kind": "primitive",
+      "owner_domain": "orchestration",
+      "layer": "2",
+      "path": "orchestration/src/control_plane/workflows/lab/primitives/coding_validation/public_interface_verification.workflow.json",
+      "contract_surface": "workflow_cd",
+      "extension_surface": "public_interface_requirement_contract",
       "promotion_status": "seed"
     },
     {

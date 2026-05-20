@@ -132,7 +132,9 @@ const CASES: &[UsefulWorkCase] = &[
     },
 ];
 
-pub fn seed_native_coding_useful_work_batch(attempt_count: usize) -> NativeCodingUsefulWorkSeedReport {
+pub fn seed_native_coding_useful_work_batch(
+    attempt_count: usize,
+) -> NativeCodingUsefulWorkSeedReport {
     let seed_started_at_unix_ms = millis_now();
     let count = attempt_count.max(1);
     let batch_root = std::env::temp_dir().join(format!(
@@ -173,7 +175,9 @@ pub fn seed_native_coding_useful_work_batch(attempt_count: usize) -> NativeCodin
     report
 }
 
-pub fn judge_native_coding_useful_work_batch(batch_root: &Path) -> NativeCodingUsefulWorkJudgeReport {
+pub fn judge_native_coding_useful_work_batch(
+    batch_root: &Path,
+) -> NativeCodingUsefulWorkJudgeReport {
     let jobs_path = batch_root.join("jobs.json");
     let seed_report = fs::read_to_string(&jobs_path)
         .ok()
@@ -234,10 +238,17 @@ fn seed_case(
     (case.seed)(&project_root)?;
     let validation = run_command(
         &project_root,
-        &["sh", "-c", "PYTHONPATH=src python3 -m unittest discover -s tests"],
+        &[
+            "sh",
+            "-c",
+            "PYTHONPATH=src python3 -m unittest discover -s tests",
+        ],
     );
     if !validation.ok {
-        return Err(format!("{attempt_id}:seed_validation_failed:{}", validation.detail));
+        return Err(format!(
+            "{attempt_id}:seed_validation_failed:{}",
+            validation.detail
+        ));
     }
     let prompt_path = prompts_root.join(format!("{attempt_id}.txt"));
     write_file(&prompt_path, &worker_prompt(&project_root, case))?;
@@ -256,14 +267,18 @@ fn seed_case(
             case.semantic_probe.to_string(),
         ],
         baseline_test_count: case.baseline_test_count,
-        expected_symbols: case.expected_symbols.iter().map(|item| item.to_string()).collect(),
+        expected_symbols: case
+            .expected_symbols
+            .iter()
+            .map(|item| item.to_string())
+            .collect(),
         seed_completed_at_unix_ms: Some(seed_completed_at_unix_ms),
     })
 }
 
 fn worker_prompt(project_root: &Path, case: &UsefulWorkCase) -> String {
     format!(
-        "You are running Native Coding Useful-Work Eval v1. Use the Infring native coding workflow and tools, not a simulated Codex worker. Your write ownership is limited to this project root: {project_root}\n\nTask: {goal}\n\nRules:\n1. Current local files are authoritative. Read relevant existing files before modifying behavior.\n2. This is an implementation task, so baseline validation passing before mutation is not completion evidence.\n3. Add or patch source and tests so the requested behavior exists semantically.\n4. Run this validation command from project root: PYTHONPATH=src python3 -m unittest discover -s tests\n5. If validation fails, use the command output as repair input and patch the code/tests.\n6. Final response must list changed files, validation command/result, caveats, and receipt-backed evidence.\n7. Do not commit anything.\n",
+        "You are running Native Coding Useful-Work Eval v1. Use the Infring native coding workflow and tools, not a simulated Codex worker. Your write ownership is limited to this project root: {project_root}\n\nTask: {goal}\n\nRules:\n1. Current local files are authoritative. Read relevant existing files before modifying behavior.\n2. This is an implementation task, so baseline validation passing before mutation is not completion evidence.\n3. Add or patch source and tests so the requested behavior exists semantically.\n4. Treat user-named functions, classes, attributes, constructor arguments, and input shapes as public API requirements. Put public helpers in the existing module that owns the adjacent preserved behavior, or re-export them there, unless the prompt explicitly names a new module.\n5. Regression tests must import and call the same public API shape requested by the task, not only an internal helper or alternate module.\n6. Run this validation command from project root: PYTHONPATH=src python3 -m unittest discover -s tests\n7. If validation fails, use the command output as repair input and patch the code/tests.\n8. Final response must list changed files, validation command/result, caveats, and receipt-backed evidence.\n9. Do not commit anything.\n",
         project_root = project_root.display(),
         goal = case.prompt_goal,
     )
@@ -316,7 +331,10 @@ fn judge_job(
 
     let semantic_probe = run_command(
         &project_root,
-        &job.semantic_probe_command.iter().map(String::as_str).collect::<Vec<_>>(),
+        &job.semantic_probe_command
+            .iter()
+            .map(String::as_str)
+            .collect::<Vec<_>>(),
     );
     push_check(
         &mut checks,
@@ -421,7 +439,12 @@ fn run_command(cwd: &Path, command: &[&str]) -> CommandResult {
     }
 }
 
-fn push_check(checks: &mut Vec<NativeCodingUsefulWorkCheck>, id: &'static str, ok: bool, detail: String) {
+fn push_check(
+    checks: &mut Vec<NativeCodingUsefulWorkCheck>,
+    id: &'static str,
+    ok: bool,
+    detail: String,
+) {
     checks.push(NativeCodingUsefulWorkCheck { id, ok, detail });
 }
 
@@ -429,13 +452,19 @@ fn extract_unittest_count(detail: &str) -> Option<usize> {
     let marker = "Ran ";
     let index = detail.find(marker)? + marker.len();
     let tail = &detail[index..];
-    let digits = tail.chars().take_while(|ch| ch.is_ascii_digit()).collect::<String>();
+    let digits = tail
+        .chars()
+        .take_while(|ch| ch.is_ascii_digit())
+        .collect::<String>();
     digits.parse::<usize>().ok()
 }
 
 fn read_python_project_text(project_root: &Path, package: &str) -> String {
     let mut combined = String::new();
-    for root in [project_root.join(format!("src/{package}")), project_root.join("tests")] {
+    for root in [
+        project_root.join(format!("src/{package}")),
+        project_root.join("tests"),
+    ] {
         if let Ok(entries) = fs::read_dir(root) {
             for entry in entries.flatten() {
                 let path = entry.path();
@@ -475,7 +504,9 @@ fn collect_modified_py_files(
     newest: &mut Option<u128>,
     modified_paths: &mut Vec<String>,
 ) {
-    let Ok(entries) = fs::read_dir(root) else { return };
+    let Ok(entries) = fs::read_dir(root) else {
+        return;
+    };
     for entry in entries.flatten() {
         let path = entry.path();
         if path.is_dir() {
@@ -545,7 +576,9 @@ fn first_project_mutation_mtime(job: &NativeCodingUsefulWorkJob) -> Option<u128>
 }
 
 fn collect_first_modified_py_file(root: &Path, seed_completed: u128, first: &mut Option<u128>) {
-    let Ok(entries) = fs::read_dir(root) else { return };
+    let Ok(entries) = fs::read_dir(root) else {
+        return;
+    };
     for entry in entries.flatten() {
         let path = entry.path();
         if path.is_dir() {
@@ -571,14 +604,16 @@ fn attempt_timing(
     let output_path = batch_root
         .join("agent_outputs")
         .join(format!("{}.json", job.attempt_id));
-    let completed_at_unix_ms =
-        newest_project_mtime(&PathBuf::from(&job.project_root)).max(file_modified_unix_ms(&output_path));
+    let completed_at_unix_ms = newest_project_mtime(&PathBuf::from(&job.project_root))
+        .max(file_modified_unix_ms(&output_path));
     NativeCodingUsefulWorkAttemptTiming {
         completed_at_unix_ms,
-        elapsed_ms_since_batch_start: batch_started_at_unix_ms
-            .and_then(|start| completed_at_unix_ms.map(|completed| completed.saturating_sub(start))),
+        elapsed_ms_since_batch_start: batch_started_at_unix_ms.and_then(|start| {
+            completed_at_unix_ms.map(|completed| completed.saturating_sub(start))
+        }),
         first_mutation_unix_ms,
-        time_to_first_mutation_ms: job.seed_completed_at_unix_ms
+        time_to_first_mutation_ms: job
+            .seed_completed_at_unix_ms
             .and_then(|seed| first_mutation_unix_ms.map(|first| first.saturating_sub(seed))),
     }
 }
@@ -603,11 +638,16 @@ fn summarize_timing(
     NativeCodingUsefulWorkTimingSummary {
         batch_started_at_unix_ms,
         judged_at_unix_ms,
-        batch_elapsed_ms: batch_started_at_unix_ms.map(|start| judged_at_unix_ms.saturating_sub(start)),
+        batch_elapsed_ms: batch_started_at_unix_ms
+            .map(|start| judged_at_unix_ms.saturating_sub(start)),
         first_attempt_completed_at_unix_ms: completed.iter().copied().min(),
         last_attempt_completed_at_unix_ms: completed.iter().copied().max(),
         completion_span_ms: completed.iter().copied().min().and_then(|first| {
-            completed.iter().copied().max().map(|last| last.saturating_sub(first))
+            completed
+                .iter()
+                .copied()
+                .max()
+                .map(|last| last.saturating_sub(first))
         }),
         average_attempt_elapsed_ms: average_u128(&elapsed),
         average_time_to_first_mutation_ms: average_u128(&first_mutation_elapsed),
@@ -667,7 +707,8 @@ fn write_file(path: &Path, content: &str) -> Result<(), String> {
         fs::create_dir_all(parent)
             .map_err(|error| format!("create_parent_failed:{}:{error}", parent.display()))?;
     }
-    fs::write(path, content).map_err(|error| format!("write_file_failed:{}:{error}", path.display()))
+    fs::write(path, content)
+        .map_err(|error| format!("write_file_failed:{}:{error}", path.display()))
 }
 
 fn seed_pricing_core(project_root: &Path) -> Result<(), String> {
