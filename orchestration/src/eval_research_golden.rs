@@ -83,10 +83,10 @@ pub fn run_research_golden(args: &[String]) -> i32 {
         .map(|raw| clean_text(&raw, 120))
         .filter(|raw| !raw.is_empty())
         .unwrap_or_else(|| "unknown".to_string());
-    let agent_id = normalize_agent_id(
+    let requested_agent_id = normalize_agent_id(
         &parse_flag(args, "agent-id").unwrap_or_else(|| DEFAULT_AGENT_ID.to_string()),
     );
-    let fresh_agent_per_case = parse_bool_flag(args, "fresh-agent-per-case", false);
+    let fresh_agent_per_case = parse_bool_flag(args, "fresh-agent-per-case", live);
     let cleanup_fresh_agents = parse_bool_flag(args, "cleanup-fresh-agents", true);
     let isolate_tool_cache = parse_bool_flag(args, "isolate-tool-cache", live);
     let fresh_agent_model = parse_flag(args, "fresh-agent-model")
@@ -138,11 +138,45 @@ pub fn run_research_golden(args: &[String]) -> i32 {
         .unwrap_or_default();
 
     let mut setup_failures = Vec::new();
+    let mut agent_id = requested_agent_id.clone();
+    let mut live_agent_bootstrap = json!({
+        "requested_agent_id": requested_agent_id.clone(),
+        "effective_agent_id": requested_agent_id.clone(),
+        "bootstrapped": false,
+        "reason": if live { "not_checked" } else { "offline_mode" }
+    });
     if live && !allow_remote && !is_local_dashboard_url(&base_url) {
         setup_failures.push("remote_dashboard_url_requires_allow_remote".to_string());
     }
     if !live && responses_by_case.is_empty() {
         setup_failures.push("offline_mode_requires_responses_fixture".to_string());
+    }
+    if live && setup_failures.is_empty() {
+        match ensure_live_eval_agent(
+            &base_url,
+            &requested_agent_id,
+            fresh_agent_model.as_deref(),
+            timeout_seconds,
+        ) {
+            Ok((effective_agent_id, bootstrapped, reason)) => {
+                agent_id = effective_agent_id.clone();
+                live_agent_bootstrap = json!({
+                    "requested_agent_id": requested_agent_id.clone(),
+                    "effective_agent_id": effective_agent_id,
+                    "bootstrapped": bootstrapped,
+                    "reason": reason
+                });
+            }
+            Err(reason) => {
+                live_agent_bootstrap = json!({
+                    "requested_agent_id": requested_agent_id.clone(),
+                    "effective_agent_id": requested_agent_id.clone(),
+                    "bootstrapped": false,
+                    "reason": reason
+                });
+                setup_failures.push("live_agent_bootstrap_failed".to_string());
+            }
+        }
     }
 
     let mut rows = Vec::new();
@@ -173,7 +207,8 @@ pub fn run_research_golden(args: &[String]) -> i32 {
             "cases_planned": total_planned_cases,
             "timeout_seconds": timeout_seconds,
             "timeout_recovery_seconds": timeout_recovery_seconds,
-            "fresh_agent_per_case": fresh_agent_per_case
+            "fresh_agent_per_case": fresh_agent_per_case,
+            "live_agent_bootstrap": live_agent_bootstrap
         }),
     );
     write_partial_research_golden_report(
@@ -528,6 +563,16 @@ pub fn run_research_golden(args: &[String]) -> i32 {
         );
     }
 
+    if live
+        && cleanup_fresh_agents
+        && live_agent_bootstrap
+            .get("bootstrapped")
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
+    {
+        let _ = delete_live_agent(&base_url, &agent_id, timeout_seconds);
+    }
+
     let total_cases = rows.len() as u64;
     let avg_score = ratio(total_score, total_cases);
     let research_success_rate = ratio(passed_cases, total_cases);
@@ -667,7 +712,9 @@ pub fn run_research_golden(args: &[String]) -> i32 {
             "cases": cases_path,
             "responses": responses_path,
             "base_url": if live { Some(base_url) } else { None },
-            "agent_id": if live { Some(agent_id) } else { None }
+            "agent_id": if live { Some(agent_id) } else { None },
+            "requested_agent_id": if live { Some(requested_agent_id) } else { None },
+            "live_agent_bootstrap": if live { Some(live_agent_bootstrap) } else { None }
         }
     });
     let observation_lifecycle_summary = if observation_lifecycle_enabled {

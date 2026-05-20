@@ -101,6 +101,121 @@ pub(super) fn create_live_agent(
         })
 }
 
+pub(super) fn create_root_live_agent(
+    base_url: &str,
+    name_hint: &str,
+    model_ref: Option<&str>,
+    timeout_seconds: u64,
+) -> Option<String> {
+    let name = if name_hint.is_empty() {
+        "Research Golden Live".to_string()
+    } else {
+        format!("Research Golden {}", clean_text(name_hint, 80))
+    };
+    let payload = post_json(
+        base_url,
+        "/api/agents",
+        &json!({
+            "name": name,
+            "role": "analyst"
+        }),
+        timeout_seconds,
+    );
+    str_opt(&payload, &["agent_id"])
+        .or_else(|| str_opt(&payload, &["id"]))
+        .map(normalize_agent_id)
+        .filter(|agent_id| !agent_id.is_empty())
+        .and_then(|agent_id| {
+            if set_live_agent_model(base_url, &agent_id, model_ref, timeout_seconds) {
+                Some(agent_id)
+            } else {
+                None
+            }
+        })
+}
+
+pub(super) fn ensure_live_eval_agent(
+    base_url: &str,
+    requested_agent_id: &str,
+    model_ref: Option<&str>,
+    timeout_seconds: u64,
+) -> Result<(String, bool, String), String> {
+    if let Some(reason) = current_live_agent_reason(base_url, requested_agent_id, timeout_seconds) {
+        return Ok((requested_agent_id.to_string(), false, reason));
+    }
+    create_root_live_agent(base_url, requested_agent_id, model_ref, timeout_seconds)
+        .map(|agent_id| {
+            (
+                agent_id,
+                true,
+                if requested_agent_id.is_empty() {
+                    "bootstrapped_live_agent_missing_request".to_string()
+                } else {
+                    "bootstrapped_live_agent_from_missing_or_inactive_request".to_string()
+                },
+            )
+        })
+        .ok_or_else(|| "live_agent_bootstrap_failed".to_string())
+}
+
+fn current_live_agent_reason(
+    base_url: &str,
+    requested_agent_id: &str,
+    timeout_seconds: u64,
+) -> Option<String> {
+    let requested = clean_text(requested_agent_id, 240);
+    if requested.is_empty() {
+        return None;
+    }
+    let registry = curl_json("GET", base_url, "/api/agents", &json!({}), timeout_seconds);
+    let row = live_agent_registry_rows(&registry).into_iter().find(|row| {
+        clean_text(
+            row.get("agent_id")
+                .or_else(|| row.get("id"))
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            240,
+        ) == requested
+    })?;
+    live_agent_row_active(row).then_some("requested_live_agent_active".to_string())
+}
+
+fn live_agent_registry_rows(registry: &Value) -> Vec<&Value> {
+    if let Some(rows) = registry.as_array() {
+        return rows.iter().collect();
+    }
+    registry
+        .get("agents")
+        .and_then(Value::as_array)
+        .map(|rows| rows.iter().collect())
+        .unwrap_or_default()
+}
+
+fn live_agent_row_active(row: &Value) -> bool {
+    let mut states = Vec::<String>::new();
+    for path in [
+        &["state"][..],
+        &["sidebar_status_state"][..],
+        &["contract", "status"][..],
+    ] {
+        if let Some(raw) = str_opt(row, path) {
+            let cleaned = clean_text(raw, 64).to_ascii_lowercase();
+            if !cleaned.is_empty() {
+                states.push(cleaned);
+            }
+        }
+    }
+    if states.is_empty() {
+        return false;
+    }
+    states
+        .iter()
+        .any(|state| matches!(state.as_str(), "active" | "running"))
+        && !states
+            .iter()
+            .any(|state| matches!(state.as_str(), "terminated" | "expired" | "failed"))
+}
+
 fn set_live_agent_model(
     base_url: &str,
     agent_id: &str,
@@ -461,14 +576,12 @@ fn recover_timed_out_response_from_state(
     let deadline = Instant::now() + Duration::from_secs(recovery_budget_seconds);
     let mut latest_recovered = None;
     loop {
-        if let Some(recovered) =
-            recovered_payload_from_state(
-                dashboard_state_root,
-                agent_id,
-                baseline_snapshot,
-                expected_user_message,
-            )
-        {
+        if let Some(recovered) = recovered_payload_from_state(
+            dashboard_state_root,
+            agent_id,
+            baseline_snapshot,
+            expected_user_message,
+        ) {
             if recovered_payload_has_structured_turn_artifacts(&recovered) {
                 return Some(recovered);
             }
@@ -573,7 +686,8 @@ fn assistant_row_matches_expected_user_message(
                 .unwrap_or(""),
             4_000,
         );
-        return !user_text.is_empty() && normalize_for_compare(&user_text) == normalize_for_compare(&expected);
+        return !user_text.is_empty()
+            && normalize_for_compare(&user_text) == normalize_for_compare(&expected);
     }
     false
 }
@@ -1442,5 +1556,29 @@ mod eval_research_golden_utils_tests {
             ),
             "ollama/kimi-k2.6:cloud"
         );
+    }
+
+    #[test]
+    fn live_agent_row_active_accepts_active_and_running_states() {
+        assert!(live_agent_row_active(&json!({
+            "state": "Running",
+            "contract": { "status": "active" }
+        })));
+    }
+
+    #[test]
+    fn live_agent_row_active_rejects_terminated_state() {
+        assert!(!live_agent_row_active(&json!({
+            "state": "Running",
+            "contract": { "status": "terminated" }
+        })));
+    }
+
+    #[test]
+    fn live_agent_registry_rows_supports_array_and_object_shapes() {
+        let array_shape = json!([{ "agent_id": "a" }]);
+        let object_shape = json!({ "agents": [{ "agent_id": "b" }] });
+        assert_eq!(live_agent_registry_rows(&array_shape).len(), 1);
+        assert_eq!(live_agent_registry_rows(&object_shape).len(), 1);
     }
 }
