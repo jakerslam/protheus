@@ -205,6 +205,22 @@ fn synthesis_metadata_string_array(
         .unwrap_or_default()
 }
 
+fn synthesis_push_unique_clean_string(
+    out: &mut Vec<String>,
+    seen: &mut HashSet<String>,
+    raw: &str,
+    max_len: usize,
+) {
+    let cleaned = clean_text(raw, max_len);
+    if cleaned.is_empty() {
+        return;
+    }
+    let key = cleaned.to_ascii_lowercase();
+    if seen.insert(key) {
+        out.push(cleaned);
+    }
+}
+
 fn synthesis_message_is_current_intent(message: &str) -> bool {
     let lowered = clean_text(message, 800).to_ascii_lowercase();
     [
@@ -265,7 +281,7 @@ fn synthesis_source_preferences(message: &str, metadata: Option<&Value>) -> Vec<
             "documentation_or_reference",
             "scholarly_or_research",
         ] {
-            push_unique_clean_string(&mut out, &mut seen, value, 80);
+            synthesis_push_unique_clean_string(&mut out, &mut seen, value, 80);
         }
     }
     if comparison_intent || !entities.is_empty() {
@@ -275,7 +291,7 @@ fn synthesis_source_preferences(message: &str, metadata: Option<&Value>) -> Vec<
             "public_institution",
             "community_or_forum",
         ] {
-            push_unique_clean_string(&mut out, &mut seen, value, 80);
+            synthesis_push_unique_clean_string(&mut out, &mut seen, value, 80);
         }
     }
     if out.is_empty() {
@@ -286,7 +302,7 @@ fn synthesis_source_preferences(message: &str, metadata: Option<&Value>) -> Vec<
             "repository_or_dataset",
             "community_or_forum",
         ] {
-            push_unique_clean_string(&mut out, &mut seen, value, 80);
+            synthesis_push_unique_clean_string(&mut out, &mut seen, value, 80);
         }
     }
     out.into_iter().take(6).collect()
@@ -312,12 +328,17 @@ fn synthesis_query_source(tool: &Value) -> String {
 
 fn derived_research_brief_for_tools(message: &str, response_tools: &[Value]) -> Value {
     let existing = synthesis_first_hidden_object(response_tools, "research_brief");
-    if existing.is_object() {
+    if existing
+        .as_object()
+        .map(|row| !row.is_empty())
+        .unwrap_or(false)
+    {
         return existing;
     }
     let Some(tool) = response_tools
         .iter()
         .find(|tool| tool_query_metadata_value(tool).is_some() || tool_hidden_value(tool, "query").is_some())
+        .or_else(|| response_tools.first())
     else {
         return Value::Null;
     };
@@ -334,7 +355,7 @@ fn derived_research_brief_for_tools(message: &str, response_tools: &[Value]) -> 
         .collect::<HashSet<_>>();
     if open_dimensions.is_empty() {
         for lane in synthesis_query_plan_strings(tool, 4).into_iter().skip(1).take(3) {
-            push_unique_clean_string(&mut open_dimensions, &mut open_seen, &lane, 220);
+            synthesis_push_unique_clean_string(&mut open_dimensions, &mut open_seen, &lane, 220);
         }
     }
     let known_constraints =
@@ -362,12 +383,17 @@ fn derived_research_brief_for_tools(message: &str, response_tools: &[Value]) -> 
 
 fn derived_evidence_needs_for_tools(message: &str, response_tools: &[Value]) -> Value {
     let existing = synthesis_first_hidden_object(response_tools, "evidence_needs");
-    if existing.is_object() {
+    if existing
+        .as_object()
+        .map(|row| !row.is_empty())
+        .unwrap_or(false)
+    {
         return existing;
     }
     let Some(tool) = response_tools
         .iter()
         .find(|tool| tool_query_metadata_value(tool).is_some() || tool_hidden_value(tool, "query").is_some())
+        .or_else(|| response_tools.first())
     else {
         return Value::Null;
     };
@@ -380,16 +406,16 @@ fn derived_evidence_needs_for_tools(message: &str, response_tools: &[Value]) -> 
         .map(|row| row.to_ascii_lowercase())
         .collect::<HashSet<_>>();
     if !entities.is_empty() {
-        push_unique_clean_string(&mut coverage_facets, &mut seen, "entity_coverage", 80);
+        synthesis_push_unique_clean_string(&mut coverage_facets, &mut seen, "entity_coverage", 80);
     }
     if synthesis_message_is_current_intent(message) {
-        push_unique_clean_string(&mut coverage_facets, &mut seen, "freshness", 80);
+        synthesis_push_unique_clean_string(&mut coverage_facets, &mut seen, "freshness", 80);
     }
     if synthesis_message_is_comparison_intent(message) {
-        push_unique_clean_string(&mut coverage_facets, &mut seen, "cross_comparison", 80);
+        synthesis_push_unique_clean_string(&mut coverage_facets, &mut seen, "cross_comparison", 80);
     }
     if coverage_facets.is_empty() {
-        push_unique_clean_string(&mut coverage_facets, &mut seen, "overall_objective", 80);
+        synthesis_push_unique_clean_string(&mut coverage_facets, &mut seen, "overall_objective", 80);
     }
     let minimum_claims = if synthesis_message_is_comparison_intent(message)
         || synthesis_message_is_current_intent(message)
@@ -1480,6 +1506,99 @@ mod tool_turn_response_text_tests {
                 .pointer("/final_output_contract/visible_chat_source")
                 .and_then(Value::as_str),
             Some("llm_final_answer_only")
+        );
+    }
+
+    #[test]
+    fn workflow_synthesis_input_derives_research_brief_when_tool_omits_it() {
+        let selected_workflow = json!({
+            "name": "research_synthesize_verify",
+            "final_output_contract": {}
+        });
+        let input = workflow_synthesis_input_for_final_response(
+            "Give me news from this week about AI agents.",
+            &[json!({
+                "name": "batch_query",
+                "status": "ok",
+                "tool_attempt_receipt": {"receipt_id": "receipt-456"},
+                "query_plan": [
+                    "Give me news from this week about AI agents.",
+                    "AI agents this week official sources",
+                    "AI agents this week announcements"
+                ],
+                "query_metadata": {
+                    "keywords": ["AI agents", "this week"],
+                    "required_coverage": {
+                        "entities": ["AI agents"],
+                        "facets": ["news"]
+                    },
+                    "aliases": [],
+                    "negative_terms": ["sports"],
+                    "compilation": {
+                        "authority": "agent_submitted_request_metadata"
+                    }
+                },
+                "evidence_pack": [{
+                    "pack_version": "evidence_pack_v1",
+                    "source_kind": "browser_materialized_page",
+                    "source_class": "news_or_current",
+                    "title": "Agent platform update",
+                    "locator": "https://example.test/agents",
+                    "source_domain": "example.test",
+                    "snippet": "A major agent platform shipped updates this week.",
+                    "claim_hints": ["agent platform shipped updates this week"],
+                    "quality_flags": [],
+                    "score": 0.91,
+                    "confidence": "medium",
+                    "materialization_quality": "full_materialized",
+                    "counts_as_usable_evidence": true
+                }],
+                "tool_result_quality": {
+                    "status": "ok",
+                    "flags": [],
+                    "evidence_count": 1,
+                    "candidate_count": 1,
+                    "retry": {"recommended": false, "reason": "none"}
+                }
+            })],
+            &selected_workflow,
+        );
+
+        assert_eq!(
+            input
+                .pointer("/research_brief/schema_version")
+                .and_then(Value::as_str),
+            Some("research_brief_v1")
+        );
+        assert_eq!(
+            input
+                .pointer("/research_brief/original_user_goal")
+                .and_then(Value::as_str),
+            Some("Give me news from this week about AI agents.")
+        );
+        assert_eq!(
+            input
+                .pointer("/research_brief/answer_shape")
+                .and_then(Value::as_str),
+            Some("update")
+        );
+        assert_eq!(
+            input
+                .pointer("/evidence_needs/schema_version")
+                .and_then(Value::as_str),
+            Some("evidence_needs_v1")
+        );
+        assert_eq!(
+            input
+                .pointer("/evidence_needs/required_materialization")
+                .and_then(Value::as_str),
+            Some("materialized_or_trusted_feed")
+        );
+        assert_eq!(
+            input
+                .pointer("/evidence_needs/citation_expectation")
+                .and_then(Value::as_str),
+            Some("claim_backed_source_refs")
         );
     }
 
