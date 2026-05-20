@@ -74,6 +74,13 @@ pub(super) fn web_retrieval_gate_diagnostics(
         browser_materialization_recovery_diagnostics(payload, retrieval_quality);
     let browser_materialization_failed =
         bool_at(&browser_materialization_recovery, &["failed"], false);
+    let materialization_top_reason = str_at(
+        retrieval_quality,
+        &["materialization_failure_report", "top_reason", "reason"],
+        "none",
+    );
+    let browser_materialization_failed_hard = browser_materialization_failed
+        && (access_blocked_or_throttled || materialization_top_reason == "browser_materialization_failed");
     let provider_supply = web_provider_supply_diagnostics(payload, retrieval_quality);
     let provider_config_usable = bool_at(&provider_supply, &["configuration_usable"], true);
     let provider_circuit_open_detected =
@@ -251,9 +258,11 @@ pub(super) fn web_retrieval_gate_diagnostics(
         web_gate(
             "web_3d_browser_materialization_not_failed",
             blocker_recovery_lane_visible,
-            !browser_materialization_failed,
-            if browser_materialization_failed {
-                "browser-materialization recovery lane was visible but reported failure, timeout, navigation failure, or extraction failure"
+            !browser_materialization_failed_hard,
+            if browser_materialization_failed_hard {
+                "browser-materialization was the active blocking recovery lane and reported failure, timeout, navigation failure, or extraction failure"
+            } else if browser_materialization_failed {
+                "browser-materialization reported a non-blocking failed enrichment attempt, but another materialization failure reason was more upstream"
             } else if blocker_recovery_lane_visible {
                 "browser-materialization recovery lane was visible and no recovery failure signal was detected"
             } else {
@@ -2810,5 +2819,68 @@ mod tests {
                 .and_then(Value::as_str),
             Some("content_too_thin")
         );
+    }
+
+    #[test]
+    fn browser_materialization_gate_ignores_nonblocking_enrichment_failures() {
+        let payload = json!({
+            "pending_tool_request": {
+                "tool_key": "batch_query",
+                "input": {
+                    "query": "Compare browser agents"
+                }
+            },
+            "tools": [{
+                "status": "partial"
+            }]
+        });
+        let retrieval_quality = json!({
+            "status": "low_signal",
+            "candidate_count": 18,
+            "evidence_count": 3,
+            "content_rich_candidate_count": 0,
+            "materialized_candidate_count": 0,
+            "claim_hint_count": 0,
+            "usable_evidence": false,
+            "browser_materialization": {
+                "attempted": true,
+                "failed": true
+            },
+            "materialization_failure_report": {
+                "top_reason": {"reason": "prefetch_rejected_off_intent", "count": 8},
+                "reason_rows": [
+                    {"reason": "prefetch_rejected_off_intent", "count": 8},
+                    {"reason": "browser_materialization_failed", "count": 2}
+                ]
+            }
+        });
+        let query_metadata = json!({
+            "metadata_present": true,
+            "rich_query_pack_or_narrow_marker": true
+        });
+        let transitions = json!({
+            "checkpoints": [{
+                "checkpoint": "5e_agent_received_evidence_context",
+                "status": "pass"
+            }]
+        });
+        let diag = web_retrieval_gate_diagnostics(
+            &payload,
+            &retrieval_quality,
+            &query_metadata,
+            &transitions,
+        );
+        let gate_3d = diag
+            .get("gates")
+            .and_then(Value::as_array)
+            .and_then(|rows| {
+                rows.iter().find(|row| {
+                    row.get("gate").and_then(Value::as_str)
+                        == Some("web_3d_browser_materialization_not_failed")
+                })
+            })
+            .cloned()
+            .expect("web_3d gate");
+        assert_eq!(gate_3d.get("status").and_then(Value::as_str), Some("pass"));
     }
 }

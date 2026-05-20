@@ -556,6 +556,8 @@ fn page_extraction_link_preflight_rejection_reason_with_context(
     context: &str,
 ) -> Option<&'static str> {
     let candidate = page_extraction_link_candidate_with_context(link, context);
+    let trusted_official_source_candidate =
+        candidate_has_trusted_official_source_signal(query, &candidate);
     if link_contains_collapsed_query_phrase(query, link) {
         return None;
     }
@@ -569,13 +571,16 @@ fn page_extraction_link_preflight_rejection_reason_with_context(
     if contains_web_junk_marker(&combined) {
         return Some("junk_link");
     }
-    if looks_like_off_intent_noise_candidate(query, &candidate) {
+    if !trusted_official_source_candidate && looks_like_off_intent_noise_candidate(query, &candidate) {
         return Some("off_intent_link");
     }
-    if has_only_weak_query_overlap(query, &candidate) {
+    if !trusted_official_source_candidate && has_only_weak_query_overlap(query, &candidate) {
         return Some("weak_overlap_link");
     }
-    if query_overlap_terms(query, &candidate) == 0 && source_trust_adjustment(&candidate) <= 0.0 {
+    if !trusted_official_source_candidate
+        && query_overlap_terms(query, &candidate) == 0
+        && source_trust_adjustment(&candidate) <= 0.0
+    {
         return Some("no_distinctive_overlap_link");
     }
     None

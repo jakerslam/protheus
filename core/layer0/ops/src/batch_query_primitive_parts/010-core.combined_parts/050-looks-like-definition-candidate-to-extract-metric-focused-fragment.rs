@@ -139,6 +139,42 @@ fn looks_like_off_intent_noise_candidate(query: &str, candidate: &Candidate) -> 
         || (looks_like_lyrics_candidate(candidate) && !query_asks_for_music_or_lyrics(query))
 }
 
+fn is_official_source_query_lane(query: &str) -> bool {
+    let lowered = clean_text(query, 600).to_ascii_lowercase();
+    [
+        "official site",
+        "official documentation",
+        "official source",
+        "official sources",
+        "primary source evidence",
+        "project sources",
+    ]
+    .iter()
+    .any(|marker| lowered.contains(marker))
+}
+
+fn candidate_has_trusted_official_source_signal(query: &str, candidate: &Candidate) -> bool {
+    if !is_official_source_query_lane(query) {
+        return false;
+    }
+    let combined = candidate_relevance_text(candidate);
+    let domain = candidate_domain_hint(candidate);
+    let (overlap, distinctive_overlap, _) = query_overlap_profile(query, candidate);
+    let trusted_source = source_trust_adjustment(candidate) >= 0.15
+        || framework_official_domain(&domain)
+        || combined.to_ascii_lowercase().contains("/docs")
+        || combined.to_ascii_lowercase().contains("/documentation")
+        || combined.to_ascii_lowercase().contains("/reference")
+        || combined.to_ascii_lowercase().contains("/api");
+    if !trusted_source {
+        return false;
+    }
+    distinctive_overlap >= 1
+        || overlap >= 1
+        || looks_like_framework_overview_text(&combined)
+        || looks_like_framework_catalog_text(&combined)
+}
+
 fn candidate_title_for_relevance(candidate: &Candidate) -> String {
     if candidate
         .title

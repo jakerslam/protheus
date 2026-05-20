@@ -2061,6 +2061,18 @@ mod quality_tests {
     }
 
     #[test]
+    fn page_extraction_keeps_trusted_official_source_links_for_official_lanes() {
+        let query = "LangGraph official documentation";
+        let link = "https://docs.langchain.com/oss/python/langgraph/overview";
+        let context =
+            "LangGraph official documentation and overview for orchestrating agent workflows.";
+        assert_eq!(
+            page_extraction_link_preflight_rejection_reason_with_context(query, link, context),
+            None
+        );
+    }
+
+    #[test]
     fn page_extraction_rejects_generic_model_pages_before_fetch_budget() {
         let query = "Model Context Protocol ecosystem maturity risks";
         let policy = default_policy();
@@ -3352,6 +3364,56 @@ mod quality_tests {
                 .and_then(Value::as_array)
                 .map(|rows| rows.iter().any(|row| {
                     row.get("reason").and_then(Value::as_str) == Some("fetch_timeout")
+                }))
+                .unwrap_or(false),
+            "{report:#?}"
+        );
+    }
+
+    #[test]
+    fn materialization_failure_report_surfaces_browser_and_prefetch_drop_reasons() {
+        let report = materialization_failure_report(
+            &vec![
+                "query:primary:browser_materialization:local_browser_empty_dom".to_string(),
+                "query:bing_rss:page_extraction_candidate_prefetch_rejected:off_intent_link"
+                    .to_string(),
+                "query:bing_rss:page_extraction_candidate_prefetch_rejected:weak_overlap_link"
+                    .to_string(),
+            ],
+            4,
+            0,
+            0,
+            0,
+        );
+        assert!(
+            report
+                .pointer("/reason_rows")
+                .and_then(Value::as_array)
+                .map(|rows| rows.iter().any(|row| {
+                    row.get("reason").and_then(Value::as_str)
+                        == Some("browser_materialization_failed")
+                }))
+                .unwrap_or(false),
+            "{report:#?}"
+        );
+        assert!(
+            report
+                .pointer("/reason_rows")
+                .and_then(Value::as_array)
+                .map(|rows| rows.iter().any(|row| {
+                    row.get("reason").and_then(Value::as_str)
+                        == Some("prefetch_rejected_off_intent")
+                }))
+                .unwrap_or(false),
+            "{report:#?}"
+        );
+        assert!(
+            report
+                .pointer("/reason_rows")
+                .and_then(Value::as_array)
+                .map(|rows| rows.iter().any(|row| {
+                    row.get("reason").and_then(Value::as_str)
+                        == Some("prefetch_or_promotion_low_relevance")
                 }))
                 .unwrap_or(false),
             "{report:#?}"
