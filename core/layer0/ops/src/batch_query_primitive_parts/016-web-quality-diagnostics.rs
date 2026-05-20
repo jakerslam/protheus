@@ -3151,7 +3151,7 @@ fn normalized_materialization_failure_reason(reason: &str) -> Option<&'static st
 }
 
 fn materialization_failure_report(
-    quality_failures: &[String],
+    diagnostic_failures: &[String],
     evidence_count: usize,
     materialized_candidate_count: usize,
     candidate_only_count: usize,
@@ -3159,7 +3159,7 @@ fn materialization_failure_report(
 ) -> Value {
     let mut reason_counts = HashMap::<String, u64>::new();
     let mut sample_reasons = HashMap::<String, String>::new();
-    for reason in quality_failures {
+    for reason in diagnostic_failures {
         let Some(normalized) = normalized_materialization_failure_reason(reason) else {
             continue;
         };
@@ -3897,7 +3897,7 @@ fn web_tool_quality_report(
         .sum::<usize>();
     let evidence_claim_count = claim_hint_count;
     let materialization_failure_report = materialization_failure_report(
-        quality_failures,
+        partial_failures,
         evidence_count,
         materialized_candidate_count,
         candidate_only_count,
