@@ -703,6 +703,18 @@
       "operator_surface_reason": "top_100_operator_surface:simplification:validation"
     },
     {
+      "id": "ops:artifact-retention:auto",
+      "domain": "validation",
+      "work_gate": "simplification",
+      "lifecycle": "curated_operator_command",
+      "owner": "validation",
+      "description": "Apply acknowledged generated-artifact retention for dream and scheduled maintenance so generated caches cannot grow without bounds.",
+      "metadata_curated": true,
+      "operator_surface": true,
+      "operator_surface_rank": 57,
+      "operator_surface_reason": "top_100_operator_surface:simplification:validation"
+    },
+    {
       "id": "ops:combined-artifacts:hygiene:guard",
       "domain": "validation",
       "work_gate": "simplification",

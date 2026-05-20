@@ -49,6 +49,7 @@ jobs:
       - run: npm ci
       - name: Build policy debt and ownership snapshot
         run: |
+          npm run -s ops:artifact-retention:auto
           npm run -s ops:file-size:gate
           npm run -s ops:debt:expiry:guard
           npm run -s ops:tooling-registry:contract:guard
@@ -69,6 +70,9 @@ jobs:
           name: scheduled-policy-debt-and-ownership
           path: |
             core/local/artifacts/repo_file_size_gate_current.json
+            core/local/artifacts/assurance_artifact_retention_report_current.json
+            core/local/artifacts/assurance_artifact_retention_apply_current.json
+            core/local/artifacts/local_artifact_retention_latest_refs_current.json
             core/local/artifacts/debt_expiry_guard_current.json
             core/local/artifacts/tooling_registry_contract_guard_current.json
             core/local/artifacts/ci_workflow_rationalization_contract_current.json

@@ -8,7 +8,7 @@
     {
       "path": "core/local/artifacts",
       "max_total_bytes": 32000000,
-      "max_file_bytes": 8000000,
+      "max_file_bytes": 12000000,
       "retain_latest_per_prefix": 5,
       "max_age_days": 30,
       "raw_evidence_allowed": false,
@@ -30,6 +30,42 @@
       "retain_latest_per_prefix": 5,
       "max_age_days": 45,
       "raw_evidence_allowed": false
+    },
+    {
+      "path": "local/tmp/coding-agent-system-pulls",
+      "max_total_bytes": 250000000,
+      "max_file_bytes": 0,
+      "retain_latest_per_prefix": 0,
+      "max_age_days": 7,
+      "raw_evidence_allowed": true,
+      "role": "generated-external-reference-cache",
+      "cleanup_candidate_only": true,
+      "cleanup_strategy": "delete_root_contents",
+      "allowed_extensions": ["*"]
+    },
+    {
+      "path": "target/debug/incremental",
+      "max_total_bytes": 1000000000,
+      "max_file_bytes": 0,
+      "retain_latest_per_prefix": 0,
+      "max_age_days": 3,
+      "raw_evidence_allowed": true,
+      "role": "generated-rust-incremental-cache",
+      "cleanup_candidate_only": true,
+      "cleanup_strategy": "delete_root_contents",
+      "allowed_extensions": ["*"]
+    },
+    {
+      "path": "target/debug/deps",
+      "max_total_bytes": 2500000000,
+      "max_file_bytes": 0,
+      "retain_latest_per_prefix": 0,
+      "max_age_days": 0,
+      "raw_evidence_allowed": true,
+      "role": "generated-rust-build-cache",
+      "cleanup_candidate_only": true,
+      "cleanup_strategy": "delete_root_contents",
+      "allowed_extensions": ["*"]
     }
   ],
   "latest_ref_policy": {

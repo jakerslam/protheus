@@ -36,8 +36,16 @@ function walk(dir: string): string[] {
   const out: string[] = [];
   for (const entry of fs.readdirSync(abs, { withFileTypes: true })) {
     const rel = path.join(dir, entry.name);
-    if (entry.isDirectory()) out.push(...walk(rel));
-    else out.push(rel);
+    const childAbs = path.join(root, rel);
+    let stat: fs.Stats;
+    try {
+      stat = fs.lstatSync(childAbs);
+    } catch {
+      continue;
+    }
+    if (stat.isSymbolicLink()) continue;
+    if (stat.isDirectory()) out.push(...walk(rel));
+    else if (stat.isFile()) out.push(rel);
   }
   return out;
 }
@@ -68,6 +76,13 @@ function markerHits(rel: string, markers: string[]): string[] {
   return markers.filter((marker) => text.includes(marker));
 }
 
+function allowedExtension(rel: string, cfg: Json): boolean {
+  const configured = Array.isArray(cfg.allowed_extensions) ? cfg.allowed_extensions.map(String) : [];
+  if (configured.includes("*")) return true;
+  const allowed = configured.length > 0 ? configured : [".json", ".jsonl", ".md", ".txt"];
+  return allowed.some((ext) => rel.toLowerCase().endsWith(ext.toLowerCase()));
+}
+
 const policy = readJson(policyRel);
 const markers = Array.isArray(policy.raw_evidence_markers) ? policy.raw_evidence_markers.map(String) : [];
 const roots = Array.isArray(policy.roots) ? policy.roots : [];
@@ -84,11 +99,17 @@ const rootReports = roots.map((entry) => {
   const cfg = entry as Json;
   const rootPath = String(cfg.path || "");
   const rawEvidenceAllowed = cfg.raw_evidence_allowed === true;
+  const cleanupStrategy = String(cfg.cleanup_strategy || "file_retention");
   const files: FileRow[] = walk(rootPath)
-    .filter((rel) => /\.(json|jsonl|md|txt)$/i.test(rel))
-    .map((rel) => {
-      const stat = fs.statSync(path.join(root, rel));
-      return {
+    .filter((rel) => allowedExtension(rel, cfg))
+    .flatMap((rel) => {
+      let stat: fs.Stats;
+      try {
+        stat = fs.statSync(path.join(root, rel));
+      } catch {
+        return [];
+      }
+      return [{
         rel,
         bytes: stat.size,
         mtime_ms: stat.mtimeMs,
@@ -96,7 +117,7 @@ const rootReports = roots.map((entry) => {
         prefix: prefixFor(rel),
         is_canonical_ref: isCanonicalRef(rel, canonicalSuffixes),
         raw_marker_hits: rawEvidenceAllowed ? [] : markerHits(rel, markers),
-      };
+      }];
     });
   allFiles.push(...files);
   const totalBytes = files.reduce((sum, row) => sum + row.bytes, 0);
@@ -120,25 +141,54 @@ const rootReports = roots.map((entry) => {
     cleanupCandidates.set(row.rel, { row, reasons: [reason] });
   }
   const latestRefs = [];
-  for (const [prefix, rows] of byPrefix.entries()) {
-    rows.sort((a, b) => b.mtime_ms - a.mtime_ms);
-    const newest = rows[0];
-    const canonical = rows.find((row) => row.is_canonical_ref);
-    latestRefs.push({
-      prefix,
-      newest: newest?.rel || null,
-      canonical_ref: canonical?.rel || null,
-      file_count: rows.length,
-    });
-    for (const row of rows.slice(retainLatest)) addCleanupCandidate(row, "prefix_retention_window_exceeded");
+  if (cleanupStrategy !== "delete_root_contents" && cleanupStrategy !== "report_only") {
+    for (const [prefix, rows] of byPrefix.entries()) {
+      rows.sort((a, b) => b.mtime_ms - a.mtime_ms);
+      const newest = rows[0];
+      const canonical = rows.find((row) => row.is_canonical_ref);
+      latestRefs.push({
+        prefix,
+        newest: newest?.rel || null,
+        canonical_ref: canonical?.rel || null,
+        file_count: rows.length,
+      });
+      for (const row of rows.slice(retainLatest)) addCleanupCandidate(row, "prefix_retention_window_exceeded");
+    }
   }
-  if (maxAgeDays > 0) {
+  if (maxAgeDays > 0 && cleanupStrategy !== "delete_root_contents" && cleanupStrategy !== "report_only") {
     for (const row of files) {
       if (row.age_days > maxAgeDays && !row.is_canonical_ref) addCleanupCandidate(row, "age_window_exceeded");
     }
   }
+  const rootAgeDays = files.length > 0
+    ? Math.max(0, (nowMs - Math.max(...files.map((row) => row.mtime_ms))) / 86_400_000)
+    : 0;
+  const directoryCleanupReasons: string[] = [];
+  if (cleanupStrategy === "delete_root_contents") {
+    if (maxTotalBytes > 0 && totalBytes > maxTotalBytes) directoryCleanupReasons.push("root_total_budget_exceeded");
+    if (maxAgeDays > 0 && rootAgeDays > maxAgeDays) directoryCleanupReasons.push("root_age_window_exceeded");
+  }
+  const cleanupCandidateRows = Array.from(cleanupCandidates.values()).map(({ row, reasons }) => ({
+    rel: row.rel,
+    kind: "file",
+    bytes: row.bytes,
+    prefix: row.prefix,
+    age_days: Number(row.age_days.toFixed(2)),
+    reasons,
+  }));
+  if (cleanupStrategy === "delete_root_contents" && directoryCleanupReasons.length > 0 && totalBytes > 0) {
+    cleanupCandidateRows.push({
+      rel: rootPath,
+      kind: "directory_contents",
+      bytes: totalBytes,
+      prefix: rootPath.replace(/[\/\\]/g, "_"),
+      age_days: Number(rootAgeDays.toFixed(2)),
+      reasons: directoryCleanupReasons,
+    });
+  }
   return {
     path: rootPath,
+    cleanup_strategy: cleanupStrategy,
     file_count: files.length,
     total_bytes: totalBytes,
     max_total_bytes: maxTotalBytes,
@@ -151,14 +201,8 @@ const rootReports = roots.map((entry) => {
       rel: row.rel,
       hits: row.raw_marker_hits,
     })),
-    cleanup_candidate_count: cleanupCandidates.size,
-    cleanup_candidates: Array.from(cleanupCandidates.values()).map(({ row, reasons }) => ({
-      rel: row.rel,
-      bytes: row.bytes,
-      prefix: row.prefix,
-      age_days: Number(row.age_days.toFixed(2)),
-      reasons,
-    })),
+    cleanup_candidate_count: cleanupCandidateRows.length,
+    cleanup_candidates: cleanupCandidateRows,
     canonical_latest_ref_count: files.filter((row) => row.is_canonical_ref).length,
     latest_refs: latestRefs,
   };
@@ -171,6 +215,7 @@ for (const row of allFiles) {
 }
 const latestRefIndex = {
   trace_id: `observability:${new Date().toISOString()}:local-artifact-latest-refs`,
+  span_id: `span:observability:${new Date().toISOString()}:local-artifact-latest-refs`,
   source_domain: String(latestRefPolicy.index_owner_domain || "observability"),
   type: "local_artifact_retention_latest_refs",
   generated_at: new Date().toISOString(),
@@ -181,15 +226,36 @@ const latestRefIndex = {
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([prefix, row]) => ({
       prefix,
+      root_path: roots.map((entry) => String((entry as Json).path || "")).find((rootPath) => row.rel.startsWith(`${rootPath}/`) || row.rel === rootPath) || null,
       latest_path: row.rel,
+      canonical_ref: row.is_canonical_ref ? row.rel : null,
       bytes: row.bytes,
       mtime_ms: row.mtime_ms,
       is_canonical_ref: row.is_canonical_ref,
     })),
 };
 
+const cleanupCandidates = rootReports.flatMap((row) => Array.isArray(row.cleanup_candidates) ? row.cleanup_candidates : []);
+const cleanupCandidateTotal = cleanupCandidates.length;
+const cleanupCandidateBytes = cleanupCandidates.reduce((sum, row) => sum + Number((row as Json).bytes || 0), 0);
+const cleanupBudget = policy.cleanup_candidate_budget && typeof policy.cleanup_candidate_budget === "object"
+  ? policy.cleanup_candidate_budget as Json
+  : {};
+const redAt = Number(cleanupBudget.max_total_candidates_before_red || 1000);
+const yellowAt = Number(cleanupBudget.max_total_candidates_before_yellow || 500);
+const cleanupCandidatePressure = {
+  severity: cleanupCandidateTotal >= redAt ? "red" : cleanupCandidateTotal >= yellowAt ? "yellow" : "green",
+  total: cleanupCandidateTotal,
+  bytes: cleanupCandidateBytes,
+  yellow_at: yellowAt,
+  red_at: redAt,
+};
+const actions = policy.actions && typeof policy.actions === "object" ? policy.actions as Json : {};
+const applyPolicy = policy.apply && typeof policy.apply === "object" ? policy.apply as Json : {};
+
 const payload = {
   trace_id: `validation:${new Date().toISOString()}:assurance-artifact-retention`,
+  span_id: `span:validation:${new Date().toISOString()}:assurance-artifact-retention`,
   source_domain: "validation",
   ok: true,
   type: "assurance_artifact_retention_report",
@@ -197,6 +263,15 @@ const payload = {
   policy_path: policyRel,
   latest_ref_index_path: latestRefIndexRel,
   latest_ref_count: latestRefIndex.ref_count,
+  cleanup_candidate_total: cleanupCandidateTotal,
+  cleanup_candidate_bytes: cleanupCandidateBytes,
+  cleanup_candidate_pressure: cleanupCandidatePressure,
+  enforcement: {
+    apply_script_path: String(applyPolicy.script_path || ""),
+    live_cleanup_requires_ack: actions.live_cleanup_requires_ack === true,
+    dry_run_default: actions.dry_run_default !== false,
+    delete_automatically: actions.delete_automatically === true,
+  },
   roots: rootReports,
 };
 
