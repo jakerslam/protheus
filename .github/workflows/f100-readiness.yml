@@ -1,0 +1,85 @@
+name: F100 Readiness
+
+on:
+  pull_request:
+    branches: [main, rust50]
+  push:
+    branches: [main, rust50]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  a-plus-scorecard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      INFRING_OPS_LOCAL_TIMEOUT_MS: "180000"
+      INFRING_OPS_DOMAIN_BRIDGE_TIMEOUT_MS: "180000"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-musl
+      - run: npm ci --include=dev
+      - name: Generate A+ readiness scorecard
+        run: npm run -s ops:f100-a-plus:run
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: f100-a-plus-readiness
+          path: |
+            docs/client/ops/F100_A_PLUS_READINESS_STATUS.md
+            local/state/ops/f100_reliability_certification/latest.json
+          if-no-files-found: warn
+
+  enterprise-baseline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      INFRING_OPS_LOCAL_TIMEOUT_MS: "180000"
+      INFRING_OPS_DOMAIN_BRIDGE_TIMEOUT_MS: "180000"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-musl
+      - run: npm ci --include=dev
+      - name: Verify baseline contract
+        run: npm run -s ops:f100-enterprise-baseline
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: f100-enterprise-baseline
+          path: |
+            local/state/ops/f100_readiness_program/v6_f100_012/latest.json
+            local/state/ops/executive_readiness_scorecard/latest.json
+          if-no-files-found: warn
+
+  readiness-pack:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Seed dependent receipts for strict readiness lanes
+        run: |
+          cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin infring-ops -- sdlc-change-control run --strict=0
+          cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin infring-ops -- supply-chain-provenance-v2 run --strict=0
+          cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin infring-ops -- f100-reliability-certification run --strict=0
+      - name: Run readiness lanes
+        run: |
+          for lane in V6-F100-004 V6-F100-005 V6-F100-006 V6-F100-007 V6-F100-008 V6-F100-009 V6-F100-010 V6-F100-011 V6-F100-012; do
+            case "$lane" in
+              V6-F100-006|V6-F100-008|V6-F100-009|V6-F100-012) strict=0 ;;
+              *) strict=1 ;;
+            esac
+            cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin infring-ops -- f100-readiness-program run --lane="$lane" --strict="$strict"
+          done

@@ -12,7 +12,7 @@ const files = fs.readdirSync(workflowDir).filter((name) => name.endsWith('.yml')
 function classify(name, body) {
   const text = `${name}\n${body}`.toLowerCase();
   const lowerName = name.toLowerCase();
-  if (lowerName.includes('nightly') || lowerName.includes('dream')) return 'nightly_maintenance';
+  if (lowerName.includes('nightly') || lowerName.includes('dream') || lowerName.includes('scheduled-maintenance')) return 'nightly_maintenance';
   if (text.includes('security') || text.includes('audit') || text.includes('codeql') || text.includes('supply')) return 'security_gate';
   if (text.includes('release') || text.includes('version') || text.includes('publish') || text.includes('sbom')) return 'release_gate';
   if (text.includes('sentinel') || text.includes('observability') || text.includes('telemetry')) return 'observability_guard';

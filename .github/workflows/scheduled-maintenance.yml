@@ -1,0 +1,120 @@
+name: Scheduled Maintenance
+
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fuzz-and-chaos:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Fuzz preflight
+        run: |
+          cargo install cargo-fuzz --locked || true
+          if [ -d fuzz ] && [ -n "$(find fuzz -maxdepth 3 -name '*.rs' 2>/dev/null)" ]; then
+            cargo fuzz list || true
+          else
+            echo "no_fuzz_targets_detected"
+          fi
+      - name: Generate fuzz + chaos evidence report
+        run: node client/runtime/lib/ts_entrypoint.ts scripts/ci/nightly_fuzz_chaos_report.ts
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: scheduled-fuzz-chaos-report
+          path: artifacts/nightly_fuzz_chaos_report_*.json
+          if-no-files-found: warn
+
+  policy-debt-and-ownership:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Build policy debt and ownership snapshot
+        run: |
+          npm run -s ops:file-size:gate
+          npm run -s ops:debt:expiry:guard
+          npm run -s ops:tooling-registry:contract:guard
+          npm run -s ops:ci-workflow:check
+          npm run -s ops:ci-quality:check
+          npm run -s ops:orchestration:gateway-fallback:guard
+          npm run -s ops:ownership:drift:guard
+          npm run -s ops:ownership:drift:weekly
+          npm run -s ops:srs:full:gate
+          npm run -s ops:arch:conformance
+          npm run -s ops:dashboard:surface:guard
+          npm run -s ops:client-legacy-debt:report
+          npm run -s ops:tech-debt:report
+          npm run -s ops:policy-debt:summary
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: scheduled-policy-debt-and-ownership
+          path: |
+            core/local/artifacts/repo_file_size_gate_current.json
+            core/local/artifacts/debt_expiry_guard_current.json
+            core/local/artifacts/tooling_registry_contract_guard_current.json
+            core/local/artifacts/ci_workflow_rationalization_contract_current.json
+            core/local/artifacts/ci_quality_scorecard_current.json
+            core/local/artifacts/orchestration_gateway_fallback_guard_current.json
+            core/local/artifacts/ownership_drift_guard_current.json
+            core/local/artifacts/ownership_drift_weekly_current.json
+            core/local/artifacts/dashboard_surface_authority_guard_current.json
+            core/local/artifacts/client_legacy_debt_report_current.json
+            core/local/artifacts/tech_debt_report_current.json
+            core/local/artifacts/arch_boundary_conformance_current.json
+            core/local/artifacts/policy_debt_summary_current.json
+            local/workspace/reports/CI_WORKFLOW_RATIONALIZATION_CONTRACT_CURRENT.md
+            local/workspace/reports/CI_QUALITY_SCORECARD_CURRENT.md
+            local/workspace/reports/ORCHESTRATION_GATEWAY_FALLBACK_GUARD_CURRENT.md
+            local/workspace/reports/OWNERSHIP_DRIFT_GUARD_CURRENT.md
+            local/workspace/reports/OWNERSHIP_DRIFT_WEEKLY_CURRENT.md
+            local/workspace/reports/DASHBOARD_SURFACE_AUTHORITY_GUARD_CURRENT.md
+            local/workspace/reports/TECH_DEBT_REPORT_CURRENT.md
+            local/workspace/reports/POLICY_DEBT_SUMMARY_CURRENT.md
+            local/workspace/reports/SRS_FULL_REGRESSION_CURRENT.md
+          if-no-files-found: warn
+
+  turn-loop-and-heartbeat:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Run turn loop analytics
+        run: npm run -s ops:nightly:turn-loop-analytics
+      - name: Generate heartbeat KPI report
+        run: npm run -s metrics:heartbeat-kpi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: scheduled-turn-loop-heartbeat
+          path: |
+            artifacts/nightly_turn_loop_analytics_report_*.json
+            artifacts/nightly_turn_loop_analytics_report_latest.json
+            local/state/ops/session_command_tracking/nightly_tuning.json
+            local/state/ops/session_command_tracking/nightly_adoption_report.json
+            artifacts/heartbeat/*
+          if-no-files-found: warn
