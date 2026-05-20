@@ -128,3 +128,33 @@ fn derived_request_pack_moves_generic_required_entities_into_facets() {
             .unwrap_or(false)
     );
 }
+
+#[test]
+fn request_pack_prefers_web_tooling_setup_prompt_when_present() {
+    let case = json!({
+        "id": "case_post_tool",
+        "category": "post_tool_synthesis",
+        "prompt": "After the web tool returns low-signal results for Infring, synthesize a useful answer anyway.",
+        "web_tooling_setup": {
+            "prompt": "Use web research to gather public source evidence about Infring."
+        },
+        "required_entities": ["Infring"]
+    });
+    let pack = request_pack_for_case(&case, None, "batch_query");
+    assert_eq!(
+        str_at(&pack, &["request_pack_source"], ""),
+        "case_web_tooling_setup_prompt"
+    );
+    assert_eq!(
+        str_at(&pack, &["input", "query"], ""),
+        "Use web research to gather public source evidence about Infring."
+    );
+    assert_eq!(
+        str_at(
+            &pack,
+            &["input", "query_metadata_policy", "classification"],
+            ""
+        ),
+        "tooling_setup_prompt_request"
+    );
+}

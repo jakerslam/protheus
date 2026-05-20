@@ -27,14 +27,39 @@ pub(super) fn request_pack_for_case(
             "input": Value::Object(request.clone())
         });
     }
-    let prompt = str_at(case, &["prompt"], "");
+    if let Some(prompt) = tooling_setup_prompt(case) {
+        return request_pack_from_prompt(
+            &prompt,
+            case,
+            default_tool,
+            "case_web_tooling_setup_prompt",
+            "tooling_setup_prompt_request",
+        );
+    }
+    let prompt = str_at(case, &["prompt"], "").to_string();
+    request_pack_from_prompt(
+        &prompt,
+        case,
+        default_tool,
+        "derived_minimal_prompt_request",
+        "derived_prompt_request",
+    )
+}
+
+fn request_pack_from_prompt(
+    prompt: &str,
+    case: &Value,
+    default_tool: &str,
+    request_pack_source: &str,
+    classification: &str,
+) -> Value {
     let required_entities = string_array_at(case, &["required_entities"]);
     let (coverage_entities, coverage_facets) =
-        partition_required_coverage_terms(&prompt, &required_entities);
-    let keywords = derived_keywords(&prompt, &required_entities);
-    let queries = derived_queries(&prompt, &coverage_facets);
+        partition_required_coverage_terms(prompt, &required_entities);
+    let keywords = derived_keywords(prompt, &required_entities);
+    let queries = derived_queries(prompt, &coverage_facets);
     json!({
-        "request_pack_source": "derived_minimal_prompt_request",
+        "request_pack_source": request_pack_source,
         "tool_name": default_tool,
         "input": {
             "source": "web",
@@ -47,10 +72,19 @@ pub(super) fn request_pack_for_case(
             },
             "aperture": "medium",
             "query_metadata_policy": {
-                "classification": "derived_prompt_request"
+                "classification": classification
             }
         }
     })
+}
+
+fn tooling_setup_prompt(case: &Value) -> Option<String> {
+    let prompt = case
+        .pointer("/web_tooling_setup/prompt")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    let cleaned = clean_text(prompt, 2_000);
+    (!cleaned.is_empty()).then_some(cleaned)
 }
 
 fn derived_keywords(prompt: &str, required_entities: &[String]) -> Vec<String> {
