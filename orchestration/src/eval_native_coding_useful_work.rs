@@ -540,13 +540,49 @@ fn native_receipt_evidence(batch_root: &Path, job: &NativeCodingUsefulWorkJob) -
     let output_path = batch_root
         .join("agent_outputs")
         .join(format!("{}.json", job.attempt_id));
+    let journal_path = PathBuf::from(&job.project_root)
+        .join(".infring")
+        .join("native_run_journal.json");
     let raw = fs::read_to_string(&output_path).unwrap_or_default();
-    let raw_lower = raw.to_ascii_lowercase();
-    let has_native_receipts = raw.contains("native_tool_receipts") || raw.contains("tool_receipts");
-    let has_mutation_receipt = raw.contains("file_write") || raw.contains("file_patch");
-    let has_validation_receipt = raw.contains("command_run") && raw.contains("unittest");
-    let has_changed_file_summary = raw_lower.contains("changed") && raw_lower.contains(".py");
-    let has_validation_summary = raw_lower.contains("validation") || raw_lower.contains("test");
+    let journal_raw = fs::read_to_string(&journal_path).unwrap_or_default();
+    let raw_lower = format!("{raw}\n{journal_raw}").to_ascii_lowercase();
+    let journal = serde_json::from_str::<serde_json::Value>(&journal_raw).ok();
+    let journal_receipts = journal
+        .as_ref()
+        .and_then(|value| value.get("native_tool_receipts"))
+        .and_then(serde_json::Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let has_native_receipts = raw.contains("native_tool_receipts")
+        || raw.contains("tool_receipts")
+        || !journal_receipts.is_empty();
+    let has_mutation_receipt = journal_receipts.iter().any(|receipt| {
+        receipt.get("status").and_then(serde_json::Value::as_str) == Some("ok")
+            && matches!(
+                receipt.get("tool_name").and_then(serde_json::Value::as_str),
+                Some("file_write" | "file_patch")
+            )
+    }) || raw.contains("file_write")
+        || raw.contains("file_patch");
+    let has_validation_receipt = journal_receipts.iter().any(|receipt| {
+        receipt.get("status").and_then(serde_json::Value::as_str) == Some("ok")
+            && receipt.get("tool_name").and_then(serde_json::Value::as_str) == Some("command_run")
+    }) || (raw.contains("command_run") && raw.contains("unittest"));
+    let has_changed_file_summary = journal
+        .as_ref()
+        .and_then(|value| value.get("changed_files"))
+        .and_then(serde_json::Value::as_array)
+        .map(|items| !items.is_empty())
+        .unwrap_or(false)
+        || (raw_lower.contains("changed") && raw_lower.contains(".py"));
+    let has_validation_summary = journal
+        .as_ref()
+        .and_then(|value| value.get("validation_receipts"))
+        .and_then(serde_json::Value::as_array)
+        .map(|items| !items.is_empty())
+        .unwrap_or(false)
+        || raw_lower.contains("validation")
+        || raw_lower.contains("test");
     ReceiptEvidence {
         has_native_receipts,
         has_mutation_receipt,
@@ -555,12 +591,14 @@ fn native_receipt_evidence(batch_root: &Path, job: &NativeCodingUsefulWorkJob) -
         has_validation_summary,
         first_mutation_ms: first_project_mutation_mtime(job),
         detail: format!(
-            "output_path={} has_native_receipts={has_native_receipts} has_mutation_receipt={has_mutation_receipt} has_validation_receipt={has_validation_receipt}",
-            output_path.display()
+            "output_path={} journal_path={} has_native_receipts={has_native_receipts} has_mutation_receipt={has_mutation_receipt} has_validation_receipt={has_validation_receipt}",
+            output_path.display(),
+            journal_path.display()
         ),
         final_answer_detail: format!(
-            "output_path={} has_changed_file_summary={has_changed_file_summary} has_validation_summary={has_validation_summary}",
-            output_path.display()
+            "output_path={} journal_path={} has_changed_file_summary={has_changed_file_summary} has_validation_summary={has_validation_summary}",
+            output_path.display(),
+            journal_path.display()
         ),
     }
 }

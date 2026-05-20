@@ -130,6 +130,8 @@
       "bootstrap_context_before_first_provider": true,
       "max_context_only_turns": 2,
       "max_tool_calls_per_turn": 12,
+      "max_initial_tool_policy_chars": 1200,
+      "max_mutation_entry_policy_chars": 900,
       "micro_direct_write_enabled": true,
       "micro_direct_write_max_target_files": 1,
       "synthesize_final_after_successful_micro_mutation": true,

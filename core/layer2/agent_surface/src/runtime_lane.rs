@@ -448,7 +448,7 @@ pub fn run_runtime_lane_with_registry(
                 error_code.as_str(),
             );
         }
-        return Ok(runtime_lane_fail_closed_with_state(
+        let mut response = runtime_lane_fail_closed_with_state(
             error_code.as_str(),
             details,
             &permissions,
@@ -456,7 +456,9 @@ pub fn run_runtime_lane_with_registry(
             voice_session.as_ref(),
             &state_path,
             &mut durable_state,
-        ));
+        );
+        runtime_lane_attach_agent_run_journal(&mut response, &run);
+        return Ok(response);
     }
     if let Some((error_code, details)) =
         public_reasoning_contract_violation(&metadata, &run.receipt, &run.response.output)
@@ -475,7 +477,7 @@ pub fn run_runtime_lane_with_registry(
                 error_code.as_str(),
             );
         }
-        return Ok(runtime_lane_fail_closed_with_state(
+        let mut response = runtime_lane_fail_closed_with_state(
             error_code.as_str(),
             details,
             &permissions,
@@ -483,7 +485,9 @@ pub fn run_runtime_lane_with_registry(
             voice_session.as_ref(),
             &state_path,
             &mut durable_state,
-        ));
+        );
+        runtime_lane_attach_agent_run_journal(&mut response, &run);
+        return Ok(response);
     }
     let persisted_previous_root = durable_state
         .merkle_roots
@@ -617,6 +621,26 @@ fn runtime_lane_fail_closed_with_state(
         }),
         output: String::new(),
         error: Some(error_code.to_string()),
+    }
+}
+
+fn runtime_lane_attach_agent_run_journal(response: &mut RuntimeLaneResponse, run: &AgentRunResult) {
+    let native_tool_receipts = run
+        .receipt
+        .get("native_tool_receipts")
+        .cloned()
+        .unwrap_or(Value::Null);
+    if let Some(object) = response.receipt.as_object_mut() {
+        object.insert("agent_run_receipt".to_string(), run.receipt.clone());
+        object.insert("native_tool_receipts".to_string(), native_tool_receipts);
+        object.insert(
+            "provider_output".to_string(),
+            Value::String(run.response.output.clone()),
+        );
+        object.insert("provider_raw".to_string(), run.response.raw.clone());
+    }
+    if response.output.is_empty() {
+        response.output = run.response.output.clone();
     }
 }
 

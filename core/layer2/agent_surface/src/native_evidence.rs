@@ -557,7 +557,8 @@ fn native_tool_is_implementation_source_path(path: &str) -> bool {
 
 fn native_tool_prompt_requested_public_api_names(original_prompt: &str) -> Vec<String> {
     let mut names = Vec::<String>::new();
-    for token in original_prompt.split(|ch: char| !(ch.is_ascii_alphanumeric() || ch == '_')) {
+    let task_surface = native_tool_public_api_request_surface(original_prompt);
+    for token in task_surface.split(|ch: char| !(ch.is_ascii_alphanumeric() || ch == '_')) {
         let token = token.trim();
         if !native_tool_token_looks_like_public_api(token) {
             continue;
@@ -580,6 +581,14 @@ fn native_tool_prompt_requested_public_api_names(original_prompt: &str) -> Vec<S
                 | "existing"
                 | "regression"
                 | "validation"
+                | "task"
+                | "rules"
+                | "run"
+                | "read"
+                | "add"
+                | "final"
+                | "codex"
+                | "python3"
         ) {
             continue;
         }
@@ -604,11 +613,32 @@ fn native_tool_token_looks_like_public_api(token: &str) -> bool {
         .map(|ch| ch.is_ascii_uppercase())
         .unwrap_or(false);
     let has_lower = token.chars().any(|ch| ch.is_ascii_lowercase());
-    let has_digit = token.chars().any(|ch| ch.is_ascii_digit());
-    (has_underscore || (starts_upper && has_lower) || has_digit)
+    if token.chars().any(|ch| ch.is_ascii_digit()) {
+        return false;
+    }
+    (has_underscore || (starts_upper && has_lower))
         && token
             .chars()
             .all(|ch| ch.is_ascii_alphanumeric() || ch == '_')
+}
+
+fn native_tool_public_api_request_surface(original_prompt: &str) -> String {
+    let mut lines = Vec::new();
+    for line in original_prompt.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with("Task:")
+            || trimmed.contains("user-named functions")
+            || trimmed.contains("public API")
+            || trimmed.contains("constructor arguments")
+        {
+            lines.push(trimmed.to_string());
+        }
+    }
+    if lines.is_empty() {
+        original_prompt.chars().take(1800).collect::<String>()
+    } else {
+        lines.join("\n")
+    }
 }
 
 fn native_tool_public_interface_text_mentions(text: &str, name: &str) -> bool {

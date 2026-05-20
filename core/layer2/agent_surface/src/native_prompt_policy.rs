@@ -45,10 +45,11 @@ pub(crate) fn native_tool_initial_prompt(original_prompt: &str, metadata: &Value
     }
     if !force_read_first {
         if requires_native_tool_use {
-            let rule = native_tool_orchestration_prompt_text(
+            let rule = native_tool_bounded_orchestration_prompt_text(
                 metadata,
                 "initial_tool_use_rule",
                 "Native tool-use rule: choose the shortest safe native file-tool path for the task. Use discovery for unclear existing-project work, mutate only after enough context is available, validate after edits when requested, and do not claim success until native receipts prove the required file mutation and validation outcomes.",
+                native_tool_initial_policy_char_budget(metadata),
             );
             let guardrails = native_tool_initial_coding_guardrails(original_prompt);
             return format!(
@@ -86,6 +87,30 @@ pub(crate) fn native_tool_orchestration_prompt_text(
         .and_then(Value::as_str)
         .map(str::to_string)
         .unwrap_or_else(|| fallback.to_string())
+}
+
+fn native_tool_bounded_orchestration_prompt_text(
+    metadata: &Value,
+    key: &str,
+    fallback: &str,
+    max_chars: usize,
+) -> String {
+    let text = native_tool_orchestration_prompt_text(metadata, key, fallback);
+    if text.chars().count() <= max_chars {
+        text
+    } else {
+        fallback.to_string()
+    }
+}
+
+fn native_tool_initial_policy_char_budget(metadata: &Value) -> usize {
+    metadata
+        .get("native_success_criteria")
+        .or_else(|| metadata.pointer("/workflow/native_success_criteria"))
+        .and_then(|value| value.get("max_initial_tool_policy_chars"))
+        .and_then(Value::as_u64)
+        .unwrap_or(1800)
+        .clamp(400, 4000) as usize
 }
 
 fn native_tool_initial_coding_guardrails(original_prompt: &str) -> String {
@@ -452,17 +477,47 @@ pub(crate) fn native_tool_context_to_mutation_retry_prompt(
             previous.chars().take(1200).collect::<String>()
         )
     };
-    let rule = native_tool_orchestration_prompt_text(
+    let rule = native_tool_bounded_orchestration_prompt_text(
         metadata,
         "context_to_mutation_transition_rule",
         "Native mutation transition retry: local context already exists, but no successful file_write or file_patch receipt exists yet. Return only JSON tool calls for the next safe mutation batch, then validate when requested. Return a structured blocker only when local context proves mutation is unsafe or impossible.",
+        native_tool_mutation_entry_policy_char_budget(metadata),
     );
     let mutation_action = native_tool_missing_product_mutation_action(
         original_prompt,
         &["missing_product_mutation_receipt".to_string()],
     )
     .unwrap_or_default();
+    let task_brief = native_tool_task_brief(original_prompt);
     format!(
-        "{original_prompt}\n\n{rule}\n\nRequired product mutation action:\n{mutation_action}\n\nImplementation-entry response format: return only JSON tool_calls with no prose, markdown, explanation, validation command, or final answer. Use the already observed project structure; batch source, tests, and CLI/docs/report edits now when requested.\n\nRetry: {retry}\n\n{previous}\n\nNative tool observations already available:\n{observations}"
+        "{task_brief}\n\n{rule}\n\nRequired product mutation action:\n{mutation_action}\n\nImplementation-entry response format: return only JSON tool_calls with no prose, markdown, explanation, validation command, or final answer. Use the already observed project structure; batch source and requested test edits now.\n\nRetry: {retry}\n\n{previous}\n\nNative tool observations already available:\n{observations}"
     )
+}
+
+fn native_tool_mutation_entry_policy_char_budget(metadata: &Value) -> usize {
+    metadata
+        .get("native_success_criteria")
+        .or_else(|| metadata.pointer("/workflow/native_success_criteria"))
+        .and_then(|value| value.get("max_mutation_entry_policy_chars"))
+        .and_then(Value::as_u64)
+        .unwrap_or(900)
+        .clamp(300, 2400) as usize
+}
+
+fn native_tool_task_brief(original_prompt: &str) -> String {
+    let mut lines = Vec::new();
+    for line in original_prompt.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with("Task:")
+            || trimmed.starts_with("Your write ownership is limited to this project root:")
+            || trimmed.starts_with("6. Run this validation command")
+        {
+            lines.push(trimmed.to_string());
+        }
+    }
+    if lines.is_empty() {
+        original_prompt.chars().take(1600).collect::<String>()
+    } else {
+        lines.join("\n")
+    }
 }

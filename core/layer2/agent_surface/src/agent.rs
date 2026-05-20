@@ -44,6 +44,8 @@ use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 use std::collections::BTreeMap;
+use std::fs;
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -370,6 +372,15 @@ impl AgentContract {
             if !bootstrap_receipts.is_empty() {
                 let observation = native_tool_observation_prompt(&bootstrap_receipts);
                 all_receipts.extend(bootstrap_receipts);
+                native_tool_persist_run_journal(
+                    &self.metadata,
+                    &self.initial_prompt,
+                    "bootstrap_context",
+                    provider_call_count,
+                    &all_receipts,
+                    None,
+                    None,
+                );
                 let bootstrap_rule = native_tool_orchestration_prompt_text(
                     &self.metadata,
                     "bootstrap_context_continuation_rule",
@@ -442,6 +453,24 @@ impl AgentContract {
                 }
                 Err(error)
                     if native_tool_provider_error_is_timeout(&error)
+                        && !all_receipts.is_empty()
+                        && native_tool_partial_progress_on_timeout(&self.metadata) =>
+                {
+                    return Ok((
+                        native_tool_partial_progress_response(
+                            provider.provider_id(),
+                            self.model.as_deref(),
+                            error.message.as_str(),
+                            provider_call_count,
+                            &all_receipts,
+                        ),
+                        all_receipts,
+                        provider_call_count,
+                        "partial_timeout".to_string(),
+                    ));
+                }
+                Err(error)
+                    if native_tool_provider_error_is_timeout(&error)
                         && !micro_direct_write_task
                         && all_receipts.is_empty()
                         && native_tool_requires_successful_mutation(&self.metadata)
@@ -453,6 +482,15 @@ impl AgentContract {
                         let observation =
                             native_tool_observation_prompt(&[bootstrap_receipt.clone()]);
                         all_receipts.push(bootstrap_receipt);
+                        native_tool_persist_run_journal(
+                            &self.metadata,
+                            &self.initial_prompt,
+                            "bootstrap_timeout_discovery",
+                            provider_call_count,
+                            &all_receipts,
+                            None,
+                            None,
+                        );
                         let bootstrap_rule = native_tool_orchestration_prompt_text(
                             &self.metadata,
                             "bootstrap_timeout_discovery_rule",
@@ -494,6 +532,15 @@ impl AgentContract {
                         let observation =
                             native_tool_observation_prompt(&[bootstrap_receipt.clone()]);
                         all_receipts.push(bootstrap_receipt);
+                        native_tool_persist_run_journal(
+                            &self.metadata,
+                            &self.initial_prompt,
+                            "bootstrap_no_tool_discovery",
+                            provider_call_count,
+                            &all_receipts,
+                            None,
+                            None,
+                        );
                         let bootstrap_rule = native_tool_orchestration_prompt_text(
                             &self.metadata,
                             "bootstrap_no_tool_discovery_rule",
@@ -564,6 +611,15 @@ impl AgentContract {
                 turn_receipts.push(receipt.clone());
                 all_receipts.push(receipt);
             }
+            native_tool_persist_run_journal(
+                &self.metadata,
+                &self.initial_prompt,
+                "tool_turn",
+                provider_call_count,
+                &all_receipts,
+                Some(&response.output),
+                None,
+            );
             if native_tool_should_synthesize_micro_final(
                 &self.metadata,
                 &self.initial_prompt,
@@ -655,6 +711,15 @@ impl AgentContract {
                 terminal_receipts.push(receipt.clone());
                 all_receipts.push(receipt);
             }
+            native_tool_persist_run_journal(
+                &self.metadata,
+                &self.initial_prompt,
+                "terminal_tool_calls",
+                provider_call_count,
+                &all_receipts,
+                Some(&response.output),
+                None,
+            );
             if native_tool_should_synthesize_micro_final(
                 &self.metadata,
                 &self.initial_prompt,
@@ -687,6 +752,15 @@ impl AgentContract {
             native_tool_auto_validation_receipt(&dispatcher, &self.initial_prompt, &all_receipts)
         {
             all_receipts.push(validation_receipt);
+            native_tool_persist_run_journal(
+                &self.metadata,
+                &self.initial_prompt,
+                "auto_validation",
+                provider_call_count,
+                &all_receipts,
+                Some(&response.output),
+                None,
+            );
         }
         let auto_handoff_receipts = native_tool_auto_workflow_artifact_receipts(
             &dispatcher,
@@ -696,6 +770,15 @@ impl AgentContract {
         );
         if !auto_handoff_receipts.is_empty() {
             all_receipts.extend(auto_handoff_receipts);
+            native_tool_persist_run_journal(
+                &self.metadata,
+                &self.initial_prompt,
+                "auto_handoff",
+                provider_call_count,
+                &all_receipts,
+                Some(&response.output),
+                None,
+            );
         }
         let initial_repair_reasons = native_tool_artifact_repair_reasons(
             &self.metadata,
@@ -911,7 +994,25 @@ impl AgentContract {
                 model: self.model.clone(),
                 metadata: native_tool_recovery_timeout_metadata(&self.metadata),
             };
-            let forced_response = provider.complete(&request)?;
+            let forced_response = match provider.complete(&request) {
+                Ok(response) => response,
+                Err(error) if native_tool_provider_error_is_timeout(&error) => {
+                    let response = native_tool_partial_progress_response(
+                        provider.provider_id(),
+                        self.model.as_deref(),
+                        error.message.as_str(),
+                        provider_call_count,
+                        &all_receipts,
+                    );
+                    return Ok((
+                        response,
+                        all_receipts,
+                        provider_call_count,
+                        "partial_timeout".to_string(),
+                    ));
+                }
+                Err(error) => return Err(error),
+            };
             let forced_calls = parse_native_tool_calls(&forced_response.output);
             response = forced_response;
             if !forced_calls.is_empty() {
@@ -941,12 +1042,30 @@ impl AgentContract {
                     forced_receipts.push(receipt.clone());
                     all_receipts.push(receipt);
                 }
+                native_tool_persist_run_journal(
+                    &self.metadata,
+                    &self.initial_prompt,
+                    "forced_mutation",
+                    provider_call_count,
+                    &all_receipts,
+                    Some(&response.output),
+                    None,
+                );
                 if let Some(validation_receipt) = native_tool_auto_validation_receipt(
                     &dispatcher,
                     &self.initial_prompt,
                     &all_receipts,
                 ) {
                     all_receipts.push(validation_receipt);
+                    native_tool_persist_run_journal(
+                        &self.metadata,
+                        &self.initial_prompt,
+                        "forced_auto_validation",
+                        provider_call_count,
+                        &all_receipts,
+                        Some(&response.output),
+                        None,
+                    );
                 }
                 let auto_handoff_receipts = native_tool_auto_workflow_artifact_receipts(
                     &dispatcher,
@@ -956,6 +1075,15 @@ impl AgentContract {
                 );
                 if !auto_handoff_receipts.is_empty() {
                     all_receipts.extend(auto_handoff_receipts);
+                    native_tool_persist_run_journal(
+                        &self.metadata,
+                        &self.initial_prompt,
+                        "forced_auto_handoff",
+                        provider_call_count,
+                        &all_receipts,
+                        Some(&response.output),
+                        None,
+                    );
                 }
                 unresolved_final_reasons = native_tool_artifact_repair_reasons(
                     &self.metadata,
@@ -1020,14 +1148,32 @@ impl AgentContract {
         if !unresolved_final_reasons.is_empty()
             && native_tool_artifact_contract_enabled(&self.metadata)
         {
-            return Err(ProviderError::new(
-                ProviderErrorCode::InvalidRequest,
-                format!(
-                    "native_tool_unresolved_completion_evidence:{};receipt_summary={}",
-                    unresolved_final_reasons.join(","),
-                    native_tool_receipt_error_summary(&all_receipts)
-                ),
-            ));
+            let reason = format!(
+                "native_tool_unresolved_completion_evidence:{};receipt_summary={}",
+                unresolved_final_reasons.join(","),
+                native_tool_receipt_error_summary(&all_receipts)
+            );
+            response = native_tool_partial_progress_response(
+                provider.provider_id(),
+                self.model.as_deref(),
+                &reason,
+                provider_call_count,
+                &all_receipts,
+            );
+            response.raw = json!({
+                "provider_raw": response.raw,
+                "native_tool_loop": {
+                    "enabled": true,
+                    "provider_call_count": provider_call_count,
+                    "tool_call_count": all_receipts.len(),
+                    "empty_tool_retry_count": empty_tool_retry_count,
+                    "coding_task_lane": coding_task_lane,
+                    "tool_receipts": all_receipts.clone(),
+                    "terminal_status": "partial_blocked",
+                    "unresolved_completion_evidence": unresolved_final_reasons,
+                }
+            });
+            return Ok((response, all_receipts, provider_call_count, "partial_blocked".to_string()));
         }
         response.raw = json!({
             "provider_raw": response.raw,
@@ -1041,8 +1187,80 @@ impl AgentContract {
                 "terminal_status": "ok",
             }
         });
+        native_tool_persist_run_journal(
+            &self.metadata,
+            &self.initial_prompt,
+            "terminal",
+            provider_call_count,
+            &all_receipts,
+            Some(&response.output),
+            Some("ok"),
+        );
         Ok((response, all_receipts, provider_call_count, "ok".to_string()))
     }
+}
+
+fn native_tool_persist_run_journal(
+    metadata: &Value,
+    original_prompt: &str,
+    stage: &str,
+    provider_call_count: u64,
+    receipts: &[NativeToolReceipt],
+    latest_output: Option<&str>,
+    terminal_status: Option<&str>,
+) {
+    let Some(path) = native_tool_run_journal_path(metadata, original_prompt) else {
+        return;
+    };
+    if let Some(parent) = path.parent() {
+        if fs::create_dir_all(parent).is_err() {
+            return;
+        }
+    }
+    let changed_files = native_tool_changed_paths(receipts);
+    let validation_receipts = receipts
+        .iter()
+        .filter(|receipt| receipt.tool_name == "command_run")
+        .map(|receipt| {
+            json!({
+                "call_id": receipt.call_id,
+                "status": receipt.status,
+                "success": receipt.result.get("success").cloned().unwrap_or(Value::Null),
+                "cmd": receipt.result.get("cmd").cloned().unwrap_or(Value::Null),
+                "exit_code": receipt.result.get("exit_code").cloned().unwrap_or(Value::Null),
+            })
+        })
+        .collect::<Vec<_>>();
+    let payload = json!({
+        "schema_version": "native_coding_run_journal_v1",
+        "source": "infring_native_tool_runtime",
+        "stage": stage,
+        "updated_at_unix_ms": Utc::now().timestamp_millis(),
+        "provider_call_count": provider_call_count,
+        "terminal_status": terminal_status,
+        "native_tool_receipts": receipts,
+        "changed_files": changed_files,
+        "validation_receipts": validation_receipts,
+        "latest_output_preview": latest_output.unwrap_or("").chars().take(2000).collect::<String>(),
+        "workflow": metadata.get("workflow").cloned().unwrap_or(Value::Null),
+    });
+    if let Ok(text) = serde_json::to_string_pretty(&payload) {
+        let _ = fs::write(path, text);
+    }
+}
+
+fn native_tool_run_journal_path(metadata: &Value, original_prompt: &str) -> Option<PathBuf> {
+    if let Some(path) = metadata
+        .get("native_run_journal_path")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        return Some(PathBuf::from(path));
+    }
+    native_tool_prompt_project_root(original_prompt)
+        .map(PathBuf::from)
+        .map(|root| root.join(".infring").join("native_run_journal.json"))
 }
 
 fn native_tool_empty_retry_limit(metadata: &Value) -> u64 {
@@ -2833,7 +3051,33 @@ fn native_tool_completion_evidence_repair_loop(
                 metadata.clone()
             },
         };
-        let next_response = provider.complete(&request)?;
+        let next_response = match provider.complete(&request) {
+            Ok(response) => response,
+            Err(error) if native_tool_provider_error_is_timeout(&error) => {
+                let completed_with_receipts = native_tool_has_successful_mutation(&receipts)
+                    && native_tool_has_successful_validation_command(&receipts)
+                    && native_tool_prompt_evidence_gaps(original_prompt, &receipts).is_empty();
+                let response = if completed_with_receipts {
+                    native_tool_synthetic_completion_evidence_response(
+                        &response,
+                        metadata,
+                        original_prompt,
+                        &receipts,
+                        error.message.as_str(),
+                    )
+                } else {
+                    native_tool_partial_progress_response(
+                        provider.provider_id(),
+                        model.as_deref(),
+                        error.message.as_str(),
+                        provider_call_count,
+                        &receipts,
+                    )
+                };
+                return Ok((response, receipts, provider_call_count));
+            }
+            Err(error) => return Err(error),
+        };
         let mut calls = parse_native_tool_calls(&next_response.output);
         if calls.is_empty() {
             response = next_response;

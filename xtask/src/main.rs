@@ -1,7 +1,7 @@
 use anyhow::{anyhow, bail, Context, Result};
 use infring_agent_surface::{
-    default_template_dir, run_runtime_lane, scaffold_template, RuntimeLaneRequest, TemplateKind,
-    TemplateScaffoldOptions,
+    default_template_dir, run_runtime_lane, scaffold_template, NativeToolCall,
+    NativeToolDispatcher, RuntimeLaneRequest, TemplateKind, TemplateScaffoldOptions,
 };
 use nursery_runtime::{
     build_specialist_training_plan, containment_permissions_from_value, seed_manifest_from_value,
@@ -30,6 +30,7 @@ fn main() -> Result<()> {
         "emit-nursery-plan" => run_emit_nursery_plan(&args),
         "infring-new" => run_infring_new(&args),
         "infring-agent-run" => run_infring_agent_run(&args),
+        "native-file-tool-smoke" => run_native_file_tool_smoke(&args),
         "help" | "--help" | "-h" => {
             print_usage();
             Ok(())
@@ -57,6 +58,9 @@ fn print_usage() {
     );
     println!(
         "  cargo run -p xtask -- infring-agent-run --name=<agent> --prompt=<text|@file> [--workflow=<workflow_id>] [--preamble=<text|@file>] [--provider=local-echo|ollama] [--model=kimi-k2.6:cloud] [--pack=research,web-ops,lead-gen,social-signal,issue-ops] [--tool=web.search,web.fetch] [--lifespan=3600] [--schedule-interval=<seconds>] [--schedule-max-runs=<n>] [--permissions=<json|@file>] [--permissions-template=parent|admin|user] [--parent-permissions=<json|@file>] [--success-criteria=<json|@file>] [--wasm-policy=<json|@file>] [--voice=<json|@file>] [--receipt-merkle=1|0] [--receipt-merkle-seed=<seed>] [--prev-receipt-root=<hash>]"
+    );
+    println!(
+        "  cargo run -p xtask -- native-file-tool-smoke [--root=<dir>]  # directly exercises native file_write/read/patch without a provider"
     );
 }
 
@@ -408,7 +412,7 @@ fn run_infring_agent_run(args: &[String]) -> Result<()> {
         }
     }
 
-    let response = run_runtime_lane(RuntimeLaneRequest {
+    let request = RuntimeLaneRequest {
         name,
         preamble,
         initial_prompt: prompt,
@@ -425,14 +429,123 @@ fn run_infring_agent_run(args: &[String]) -> Result<()> {
         previous_receipt_root,
         schedule_interval_seconds,
         schedule_max_runs,
-    })
-    .map_err(|error| anyhow!("xtask_infring_agent_run_failed:{error}"))?;
+    };
+    let response = match run_runtime_lane(request) {
+        Ok(response) => response,
+        Err(error) => {
+            let envelope = json!({
+                "ok": false,
+                "contract": {
+                    "source": "xtask.infring-agent-run",
+                    "terminal_status": "runner_error"
+                },
+                "receipt": {
+                    "type": "runtime_lane_receipt",
+                    "status": "runner_error",
+                    "error": error.to_string(),
+                    "native_tool_receipts": []
+                },
+                "trace_summary": {
+                    "status": "runner_error"
+                },
+                "output": "",
+                "error": error.to_string()
+            });
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&envelope).expect("encode runtime lane error")
+            );
+            return Err(anyhow!("xtask_infring_agent_run_failed:{error}"));
+        }
+    };
 
     println!(
         "{}",
         serde_json::to_string_pretty(&response).expect("encode runtime lane")
     );
     Ok(())
+}
+
+fn run_native_file_tool_smoke(args: &[String]) -> Result<()> {
+    let flags = parse_flag_map(args);
+    let now_ms = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_millis())
+        .unwrap_or(0);
+    let root = flags
+        .get("root")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| env::temp_dir().join(format!("infring-native-file-smoke-{now_ms}")));
+    fs::create_dir_all(&root)
+        .with_context(|| format!("native_file_tool_smoke_create_root_failed:{}", root.display()))?;
+    let target = root.join("hello.py");
+    let dispatcher = NativeToolDispatcher::new(&[
+        "file_write".to_string(),
+        "file_read".to_string(),
+        "file_patch".to_string(),
+    ]);
+    let calls = vec![
+        NativeToolCall {
+            id: "smoke_write".to_string(),
+            name: "file_write".to_string(),
+            args: json!({
+                "path": target.display().to_string(),
+                "content": "print(\"hello native tools\")\n",
+                "overwrite": true
+            }),
+        },
+        NativeToolCall {
+            id: "smoke_read_after_write".to_string(),
+            name: "file_read".to_string(),
+            args: json!({
+                "path": target.display().to_string(),
+                "start_line": 1,
+                "end_line": 20
+            }),
+        },
+        NativeToolCall {
+            id: "smoke_patch".to_string(),
+            name: "file_patch".to_string(),
+            args: json!({
+                "path": target.display().to_string(),
+                "old": "print(\"hello native tools\")",
+                "new": "print(\"hello patched tools\")",
+                "allow_multiple": false
+            }),
+        },
+        NativeToolCall {
+            id: "smoke_read_after_patch".to_string(),
+            name: "file_read".to_string(),
+            args: json!({
+                "path": target.display().to_string(),
+                "start_line": 1,
+                "end_line": 20
+            }),
+        },
+    ];
+    let receipts = calls
+        .into_iter()
+        .map(|call| dispatcher.dispatch(call))
+        .collect::<Vec<_>>();
+    let final_content = fs::read_to_string(&target).unwrap_or_default();
+    let ok = receipts.iter().all(|receipt| receipt.status == "ok")
+        && final_content.trim() == "print(\"hello patched tools\")";
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&json!({
+            "ok": ok,
+            "root": root,
+            "target": target,
+            "final_content": final_content,
+            "receipts": receipts,
+        }))
+        .expect("encode native file tool smoke")
+    );
+    if ok {
+        Ok(())
+    } else {
+        bail!("native_file_tool_smoke_failed")
+    }
 }
 
 fn csv_tokens(raw: Option<&String>) -> Vec<String> {
