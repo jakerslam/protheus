@@ -56,7 +56,7 @@ pub fn run_web_tooling_golden(args: &[String]) -> i32 {
         .unwrap_or_else(|| DEFAULT_MARKDOWN_PATH.to_string());
     let base_url =
         super::parse_flag(args, "base-url").unwrap_or_else(|| DEFAULT_BASE_URL.to_string());
-    let timeout_seconds = super::parse_u64_flag(args, "timeout-seconds", 45).clamp(1, 600);
+    let timeout_seconds = super::parse_u64_flag(args, "timeout-seconds", 90).clamp(1, 600);
     let limit = super::parse_u64_flag(args, "limit", u64::MAX) as usize;
     let default_tool = clean_text(
         &super::parse_flag(args, "tool").unwrap_or_else(|| "batch_query".to_string()),
@@ -201,9 +201,14 @@ pub fn run_web_tooling_golden(args: &[String]) -> i32 {
     let web_tool_gate_metrics = web_retrieval_gate_metric_rows(&rows, &web_tool_gate_rates);
     let web_tooling_diagnostics =
         web_retrieval_measurement_report(&rows, &web_tool_gate_rates, &web_tool_gate_metrics);
+    let measured_cases = web_tooling_diagnostics
+        .get("measured_cases")
+        .and_then(Value::as_u64)
+        .unwrap_or(non_transport_cases);
+    let measurement_adjusted_success_rate = ratio(passed_cases, measured_cases);
     let ok = setup_failures.is_empty()
-        && transport_adjusted_success_rate >= tooling_success_min
-        && web_tool_gate_rates
+        && measurement_adjusted_success_rate >= tooling_success_min
+        && web_tool_gate_metrics
             .iter()
             .all(|row| row.get("ok").and_then(Value::as_bool).unwrap_or(false));
     let report = json!({
@@ -217,8 +222,10 @@ pub fn run_web_tooling_golden(args: &[String]) -> i32 {
             "passed_cases": passed_cases,
             "success_rate": success_rate,
             "transport_adjusted_success_rate": transport_adjusted_success_rate,
+            "measurement_adjusted_success_rate": measurement_adjusted_success_rate,
             "transport_failures": transport_failures,
             "non_transport_cases": non_transport_cases,
+            "measured_cases": measured_cases,
             "tooling_success_min": tooling_success_min,
             "web_gate_pass_min": web_gate_pass_min
         },

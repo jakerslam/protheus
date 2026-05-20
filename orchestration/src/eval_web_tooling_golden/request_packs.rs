@@ -29,18 +29,21 @@ pub(super) fn request_pack_for_case(
     }
     let prompt = str_at(case, &["prompt"], "");
     let required_entities = string_array_at(case, &["required_entities"]);
+    let (coverage_entities, coverage_facets) =
+        partition_required_coverage_terms(&prompt, &required_entities);
     let keywords = derived_keywords(&prompt, &required_entities);
+    let queries = derived_queries(&prompt, &coverage_facets);
     json!({
         "request_pack_source": "derived_minimal_prompt_request",
         "tool_name": default_tool,
         "input": {
             "source": "web",
             "query": prompt,
-            "queries": [prompt],
+            "queries": queries,
             "keywords": keywords,
             "required_coverage": {
-                "entities": required_entities,
-                "facets": []
+                "entities": coverage_entities,
+                "facets": coverage_facets
             },
             "aperture": "medium",
             "query_metadata_policy": {
@@ -60,7 +63,7 @@ fn derived_keywords(prompt: &str, required_entities: &[String]) -> Vec<String> {
     }
     let normalized = normalize_for_compare(prompt);
     for token in normalized.split_whitespace() {
-        let cleaned = clean_text(token, 64);
+        let cleaned = derived_keyword_token(token);
         if cleaned.len() < 4 {
             continue;
         }
@@ -96,6 +99,64 @@ fn derived_keywords(prompt: &str, required_entities: &[String]) -> Vec<String> {
         }
     }
     out
+}
+
+fn partition_required_coverage_terms(
+    prompt: &str,
+    required_entities: &[String],
+) -> (Vec<String>, Vec<String>) {
+    let mut entities = Vec::<String>::new();
+    let mut facets = Vec::<String>::new();
+    for term in required_entities {
+        let cleaned = clean_text(term, 160);
+        if cleaned.is_empty() {
+            continue;
+        }
+        if looks_like_named_subject(&cleaned, prompt) {
+            if !entities.iter().any(|current| current == &cleaned) {
+                entities.push(cleaned);
+            }
+        } else if !facets.iter().any(|current| current == &cleaned) {
+            facets.push(cleaned);
+        }
+    }
+    (entities, facets)
+}
+
+fn looks_like_named_subject(term: &str, prompt: &str) -> bool {
+    if term.chars().any(|ch| ch.is_ascii_uppercase() || ch.is_ascii_digit()) {
+        return true;
+    }
+    if term.contains('/') || term.contains('.') || term.contains('-') {
+        return true;
+    }
+    prompt.contains(term)
+        && term
+            .split_whitespace()
+            .any(|token| token.chars().next().map(|ch| ch.is_ascii_uppercase()).unwrap_or(false))
+}
+
+fn derived_queries(prompt: &str, coverage_facets: &[String]) -> Vec<String> {
+    let mut queries = vec![clean_text(prompt, 600)];
+    for facet in coverage_facets.iter().take(2) {
+        let facet = clean_text(facet, 160);
+        if facet.is_empty() {
+            continue;
+        }
+        let followup = format!("{facet} source-backed evidence");
+        if !queries.iter().any(|current| current == &followup) {
+            queries.push(followup);
+        }
+    }
+    queries
+}
+
+fn derived_keyword_token(raw: &str) -> String {
+    let normalized = normalize_for_compare(raw);
+    let trimmed = normalized
+        .trim_matches(|ch: char| !ch.is_ascii_alphanumeric())
+        .to_string();
+    clean_text(&trimmed, 64)
 }
 
 pub(super) fn load_request_pack_index(path: &str) -> BTreeMap<String, Value> {

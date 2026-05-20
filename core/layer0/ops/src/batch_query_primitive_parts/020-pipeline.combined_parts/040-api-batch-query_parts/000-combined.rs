@@ -767,7 +767,16 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
     );
 
     let comparison_entities = if benchmark_intent {
-        comparison_entities_from_query(&query)
+        let metadata_entities = research_facets
+            .iter()
+            .filter(|facet| facet.kind == "entity")
+            .map(|facet| facet.requested_text.clone())
+            .collect::<Vec<_>>();
+        if metadata_entities.len() >= 2 {
+            metadata_entities
+        } else {
+            comparison_entities_from_query(&query)
+        }
     } else {
         Vec::new()
     };
@@ -781,6 +790,11 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             budget.max_evidence,
         );
     let comparison_coverage_gap = comparison_guard_summary.is_some();
+    let preserve_partial_comparison_evidence = comparison_partial_preserves_actionable_evidence(
+        &comparison_entities,
+        &actionable_ranked,
+        &retained_ranked,
+    );
     if let Some(summary) = comparison_guard_summary.as_ref() {
         if !actionable_ranked.is_empty() {
             partial_failures.push(format!(
@@ -788,7 +802,9 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
                 clean_text(summary, 320)
             ));
         }
-        actionable_ranked.clear();
+        if !preserve_partial_comparison_evidence {
+            actionable_ranked.clear();
+        }
     }
 
     let mut evidence_ranked = actionable_ranked.clone();

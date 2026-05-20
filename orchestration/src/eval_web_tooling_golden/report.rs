@@ -15,7 +15,7 @@ pub(super) fn tooling_markdown_report(report: &Value) -> String {
         "unknown",
     );
     format!(
-        "# Web Tooling Golden\n\n- mode: {}\n- success_rate: {:.3}\n- transport_adjusted_success_rate: {:.3}\n- transport_failures: {}\n- top_layer: {}\n- top_first_failure: {}\n",
+        "# Web Tooling Golden\n\n- mode: {}\n- success_rate: {:.3}\n- transport_adjusted_success_rate: {:.3}\n- measurement_adjusted_success_rate: {:.3}\n- transport_failures: {}\n- top_layer: {}\n- top_first_failure: {}\n",
         str_at(report, &["mode"], "unknown"),
         summary
             .get("success_rate")
@@ -23,6 +23,10 @@ pub(super) fn tooling_markdown_report(report: &Value) -> String {
             .unwrap_or(0.0),
         summary
             .get("transport_adjusted_success_rate")
+            .and_then(Value::as_f64)
+            .unwrap_or(0.0),
+        summary
+            .get("measurement_adjusted_success_rate")
             .and_then(Value::as_f64)
             .unwrap_or(0.0),
         u64_at(&summary, &["transport_failures"], 0),

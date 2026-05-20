@@ -1336,6 +1336,56 @@ mod web_quality_diagnostics_tests {
     }
 
     #[test]
+    fn comparison_partial_preserves_actionable_evidence_when_two_entities_are_covered() {
+        let comparison_entities = vec![
+            "Infring".to_string(),
+            "LangGraph".to_string(),
+            "CrewAI".to_string(),
+            "AutoGen".to_string(),
+        ];
+        let actionable_ranked = vec![
+            (
+                candidate(
+                    "https://docs.langchain.com/langgraph",
+                    "LangGraph supports durable execution, observability, and human review.",
+                ),
+                0.91,
+            ),
+            (
+                candidate(
+                    "https://docs.crewai.com/overview",
+                    "CrewAI offers multi-agent workflow coordination and deployment guides.",
+                ),
+                0.88,
+            ),
+        ];
+        let retained_ranked = actionable_ranked.clone();
+        assert!(comparison_partial_preserves_actionable_evidence(
+            &comparison_entities,
+            &actionable_ranked,
+            &retained_ranked,
+        ));
+    }
+
+    #[test]
+    fn comparison_partial_does_not_preserve_when_only_one_entity_is_covered() {
+        let comparison_entities = vec!["LangGraph".to_string(), "CrewAI".to_string()];
+        let actionable_ranked = vec![(
+            candidate(
+                "https://docs.langchain.com/langgraph",
+                "LangGraph supports durable execution and checkpointing.",
+            ),
+            0.91,
+        )];
+        let retained_ranked = actionable_ranked.clone();
+        assert!(!comparison_partial_preserves_actionable_evidence(
+            &comparison_entities,
+            &actionable_ranked,
+            &retained_ranked,
+        ));
+    }
+
+    #[test]
     fn comparison_guard_keeps_hidden_search_results_when_only_one_side_retrieves() {
         let out = run_request_with_fixture(
             json!({

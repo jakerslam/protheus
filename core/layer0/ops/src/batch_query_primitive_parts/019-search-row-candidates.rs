@@ -499,3 +499,35 @@ fn comparison_guard_failure_artifacts(
         )),
     )
 }
+
+fn comparison_entity_coverage_count(
+    comparison_entities: &[String],
+    actionable_ranked: &[(Candidate, f64)],
+    retained_ranked: &[(Candidate, f64)],
+) -> usize {
+    comparison_entities
+        .iter()
+        .filter(|entity| {
+            actionable_ranked
+                .iter()
+                .any(|(row, _)| candidate_mentions_entity(row, entity))
+                || retained_ranked
+                    .iter()
+                    .any(|(row, _)| candidate_mentions_entity(row, entity))
+        })
+        .count()
+}
+
+fn comparison_partial_preserves_actionable_evidence(
+    comparison_entities: &[String],
+    actionable_ranked: &[(Candidate, f64)],
+    retained_ranked: &[(Candidate, f64)],
+) -> bool {
+    let min_covered_entities = comparison_entities.len().min(2);
+    min_covered_entities > 0
+        && comparison_entity_coverage_count(
+            comparison_entities,
+            actionable_ranked,
+            retained_ranked,
+        ) >= min_covered_entities
+}

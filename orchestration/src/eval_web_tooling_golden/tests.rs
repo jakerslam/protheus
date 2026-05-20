@@ -2,7 +2,7 @@ use serde_json::{json, Value};
 
 use super::super::eval_research_golden_scoring::grade_case;
 use super::super::eval_research_golden_utils::str_at;
-use super::request_packs::load_request_pack_index;
+use super::request_packs::{load_request_pack_index, request_pack_for_case};
 use super::synthetic::synthesize_tooling_eval_payload;
 
 #[test]
@@ -99,4 +99,32 @@ fn synthetic_payload_exposes_direct_tool_artifacts_to_retrieval_grader() {
         .get("usable_evidence")
         .and_then(Value::as_bool)
         .unwrap_or(false));
+}
+
+#[test]
+fn derived_request_pack_moves_generic_required_entities_into_facets() {
+    let case = json!({
+        "id": "case_sparse",
+        "prompt": "Find recent benchmarks comparing agent frameworks. If the benchmark evidence is weak, explain why and suggest a practical evaluation plan.",
+        "required_entities": ["benchmark", "agent framework"]
+    });
+    let pack = request_pack_for_case(&case, None, "batch_query");
+    assert_eq!(
+        pack.pointer("/input/required_coverage/entities")
+            .and_then(Value::as_array)
+            .map(Vec::len),
+        Some(0)
+    );
+    assert_eq!(
+        pack.pointer("/input/required_coverage/facets")
+            .and_then(Value::as_array)
+            .map(Vec::len),
+        Some(2)
+    );
+    assert!(
+        pack.pointer("/input/queries")
+            .and_then(Value::as_array)
+            .map(|rows| rows.len() > 1)
+            .unwrap_or(false)
+    );
 }
