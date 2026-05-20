@@ -2750,6 +2750,129 @@ fn query_lane_source(
     }
 }
 
+fn preserve_trusted_primary_lane_candidates(
+    query: &str,
+    selected: &mut Vec<(Candidate, f64)>,
+    supplemental_pool: &[(Candidate, f64)],
+    lane_sources: &[QueryLaneSource],
+    facets: &[ResearchFacet],
+    max_evidence: usize,
+    min_terms: usize,
+) -> usize {
+    if max_evidence == 0 || supplemental_pool.is_empty() || lane_sources.is_empty() {
+        return 0;
+    }
+    let mut selected_keys = selected
+        .iter()
+        .map(|(candidate, _)| candidate_identity_key(candidate))
+        .collect::<HashSet<_>>();
+    let mut pending = Vec::<(Candidate, f64)>::new();
+    let mut pending_keys = HashSet::<String>::new();
+    let mut covered_facet_ids = selected
+        .iter()
+        .flat_map(|(candidate, _)| selected_candidate_coverage_ids(facets, candidate, min_terms))
+        .collect::<HashSet<_>>();
+
+    for source in lane_sources {
+        if !is_official_source_query_lane(&source.query) || source.candidates.is_empty() {
+            continue;
+        }
+        let lane_keys = source
+            .candidates
+            .iter()
+            .map(candidate_identity_key)
+            .collect::<HashSet<_>>();
+        if lane_keys.iter().any(|key| selected_keys.contains(key)) {
+            continue;
+        }
+        let mut ranked = supplemental_pool
+            .iter()
+            .filter(|(candidate, score)| {
+                lane_keys.contains(&candidate_identity_key(candidate))
+                    && !candidate_is_low_confidence_retained(candidate)
+                    && !citation_wrapper_link(&candidate.locator)
+                    && candidate_retention_preview_eligible(query, candidate, *score)
+                    && candidate_has_trusted_primary_source_signal(&source.query, candidate)
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        if ranked.is_empty() {
+            continue;
+        }
+        ranked.sort_by(|left, right| {
+            let left_cov = selected_candidate_coverage_ids(facets, &left.0, min_terms)
+                .iter()
+                .any(|id| !covered_facet_ids.contains(id));
+            let right_cov = selected_candidate_coverage_ids(facets, &right.0, min_terms)
+                .iter()
+                .any(|id| !covered_facet_ids.contains(id));
+            right_cov
+                .cmp(&left_cov)
+                .then_with(|| content_rich_text(&right.0.snippet).cmp(&content_rich_text(&left.0.snippet)))
+                .then_with(|| right.1.total_cmp(&left.1))
+        });
+        let best = ranked.remove(0);
+        let best_key = candidate_identity_key(&best.0);
+        if pending_keys.insert(best_key.clone()) {
+            for facet_id in selected_candidate_coverage_ids(facets, &best.0, min_terms) {
+                covered_facet_ids.insert(facet_id);
+            }
+            pending.push(best);
+        }
+    }
+
+    let preserve_cap = max_evidence.min(3);
+    let mut added = 0usize;
+    for row in pending.into_iter().take(preserve_cap) {
+        let key = candidate_identity_key(&row.0);
+        if selected_keys.contains(&key) {
+            continue;
+        }
+        if selected.len() < max_evidence {
+            selected.push(row);
+            selected_keys.insert(key);
+            added += 1;
+            continue;
+        }
+        let replacement = redundant_facet_backfill_replacement_index(selected, facets, min_terms)
+            .or_else(|| {
+                selected
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, (candidate, _))| source_trust_adjustment(candidate) < 0.15)
+                    .min_by(|(_, left), (_, right)| left.1.total_cmp(&right.1))
+                    .map(|(idx, _)| idx)
+            });
+        let Some(replace_idx) = replacement else {
+            continue;
+        };
+        let replacement_score = selected.get(replace_idx).map(|(_, score)| *score).unwrap_or(0.0);
+        let adds_new_coverage = selected_candidate_coverage_ids(facets, &row.0, min_terms)
+            .iter()
+            .any(|id| {
+                !selected.iter().any(|(candidate, _)| {
+                    selected_candidate_coverage_ids(facets, candidate, min_terms)
+                        .iter()
+                        .any(|existing| existing == id)
+                })
+            });
+        if !adds_new_coverage && row.1 + 0.08 < replacement_score {
+            continue;
+        }
+        if let Some((replaced_candidate, _)) = selected.get(replace_idx) {
+            selected_keys.remove(&candidate_identity_key(replaced_candidate));
+        }
+        selected[replace_idx] = row;
+        selected_keys.insert(key);
+        added += 1;
+    }
+
+    if added > 0 {
+        selected.sort_by(|left, right| right.1.total_cmp(&left.1));
+    }
+    added
+}
+
 fn provider_artifact_summaries(artifacts: &[Value]) -> Vec<Value> {
     artifacts
         .iter()

@@ -791,6 +791,7 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
                 && !looks_like_ack_only(&snippet)
                 && !looks_like_low_signal_search_summary(&snippet)
                 && !looks_like_source_only_snippet(&snippet)
+                && !citation_wrapper_link(&row.locator)
                 && !is_search_engine_domain(&domain)
                 && candidate_passes_relevance_gate(&rerank_query, row, benchmark_intent)
                 && candidate_is_substantive(&rerank_query, row, benchmark_intent)
@@ -897,6 +898,20 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
         if low_confidence_count_after_backfill > low_confidence_count_before_backfill {
             partial_failures.push("low_confidence_facet_backfill_used".to_string());
         }
+    }
+    let trusted_primary_preserved = preserve_trusted_primary_lane_candidates(
+        &rerank_query,
+        &mut evidence_ranked,
+        &ranked_pool,
+        &query_lane_sources,
+        &research_facets,
+        budget.max_evidence,
+        facet_min_terms,
+    );
+    if trusted_primary_preserved > 0 {
+        partial_failures.push(format!(
+            "trusted_primary_lane_preserved:{trusted_primary_preserved}"
+        ));
     }
 
     let evidence_refs = evidence_ranked

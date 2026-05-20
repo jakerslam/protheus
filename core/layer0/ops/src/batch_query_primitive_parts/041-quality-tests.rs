@@ -2012,20 +2012,46 @@ mod quality_tests {
         assert_eq!(
             budget.reserve(
                 &policy,
-                "http://www.science.example.org/april-2026-breakthroughs#summary"
+                "http://www.science.example.org/april-2026-breakthroughs#summary",
+                false,
             ),
             PageExtractionFetchReservation::Reserved
         );
         assert_eq!(
             budget.reserve(
                 &policy,
-                "https://science.example.org/april-2026-breakthroughs"
+                "https://science.example.org/april-2026-breakthroughs",
+                false,
             ),
             PageExtractionFetchReservation::Duplicate
         );
         assert_eq!(
-            budget.reserve(&policy, "https://science.example.org/second-source"),
+            budget.reserve(&policy, "https://science.example.org/second-source", false),
             PageExtractionFetchReservation::Exhausted
+        );
+    }
+
+    #[test]
+    fn page_extraction_budget_reserves_room_for_trusted_primary_lanes() {
+        let mut policy = default_policy();
+        policy["batch_query"]["page_extraction"]["max_total_fetches"] = json!(4);
+        policy["batch_query"]["page_extraction"]["reserved_trusted_primary_fetches"] = json!(2);
+        let budget = PageExtractionFetchBudget::new(&policy);
+        assert_eq!(
+            budget.reserve(&policy, "https://general.example.org/one", false),
+            PageExtractionFetchReservation::Reserved
+        );
+        assert_eq!(
+            budget.reserve(&policy, "https://general.example.org/two", false),
+            PageExtractionFetchReservation::Reserved
+        );
+        assert_eq!(
+            budget.reserve(&policy, "https://general.example.org/three", false),
+            PageExtractionFetchReservation::Exhausted
+        );
+        assert_eq!(
+            budget.reserve(&policy, "https://docs.example.org/official", true),
+            PageExtractionFetchReservation::Reserved
         );
     }
 
@@ -2069,6 +2095,88 @@ mod quality_tests {
         assert_eq!(
             page_extraction_link_preflight_rejection_reason_with_context(query, link, context),
             None
+        );
+    }
+
+    #[test]
+    fn page_extraction_keeps_trusted_primary_source_links_for_broad_queries() {
+        let query =
+            "Compare LangGraph vs CrewAI for deployment maturity, approval boundaries, and operational tradeoffs.";
+        let link = "https://docs.langchain.com/oss/python/langgraph/overview";
+        let context =
+            "LangGraph overview documentation for agent orchestration and workflow architecture.";
+        assert_eq!(
+            page_extraction_link_preflight_rejection_reason_with_context(query, link, context),
+            None
+        );
+    }
+
+    #[test]
+    fn trusted_primary_source_candidate_can_pass_broad_relevance_gate() {
+        let query =
+            "Compare LangGraph vs CrewAI for deployment maturity, approval boundaries, and operational tradeoffs.";
+        let candidate = Candidate {
+            source_kind: "web".to_string(),
+            title: "LangGraph overview".to_string(),
+            locator: "https://docs.langchain.com/oss/python/langgraph/overview".to_string(),
+            snippet:
+                "Official documentation for LangGraph agent workflow orchestration and architecture."
+                    .to_string(),
+            excerpt_hash: "langgraph-overview".to_string(),
+            timestamp: None,
+            permissions: Some("public_web".to_string()),
+            status_code: 200,
+        };
+        assert!(
+            candidate_passes_relevance_gate(query, &candidate, false),
+            "trusted primary-source docs with real entity overlap should survive broad-query relevance gating"
+        );
+    }
+
+    #[test]
+    fn page_extraction_reserves_room_for_payload_trusted_primary_sources() {
+        let query =
+            "Compare LangGraph vs CrewAI for deployment maturity, approval boundaries, and operational tradeoffs.";
+        let policy = default_policy();
+        let candidates = vec![
+            Candidate {
+                source_kind: "web".to_string(),
+                title: "LangGraph deployment maturity analysis".to_string(),
+                locator: "https://analysis.example.com/langgraph-deployment".to_string(),
+                snippet: "LangGraph deployment maturity analysis with operational tradeoffs and approval boundaries.".to_string(),
+                excerpt_hash: "langgraph-analysis".to_string(),
+                timestamp: None,
+                permissions: Some("public_web".to_string()),
+                status_code: 200,
+            },
+            Candidate {
+                source_kind: "web".to_string(),
+                title: "CrewAI deployment maturity analysis".to_string(),
+                locator: "https://analysis.example.com/crewai-deployment".to_string(),
+                snippet: "CrewAI deployment maturity analysis with operational tradeoffs and approval boundaries.".to_string(),
+                excerpt_hash: "crewai-analysis".to_string(),
+                timestamp: None,
+                permissions: Some("public_web".to_string()),
+                status_code: 200,
+            },
+        ];
+        let links = links_for_page_extraction(
+            query,
+            &policy,
+            &json!({
+                "summary": "LangGraph official documentation overview for agent orchestration.",
+                "links": [
+                    "https://docs.langchain.com/oss/python/langgraph/overview"
+                ]
+            }),
+            &candidates,
+            2,
+            false,
+        );
+        assert!(
+            links.iter()
+                .any(|link| link == "https://docs.langchain.com/oss/python/langgraph/overview"),
+            "{links:?}"
         );
     }
 
@@ -2154,6 +2262,26 @@ mod quality_tests {
             1,
         );
         assert!(links.is_empty(), "{links:?}");
+    }
+
+    #[test]
+    fn citation_wrapper_candidates_are_not_retained_as_evidence_preview() {
+        let query = "Compare Alpha Runtime with Beta Search for deployment readiness";
+        let candidate = Candidate {
+            source_kind: "web".to_string(),
+            title: "Beta Search official site".to_string(),
+            locator: "https://news.google.com/rss/articles/CBMiYmV0YS1vZmZpY2lhbA?oc=5".to_string(),
+            snippet: "Beta Search official site documents deployment readiness, operations, and platform support for production teams.".to_string(),
+            excerpt_hash: "beta-wrapper-preview".to_string(),
+            timestamp: None,
+            permissions: None,
+            status_code: 200,
+        };
+
+        assert!(
+            !candidate_retention_preview_eligible(query, &candidate, 0.62),
+            "{candidate:#?}"
+        );
     }
 
     #[test]
@@ -3156,6 +3284,134 @@ mod quality_tests {
     }
 
     #[test]
+    fn trusted_primary_lane_candidates_are_preserved_after_rerank() {
+        let query = "Compare Alpha Runtime with Beta Search for deployment readiness";
+        let mut facets = vec![
+            research_facet_from_metadata_text("Alpha Runtime", 0, "entity").unwrap(),
+            research_facet_from_metadata_text("Beta Search", 1, "entity").unwrap(),
+        ];
+        assign_distinctive_facet_terms(&mut facets);
+        let alpha_blog = Candidate {
+            source_kind: "web".to_string(),
+            title: "Alpha Runtime production notes".to_string(),
+            locator: "https://blog.alpha.example.com/production".to_string(),
+            snippet: "Alpha Runtime production notes summarize deployment ownership and rollout practices.".to_string(),
+            excerpt_hash: "alpha-blog".to_string(),
+            timestamp: None,
+            permissions: None,
+            status_code: 200,
+        };
+        let beta_official = Candidate {
+            source_kind: "web".to_string(),
+            title: "Beta Search official site".to_string(),
+            locator: "https://www.beta.example.com/".to_string(),
+            snippet: "Beta Search official site documents deployment readiness, operations, and platform support for production teams.".to_string(),
+            excerpt_hash: "beta-official".to_string(),
+            timestamp: None,
+            permissions: None,
+            status_code: 200,
+        };
+        let mut selected = vec![(alpha_blog, 0.61)];
+        let ranked_pool = vec![(beta_official.clone(), 0.57)];
+        let lane_sources = vec![query_lane_source(
+            "Beta Search official site",
+            "initial",
+            std::slice::from_ref(&beta_official),
+            &[],
+            &[json!({
+                "provider": "bing_rss",
+                "stage": "primary",
+                "provider_transport_ok": true,
+                "result_quality": "usable",
+                "provider_raw_count": 3,
+                "provider_candidate_count": 1,
+                "synthesis_candidate_count": 1,
+                "provider_filtered_count": 0,
+                "failure_reasons": []
+            })],
+        )];
+
+        let added = preserve_trusted_primary_lane_candidates(
+            query,
+            &mut selected,
+            &ranked_pool,
+            &lane_sources,
+            &facets,
+            2,
+            1,
+        );
+
+        assert_eq!(added, 1, "{selected:#?}");
+        assert!(selected
+            .iter()
+            .any(|(candidate, _)| candidate.locator == "https://www.beta.example.com/"), "{selected:#?}");
+    }
+
+    #[test]
+    fn trusted_primary_preservation_skips_citation_wrapper_locators() {
+        let query = "Compare Alpha Runtime with Beta Search for deployment readiness";
+        let mut facets = vec![
+            research_facet_from_metadata_text("Alpha Runtime", 0, "entity").unwrap(),
+            research_facet_from_metadata_text("Beta Search", 1, "entity").unwrap(),
+        ];
+        assign_distinctive_facet_terms(&mut facets);
+        let alpha_blog = Candidate {
+            source_kind: "web".to_string(),
+            title: "Alpha Runtime production notes".to_string(),
+            locator: "https://blog.alpha.example.com/production".to_string(),
+            snippet: "Alpha Runtime production notes summarize deployment ownership and rollout practices.".to_string(),
+            excerpt_hash: "alpha-blog".to_string(),
+            timestamp: None,
+            permissions: None,
+            status_code: 200,
+        };
+        let beta_wrapper = Candidate {
+            source_kind: "web".to_string(),
+            title: "Beta Search official site".to_string(),
+            locator: "https://news.google.com/rss/articles/CBMiYmV0YS1vZmZpY2lhbA?oc=5".to_string(),
+            snippet: "Beta Search official site documents deployment readiness, operations, and platform support for production teams.".to_string(),
+            excerpt_hash: "beta-wrapper".to_string(),
+            timestamp: None,
+            permissions: None,
+            status_code: 200,
+        };
+        let mut selected = vec![(alpha_blog, 0.61)];
+        let ranked_pool = vec![(beta_wrapper.clone(), 0.57)];
+        let lane_sources = vec![query_lane_source(
+            "Beta Search official site",
+            "initial",
+            std::slice::from_ref(&beta_wrapper),
+            &[],
+            &[json!({
+                "provider": "google_news_rss",
+                "stage": "primary",
+                "provider_transport_ok": true,
+                "result_quality": "usable",
+                "provider_raw_count": 3,
+                "provider_candidate_count": 1,
+                "synthesis_candidate_count": 1,
+                "provider_filtered_count": 0,
+                "failure_reasons": []
+            })],
+        )];
+
+        let added = preserve_trusted_primary_lane_candidates(
+            query,
+            &mut selected,
+            &ranked_pool,
+            &lane_sources,
+            &facets,
+            2,
+            1,
+        );
+
+        assert_eq!(added, 0, "{selected:#?}");
+        assert!(!selected
+            .iter()
+            .any(|(candidate, _)| citation_wrapper_link(&candidate.locator)), "{selected:#?}");
+    }
+
+    #[test]
     fn coverage_facets_match_simple_plural_variants() {
         let mut facets = vec![
             research_facet_from_metadata_text("credential handling", 0, "facet").unwrap(),
@@ -3417,6 +3673,39 @@ mod quality_tests {
                 }))
                 .unwrap_or(false),
             "{report:#?}"
+        );
+    }
+
+    #[test]
+    fn materialization_failure_report_ignores_initial_candidate_filter_noise() {
+        let report = materialization_failure_report(
+            &vec![
+                "primary:candidate_low_relevance_retained_low_confidence".to_string(),
+                "primary:candidate_low_relevance".to_string(),
+                "primary:fetch_candidate_low_relevance_retained_low_confidence".to_string(),
+            ],
+            0,
+            0,
+            0,
+            0,
+        );
+        let rows = report
+            .pointer("/reason_rows")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert_eq!(rows.len(), 1, "{rows:#?}");
+        assert_eq!(
+            rows.first()
+                .and_then(|row| row.get("reason"))
+                .and_then(Value::as_str),
+            Some("prefetch_or_promotion_low_relevance")
+        );
+        assert_eq!(
+            rows.first()
+                .and_then(|row| row.get("count"))
+                .and_then(Value::as_u64),
+            Some(1)
         );
     }
 

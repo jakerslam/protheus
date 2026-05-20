@@ -438,6 +438,22 @@ fn page_extraction_max_total_fetches(policy: &Value) -> usize {
         .clamp(0, 40) as usize
 }
 
+fn page_extraction_reserved_trusted_primary_fetches(policy: &Value) -> usize {
+    let max_total = page_extraction_max_total_fetches(policy);
+    let default_reserve = if max_total >= 12 {
+        4
+    } else if max_total >= 8 {
+        2
+    } else {
+        0
+    };
+    policy
+        .pointer("/batch_query/page_extraction/reserved_trusted_primary_fetches")
+        .and_then(Value::as_u64)
+        .map(|value| value.clamp(0, max_total as u64) as usize)
+        .unwrap_or(default_reserve.min(max_total))
+}
+
 fn page_extraction_extract_mode(policy: &Value) -> String {
     let raw = policy
         .pointer("/batch_query/page_extraction/extract_mode")

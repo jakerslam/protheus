@@ -153,26 +153,47 @@ fn is_official_source_query_lane(query: &str) -> bool {
     .any(|marker| lowered.contains(marker))
 }
 
-fn candidate_has_trusted_official_source_signal(query: &str, candidate: &Candidate) -> bool {
-    if !is_official_source_query_lane(query) {
-        return false;
-    }
+fn candidate_has_trusted_primary_source_signal(query: &str, candidate: &Candidate) -> bool {
     let combined = candidate_relevance_text(candidate);
+    let locator = clean_text(&candidate.locator, 2_200).to_ascii_lowercase();
     let domain = candidate_domain_hint(candidate);
-    let (overlap, distinctive_overlap, _) = query_overlap_profile(query, candidate);
+    let domain_lower = domain.to_ascii_lowercase();
+    let snippet_words = clean_text(&candidate.snippet, 1_800).split_whitespace().count();
+    let (overlap, distinctive_overlap, query_len) = query_overlap_profile(query, candidate);
+    let official_lane_domain_candidate = is_official_source_query_lane(query)
+        && !domain_lower.is_empty()
+        && domain_lower != "source"
+        && !is_search_engine_domain(&domain_lower)
+        && (200..400).contains(&candidate.status_code)
+        && (locator.starts_with("https://") || locator.starts_with("http://"))
+        && (distinctive_overlap >= 1 || overlap >= 2);
     let trusted_source = source_trust_adjustment(candidate) >= 0.15
         || framework_official_domain(&domain)
-        || combined.to_ascii_lowercase().contains("/docs")
-        || combined.to_ascii_lowercase().contains("/documentation")
-        || combined.to_ascii_lowercase().contains("/reference")
-        || combined.to_ascii_lowercase().contains("/api");
+        || official_lane_domain_candidate
+        || domain.to_ascii_lowercase().starts_with("docs.")
+        || locator.contains("/docs")
+        || locator.contains("/documentation")
+        || locator.contains("/reference")
+        || locator.contains("/api");
     if !trusted_source {
         return false;
     }
-    distinctive_overlap >= 1
-        || overlap >= 1
-        || looks_like_framework_overview_text(&combined)
+    let overview_signal = looks_like_framework_overview_text(&combined)
         || looks_like_framework_catalog_text(&combined)
+        || locator.contains("/docs")
+        || locator.contains("/documentation")
+        || locator.contains("/reference")
+        || locator.contains("/api");
+    distinctive_overlap >= 1
+        || (overlap >= 2 && snippet_words >= 8)
+        || (overlap >= 1
+            && overview_signal
+            && (query_len <= 8 || snippet_words >= 12))
+}
+
+fn candidate_has_trusted_official_source_signal(query: &str, candidate: &Candidate) -> bool {
+    is_official_source_query_lane(query)
+        && candidate_has_trusted_primary_source_signal(query, candidate)
 }
 
 fn candidate_title_for_relevance(candidate: &Candidate) -> String {
@@ -370,6 +391,7 @@ fn candidate_passes_relevance_gate(
         return false;
     }
     let (overlap, distinctive_overlap, query_len) = query_overlap_profile(query, candidate);
+    let trusted_primary_source = candidate_has_trusted_primary_source_signal(query, candidate);
     if is_framework_catalog_intent(query) && overlap == 0 {
         let combined = candidate_relevance.clone();
         let domain = candidate_domain_hint(candidate);
@@ -388,10 +410,14 @@ fn candidate_passes_relevance_gate(
     }
     let overlap_ratio = overlap as f64 / query_len as f64;
     if benchmark_intent {
-        if overlap < 2 && overlap_ratio < 0.22 && !looks_like_metric_rich_text(&candidate.snippet) {
+        if overlap < 2
+            && overlap_ratio < 0.22
+            && !looks_like_metric_rich_text(&candidate.snippet)
+            && !trusted_primary_source
+        {
             return false;
         }
-        if query_len >= 3 && overlap < 2 && distinctive_overlap < 1 {
+        if query_len >= 3 && overlap < 2 && distinctive_overlap < 1 && !trusted_primary_source {
             return false;
         }
         if looks_like_portal_noise_candidate(candidate) && overlap < 3 {
@@ -399,7 +425,7 @@ fn candidate_passes_relevance_gate(
         }
         return true;
     }
-    if query_len >= 3 && overlap < 2 {
+    if query_len >= 3 && overlap < 2 && !trusted_primary_source {
         return false;
     }
     if looks_like_portal_noise_candidate(candidate) && overlap < 2 && overlap_ratio < 0.25 {

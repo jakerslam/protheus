@@ -3100,8 +3100,8 @@ fn normalized_materialization_failure_reason(reason: &str) -> Option<&'static st
     }
     if lowered.contains("page_extraction_candidate_prefetch_rejected:weak_overlap_link")
         || lowered.contains("page_extraction_candidate_prefetch_rejected:no_distinctive_overlap_link")
-        || lowered.contains("candidate_low_relevance")
         || lowered.contains("fetch_candidate_low_relevance")
+        || lowered.contains("browser_materialization_candidate_low_relevance")
     {
         return Some("prefetch_or_promotion_low_relevance");
     }

@@ -458,6 +458,7 @@ fn candidate_retention_preview_eligible(query: &str, candidate: &Candidate, scor
         && !looks_like_ack_only(&snippet)
         && !looks_like_low_signal_search_summary(&snippet)
         && substantive_preview_text
+        && !citation_wrapper_link(&candidate.locator)
         && !is_search_engine_domain(&domain)
         && !looks_like_portal_noise_candidate(candidate)
 }

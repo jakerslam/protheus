@@ -278,8 +278,7 @@ fn payload_links_for_page_extraction_with_rejections(
     max_links: usize,
 ) -> (Vec<String>, Vec<String>) {
     let limit = max_links.max(1);
-    let mut selected = Vec::<String>::new();
-    let mut selected_by_key = HashMap::<String, usize>::new();
+    let mut ranked = Vec::<(String, f64)>::new();
     let mut rejections = Vec::<String>::new();
     for (link, context) in ranked_payload_links_for_fallback_with_context_and_min_score(
         query,
@@ -292,12 +291,33 @@ fn payload_links_for_page_extraction_with_rejections(
         let Some(link) = normalize_page_extraction_link(policy, &link) else {
             continue;
         };
+        let candidate = page_extraction_link_candidate_with_context(&link, &context);
         if let Some(reason) =
             page_extraction_link_preflight_rejection_reason_with_context(query, &link, &context)
         {
             rejections.push(reason.to_string());
             continue;
         }
+        let mut score = fallback_link_score_with_context(query, &link, &context);
+        if candidate_has_trusted_primary_source_signal(query, &candidate) {
+            score += 0.32;
+        }
+        if candidate_has_trusted_official_source_signal(query, &candidate) {
+            score += 0.12;
+        }
+        if citation_wrapper_link(&link) && citation_wrapper_context_has_signal(query, &context) {
+            score += 0.08;
+        }
+        ranked.push((link, score));
+    }
+    ranked.sort_by(|a, b| {
+        b.1.partial_cmp(&a.1)
+            .unwrap_or(std::cmp::Ordering::Equal)
+            .then_with(|| a.0.cmp(&b.0))
+    });
+    let mut selected = Vec::<String>::new();
+    let mut selected_by_key = HashMap::<String, usize>::new();
+    for (link, _) in ranked {
         let dedupe_key = page_extraction_link_dedupe_key(policy, &link);
         if dedupe_key.is_empty() {
             continue;
@@ -372,6 +392,12 @@ fn candidate_locator_links_for_page_extraction_with_rejections(
             if candidate_is_low_confidence_retained(candidate) {
                 score += 0.08;
             }
+            if candidate_has_trusted_primary_source_signal(query, candidate) {
+                score += 0.32;
+            }
+            if candidate_has_trusted_official_source_signal(query, candidate) {
+                score += 0.12;
+            }
             Some((link, score))
         })
         .collect::<Vec<_>>();
@@ -427,7 +453,9 @@ fn links_for_page_extraction_with_rejections(
     let mut selected = Vec::<String>::new();
     let mut selected_by_key = HashSet::<String>::new();
     let mut rejections = Vec::<String>::new();
-    let candidate_limit = page_extraction_candidate_locator_max_per_stage(policy).min(limit);
+    let reserve_payload_slots = usize::from(limit > 1);
+    let candidate_limit = page_extraction_candidate_locator_max_per_stage(policy)
+        .min(limit.saturating_sub(reserve_payload_slots).max(1));
 
     let (links, rejected) = candidate_locator_links_for_page_extraction_with_rejections(
         query,

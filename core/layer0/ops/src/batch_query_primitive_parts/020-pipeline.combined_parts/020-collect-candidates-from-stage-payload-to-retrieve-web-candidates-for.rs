@@ -2,7 +2,9 @@
 #[derive(Clone)]
 struct PageExtractionFetchBudget {
     max_total_fetches: usize,
+    reserved_trusted_primary_fetches: usize,
     fetched_link_keys: std::sync::Arc<std::sync::Mutex<HashSet<String>>>,
+    trusted_primary_link_keys: std::sync::Arc<std::sync::Mutex<HashSet<String>>>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -16,7 +18,9 @@ impl PageExtractionFetchBudget {
     fn new(policy: &Value) -> Self {
         Self {
             max_total_fetches: page_extraction_max_total_fetches(policy),
+            reserved_trusted_primary_fetches: page_extraction_reserved_trusted_primary_fetches(policy),
             fetched_link_keys: std::sync::Arc::new(std::sync::Mutex::new(HashSet::new())),
+            trusted_primary_link_keys: std::sync::Arc::new(std::sync::Mutex::new(HashSet::new())),
         }
     }
 
@@ -31,7 +35,19 @@ impl PageExtractionFetchBudget {
             .unwrap_or_else(|poisoned| poisoned.into_inner().len())
     }
 
-    fn reserve(&self, policy: &Value, link: &str) -> PageExtractionFetchReservation {
+    fn trusted_primary_reserved_count(&self) -> usize {
+        self.trusted_primary_link_keys
+            .lock()
+            .map(|links| links.len())
+            .unwrap_or_else(|poisoned| poisoned.into_inner().len())
+    }
+
+    fn reserve(
+        &self,
+        policy: &Value,
+        link: &str,
+        trusted_primary_lane: bool,
+    ) -> PageExtractionFetchReservation {
         let Some(normalized_link) = normalize_page_extraction_link(policy, link) else {
             return PageExtractionFetchReservation::Duplicate;
         };
@@ -49,7 +65,23 @@ impl PageExtractionFetchBudget {
         if links.len() >= self.max_total_fetches {
             return PageExtractionFetchReservation::Exhausted;
         }
-        links.insert(dedupe_key);
+        if !trusted_primary_lane && self.reserved_trusted_primary_fetches > 0 {
+            let trusted_reserved = self.trusted_primary_reserved_count();
+            let non_trusted_reserved = links.len().saturating_sub(trusted_reserved);
+            let general_budget = self
+                .max_total_fetches
+                .saturating_sub(self.reserved_trusted_primary_fetches);
+            if non_trusted_reserved >= general_budget {
+                return PageExtractionFetchReservation::Exhausted;
+            }
+        }
+        links.insert(dedupe_key.clone());
+        if trusted_primary_lane {
+            self.trusted_primary_link_keys
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner())
+                .insert(dedupe_key);
+        }
         PageExtractionFetchReservation::Reserved
     }
 }
@@ -165,6 +197,7 @@ fn collect_candidates_from_stage_payload(
         .iter()
         .filter(|candidate| !candidate_is_low_confidence_retained(candidate))
         .count();
+    let trusted_primary_lane = is_official_source_query_lane(query);
     let should_fetch_links = page_extraction_enabled(policy)
         && page_extraction_max_links_per_stage(policy) > 0
         && fetch_budget.has_remaining()
@@ -191,7 +224,7 @@ fn collect_candidates_from_stage_payload(
             ));
         }
         for link in links {
-            match fetch_budget.reserve(policy, &link) {
+            match fetch_budget.reserve(policy, &link, trusted_primary_lane) {
                 PageExtractionFetchReservation::Reserved => {}
                 PageExtractionFetchReservation::Duplicate => continue,
                 PageExtractionFetchReservation::Exhausted => {
