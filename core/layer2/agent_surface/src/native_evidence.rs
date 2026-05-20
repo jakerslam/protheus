@@ -180,6 +180,91 @@ pub(crate) fn native_tool_is_probable_micro_direct_write_task(metadata: &Value, 
     target_count > 0 && target_count <= max_targets
 }
 
+pub(crate) fn native_tool_coding_task_lane(metadata: &Value, original_prompt: &str) -> &'static str {
+    if native_tool_is_probable_micro_direct_write_task(metadata, original_prompt) {
+        return "new_file_fast_path";
+    }
+    let lower = original_prompt.to_ascii_lowercase();
+    let long_run_markers = [
+        "checkpoint",
+        "resume",
+        "memory row",
+        "continue the existing local",
+        "long-run",
+        "long run",
+        "operator",
+    ];
+    if long_run_markers.iter().any(|marker| lower.contains(marker))
+        && (lower.contains("project") || lower.contains("workflow") || lower.contains("coding"))
+    {
+        return "long_run_project_operator";
+    }
+    let validation_repair_markers = [
+        "validation fails",
+        "validation failed",
+        "test fails",
+        "tests fail",
+        "repair any failures",
+        "use the command output as repair input",
+        "failed validation",
+    ];
+    if validation_repair_markers
+        .iter()
+        .any(|marker| lower.contains(marker))
+    {
+        return "validation_repair";
+    }
+    let multi_file_markers = [
+        "multi-file",
+        "multi file",
+        "vertical slice",
+        "cli",
+        "persistence",
+        "import/export",
+        "round-trip",
+        "docs",
+        "readme",
+        "service",
+        "web app",
+    ];
+    if multi_file_markers.iter().any(|marker| lower.contains(marker)) {
+        return "multi_file_slice";
+    }
+    let existing_project_markers = [
+        "read the local",
+        "existing",
+        "preserve ",
+        "add tests",
+        "update tests",
+        "regression tests",
+        "run validation",
+        "run tests",
+        "pytest",
+        "unittest",
+        "pyproject.toml",
+        "cargo.toml",
+        "package.json",
+        "src/",
+        "tests/",
+        "modify ",
+        "update ",
+        "refactor",
+        "debug",
+        "fix ",
+        "extend ",
+    ];
+    if existing_project_markers
+        .iter()
+        .any(|marker| lower.contains(marker))
+    {
+        return "existing_project_patch";
+    }
+    if native_tool_prompt_requires_product_mutation(&lower) {
+        return "implementation_slice";
+    }
+    "general_native_tool_task"
+}
+
 pub(crate) fn native_tool_unique_code_path_mentions(raw: &str) -> Vec<String> {
     let extensions = [
         ".py", ".js", ".ts", ".tsx", ".jsx", ".html", ".css", ".rs", ".go", ".java", ".rb",
@@ -291,6 +376,11 @@ pub(crate) fn native_tool_prompt_evidence_gaps(
         return reasons;
     }
     reasons.extend(native_tool_product_slice_gaps(original_prompt, receipts));
+    for path in native_tool_prompt_preserved_api_source_paths(original_prompt, receipts) {
+        if !native_tool_changed_paths_include(receipts, &path) {
+            reasons.push(format!("missing_changed_path:{path}"));
+        }
+    }
     for path in native_tool_prompt_required_changed_paths(original_prompt) {
         if !native_tool_changed_paths_include(receipts, &path) {
             reasons.push(format!("missing_changed_path:{path}"));
@@ -382,89 +472,10 @@ pub(crate) fn native_tool_product_slice_gaps(
             changed_product_paths.len()
         ));
     }
-    let source = native_tool_changed_product_source_text(&changed_product_paths);
-    if native_tool_prompt_mentions_any(&prompt_lower, &["persistent", "persistence", "durable"])
-        && !(source.contains("json")
-            && (source.contains("jsonl") || source.contains("open(") || source.contains("write_text"))
-            && (source.contains("path") || source.contains("file")))
+    if native_tool_prompt_requires_multi_file_product_slice(&prompt_lower)
+        && !native_tool_changed_paths_include_product_and_test(&changed_product_paths)
     {
-        reasons.push("missing_product_source_evidence:persistence".to_string());
-    }
-    if native_tool_prompt_mentions_any(&prompt_lower, &["delivery attempt", "delivery-attempt"])
-        && !(source.contains("deliveryattempt") || source.contains("delivery_attempt"))
-    {
-        reasons.push("missing_product_source_evidence:delivery_attempt".to_string());
-    }
-    if prompt_lower.contains("report") && !source.contains("report") {
-        reasons.push("missing_product_source_evidence:report".to_string());
-    }
-    if prompt_lower.contains("destination") && !source.contains("destination") {
-        reasons.push("missing_product_source_evidence:destination".to_string());
-    }
-    if prompt_lower.contains("retryable") && !(source.contains("retryable") || source.contains("retry")) {
-        reasons.push("missing_product_source_evidence:retryable".to_string());
-    }
-    if native_tool_prompt_mentions_any(&prompt_lower, &["schema_version", "schema version"])
-        && !(source.contains("schema_version") && source.contains("v2"))
-    {
-        reasons.push("missing_product_source_evidence:schema_version_v2".to_string());
-    }
-    if native_tool_prompt_mentions_any(
-        &prompt_lower,
-        &["idempotent", "idempotence", "dedupe", "de-dupe", "duplicate"],
-    ) && !(source.contains("idempot")
-        || source.contains("dedupe")
-        || source.contains("de_dupe")
-        || source.contains("duplicate")
-        || (source.contains("schema_version")
-            && source.contains("v1")
-            && source.contains("v2")
-            && (source.contains("already")
-                || source.contains("unchanged")
-                || source.contains("pass")
-                || source.contains("if "))))
-    {
-        reasons.push("missing_product_source_evidence:idempotence".to_string());
-    }
-    if native_tool_prompt_mentions_any(
-        &prompt_lower,
-        &["malformed", "quarantine", "invalid json", "bad record"],
-    ) && !(source.contains("malformed")
-        || source.contains("quarantine")
-        || source.contains("jsondecodeerror")
-        || source.contains("invalid json"))
-    {
-        reasons.push("missing_product_source_evidence:malformed_record_handling".to_string());
-    }
-    if native_tool_prompt_mentions_any(
-        &prompt_lower,
-        &["mixed v1", "v1/v2", "v1 and v2", "legacy and v2"],
-    ) && !(source.contains("v1")
-        && source.contains("v2")
-        && (source.contains("mixed")
-            || source.contains("compat")
-            || source.contains("legacy")
-            || source.contains("existing")
-            || source.contains("load_all")
-            || source.contains("normaliz")))
-    {
-        reasons.push("missing_product_source_evidence:mixed_version_compatibility".to_string());
-    }
-    if native_tool_prompt_mentions_any(&prompt_lower, &["sequence", "sequencing"])
-        && !(source.contains("sequence")
-            || source.contains("attempt_number")
-            || source.contains("attempt number")
-            || source.contains("next_attempt")
-            || source.contains("attempt_id")
-            || source.contains(":1")
-            || source.contains(":2"))
-    {
-        reasons.push("missing_product_source_evidence:sequence".to_string());
-    }
-    if native_tool_prompt_mentions_any(&prompt_lower, &["import/export", "import export", "round-trip", "round trip"])
-        && !(source.contains("export") || source.contains("roundtrip") || source.contains("round_trip"))
-    {
-        reasons.push("missing_product_source_evidence:import_export".to_string());
+        reasons.push("incomplete_product_slice_missing_source_or_test_category".to_string());
     }
     reasons.sort();
     reasons.dedup();
@@ -480,10 +491,27 @@ fn native_tool_prompt_requires_multi_file_product_slice(prompt_lower: &str) -> b
             "multiple file",
             "coherent checkpoint",
             "checkpoint_",
-            "regression tests",
             "operator-facing cli",
         ],
     )
+}
+
+fn native_tool_changed_paths_include_product_and_test(paths: &[String]) -> bool {
+    let mut has_product_source = false;
+    let mut has_test_source = false;
+    for path in paths {
+        let lower = path.replace('\\', "/").to_ascii_lowercase();
+        if lower.contains("/test")
+            || lower.contains("_test.")
+            || lower.contains(".test.")
+            || lower.contains(".spec.")
+        {
+            has_test_source = true;
+        } else if native_tool_path_looks_like_source(&lower) {
+            has_product_source = true;
+        }
+    }
+    has_product_source && has_test_source
 }
 
 fn native_tool_prompt_mentions_any(prompt_lower: &str, needles: &[&str]) -> bool {
@@ -568,6 +596,107 @@ pub(crate) fn native_tool_prompt_required_changed_paths(original_prompt: &str) -
     paths
 }
 
+fn native_tool_prompt_preserved_api_source_paths(
+    original_prompt: &str,
+    receipts: &[NativeToolReceipt],
+) -> Vec<String> {
+    let names = native_tool_prompt_preserved_public_api_names(original_prompt);
+    if names.is_empty() {
+        return Vec::new();
+    }
+
+    let mut paths = Vec::<String>::new();
+    for receipt in receipts {
+        if receipt.status != "ok" || receipt.tool_name != "file_read" {
+            continue;
+        }
+        let Some(path) = receipt.result.get("path").and_then(Value::as_str) else {
+            continue;
+        };
+        if !native_tool_path_looks_like_source(path) {
+            continue;
+        }
+        let Ok(text) = fs::read_to_string(path) else {
+            continue;
+        };
+        if names
+            .iter()
+            .any(|name| native_tool_source_defines_public_api(&text, name))
+            && !paths.iter().any(|existing| existing == path)
+        {
+            paths.push(path.to_string());
+        }
+    }
+    paths
+}
+
+fn native_tool_prompt_preserved_public_api_names(original_prompt: &str) -> Vec<String> {
+    let mut names = Vec::<String>::new();
+    for segment in original_prompt.split(['.', ';', '\n']) {
+        let lower = segment.to_ascii_lowercase();
+        let Some(start) = lower.find("preserve ") else {
+            continue;
+        };
+        let preserved = &segment[start + "preserve ".len()..];
+        for token in preserved.split(|ch: char| !(ch.is_ascii_alphanumeric() || ch == '_')) {
+            let token = token.trim();
+            if token.is_empty() {
+                continue;
+            }
+            let lower_token = token.to_ascii_lowercase();
+            if matches!(
+                lower_token.as_str(),
+                "and" | "api" | "behavior" | "behaviour" | "current" | "existing" | "public" | "the"
+            ) {
+                continue;
+            }
+            if !names.iter().any(|existing| existing == token) {
+                names.push(token.to_string());
+            }
+            break;
+        }
+    }
+    names
+}
+
+fn native_tool_path_looks_like_source(path: &str) -> bool {
+    let lower = path.to_ascii_lowercase();
+    !lower.contains("/tests/")
+        && !lower.contains("\\tests\\")
+        && !lower.contains("/test/")
+        && (lower.ends_with(".py")
+            || lower.ends_with(".rs")
+            || lower.ends_with(".ts")
+            || lower.ends_with(".tsx")
+            || lower.ends_with(".js")
+            || lower.ends_with(".jsx")
+            || lower.ends_with(".go")
+            || lower.ends_with(".java")
+            || lower.ends_with(".rb")
+            || lower.ends_with(".php")
+            || lower.ends_with(".swift")
+            || lower.ends_with(".kt"))
+}
+
+fn native_tool_source_defines_public_api(text: &str, name: &str) -> bool {
+    let lower_text = text.to_ascii_lowercase();
+    let lower_name = name.to_ascii_lowercase();
+    [
+        format!("def {lower_name}("),
+        format!("async def {lower_name}("),
+        format!("class {lower_name}("),
+        format!("class {lower_name}:"),
+        format!("function {lower_name}("),
+        format!("export function {lower_name}("),
+        format!("pub fn {lower_name}("),
+        format!("fn {lower_name}("),
+        format!("const {lower_name} "),
+        format!("let {lower_name} "),
+    ]
+    .iter()
+    .any(|needle| lower_text.contains(needle))
+}
+
 fn native_tool_prompt_marks_path_optional(original_prompt: &str, path: &str) -> bool {
     let prompt = original_prompt.to_ascii_lowercase();
     let path = path.to_ascii_lowercase();
@@ -584,6 +713,7 @@ fn native_tool_prompt_marks_path_optional(original_prompt: &str, path: &str) -> 
 pub(crate) fn native_tool_prompt_requires_test_changes(prompt_lower: &str) -> bool {
     prompt_lower.contains("add tests")
         || prompt_lower.contains("update tests")
+        || prompt_lower.contains("regression tests")
         || prompt_lower.contains("test for")
         || prompt_lower.contains("tests for")
 }
@@ -628,6 +758,8 @@ pub(crate) fn native_tool_prompt_requires_validation_command(prompt_lower: &str)
         || prompt_lower.contains("runs tests")
         || prompt_lower.contains("pytest")
         || prompt_lower.contains("validation status")
+        || prompt_lower.contains("validation command")
+        || prompt_lower.contains("run validation")
         || prompt_lower.contains("validate")
 }
 

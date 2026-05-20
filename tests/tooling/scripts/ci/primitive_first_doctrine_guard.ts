@@ -149,7 +149,7 @@ const RULES: Rule[] = [
     kind: 'prompt_phrase_runtime_branch',
     detail: 'Production code must not branch directly on user prompt phrasing; route through a declared workflow/tool contract or primitive.',
     pattern:
-      /\b(if|else if|match)\b[^\n]{0,220}\b(prompt|message|user_?prompt|request|input|query)\b[^\n]{0,220}\b(contains|includes|starts_with|startsWith|ends_with|endsWith|==|===|matches)\b[^\n]{0,160}["'`]/i,
+      /\b(if|else if|match)\b[^\n]{0,220}\b(prompt|user_?prompt|initial_prompt|original_prompt|raw_prompt|prompt_lower)\b[^\n]{0,220}\b(contains|includes|starts_with|startsWith|ends_with|endsWith|==|===|matches)\b[^\n]{0,160}["'`]/i,
   },
   {
     kind: 'benchmark_or_eval_runtime_branch',
@@ -161,7 +161,7 @@ const RULES: Rule[] = [
     kind: 'case_specific_workflow_literal',
     detail: 'Official workflow/tool contracts must not contain named eval/demo cases unless represented as a general lane or fixture-only contract.',
     pattern:
-      /\b(hello world|task router|benchmark case|golden case|fixture shape|demo object|eval case|eval level|level[ _-]?[0-9]+ case|level[ _-]?[0-9]+ fixture|level[ _-]?[0-9]+ eval)\b/i,
+      /\b(hello world|task router|benchmark case|golden case|fixture shape|demo object|eval case|eval level|level[ _-]?[0-9]+ case|level[ _-]?[0-9]+ fixture|level[ _-]?[0-9]+ eval|level[0-9]+[_-])\b/i,
   },
   {
     kind: 'magic_verifier_runtime_branch',
