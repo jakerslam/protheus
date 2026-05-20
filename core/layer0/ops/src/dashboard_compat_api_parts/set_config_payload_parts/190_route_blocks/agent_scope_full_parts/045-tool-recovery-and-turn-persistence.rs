@@ -10,8 +10,14 @@ fn tool_rows_for_llm_recovery(response_tools: &[Value], limit: usize) -> Value {
             name.as_str()
         };
         let input = clean_text(tool.get("input").and_then(Value::as_str).unwrap_or(""), 800);
-        let result = clean_text(tool.get("result").and_then(Value::as_str).unwrap_or(""), 2_000);
-        let status = clean_text(tool.get("status").and_then(Value::as_str).unwrap_or(""), 120);
+        let result = clean_text(
+            tool.get("result").and_then(Value::as_str).unwrap_or(""),
+            2_000,
+        );
+        let status = clean_text(
+            tool.get("status").and_then(Value::as_str).unwrap_or(""),
+            120,
+        );
         let mut row = json!({
             "name": display_name,
             "input": input,
@@ -123,7 +129,12 @@ fn tool_hidden_value<'a>(tool: &'a Value, key: &str) -> Option<&'a Value> {
     })
 }
 
-fn tool_string_array_at(value: Option<&Value>, pointer: &str, limit: usize, item_len: usize) -> Vec<String> {
+fn tool_string_array_at(
+    value: Option<&Value>,
+    pointer: &str,
+    limit: usize,
+    item_len: usize,
+) -> Vec<String> {
     value
         .and_then(|row| row.pointer(pointer))
         .and_then(Value::as_array)
@@ -136,6 +147,42 @@ fn tool_string_array_at(value: Option<&Value>, pointer: &str, limit: usize, item
                 .collect::<Vec<_>>()
         })
         .unwrap_or_default()
+}
+
+fn tool_query_metadata_value(tool: &Value) -> Option<Value> {
+    if let Some(query_metadata) = tool_hidden_value(tool, "query_metadata") {
+        return Some(query_metadata.clone());
+    }
+    let input = tool
+        .get("input")
+        .or_else(|| tool.pointer("/tool_pipeline/raw_payload/input"))
+        .or_else(|| tool.get("request_payload"))
+        .or_else(|| tool.pointer("/tool_pipeline/raw_payload/request_payload"))?;
+    let input = match input {
+        Value::String(raw) => serde_json::from_str::<Value>(raw).ok()?,
+        Value::Object(_) => input.clone(),
+        _ => return None,
+    };
+    if let Some(query_metadata) = input.get("query_metadata").filter(|row| row.is_object()) {
+        return Some(query_metadata.clone());
+    }
+    let mut synthesized = serde_json::Map::new();
+    for key in [
+        "required_coverage",
+        "query_metadata_policy",
+        "keywords",
+        "aliases",
+        "negative_terms",
+    ] {
+        if let Some(value) = input.get(key) {
+            synthesized.insert(key.to_string(), value.clone());
+        }
+    }
+    if synthesized.is_empty() {
+        None
+    } else {
+        Some(Value::Object(synthesized))
+    }
 }
 
 fn synthesis_coverage_lane_key(kind: &str, requested_text: &str) -> String {
@@ -174,7 +221,9 @@ fn push_synthesis_coverage_lane(
     if let Some(existing) = lanes.iter_mut().find(|row| {
         synthesis_coverage_lane_key(
             row.get("kind").and_then(Value::as_str).unwrap_or(""),
-            row.get("requested_text").and_then(Value::as_str).unwrap_or(""),
+            row.get("requested_text")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
         ) == key
     }) {
         let existing_rank = synthesis_coverage_status_rank(
@@ -197,7 +246,10 @@ fn push_synthesis_coverage_lane(
     }));
 }
 
-fn synthesis_coverage_kind_for_requested_text(query_metadata: Option<&Value>, requested_text: &str) -> String {
+fn synthesis_coverage_kind_for_requested_text(
+    query_metadata: Option<&Value>,
+    requested_text: &str,
+) -> String {
     let requested = clean_text(requested_text, 240).to_ascii_lowercase();
     if requested.is_empty() {
         return "coverage_lane".to_string();
@@ -221,7 +273,8 @@ fn synthesis_coverage_lanes_for_tools(response_tools: &[Value], limit: usize) ->
     let mut lanes = Vec::<Value>::new();
     let limit = limit.clamp(1, 32);
     for tool in response_tools.iter().take(8) {
-        let query_metadata = tool_hidden_value(tool, "query_metadata");
+        let query_metadata = tool_query_metadata_value(tool);
+        let query_metadata = query_metadata.as_ref();
         for entity in tool_string_array_at(query_metadata, "/required_coverage/entities", 16, 240) {
             push_synthesis_coverage_lane(
                 &mut lanes,
@@ -244,7 +297,9 @@ fn synthesis_coverage_lanes_for_tools(response_tools: &[Value], limit: usize) ->
         }
         for row in tool_hidden_array(tool, "evidence_coverage") {
             let requested_text = clean_text(
-                row.get("requested_text").and_then(Value::as_str).unwrap_or(""),
+                row.get("requested_text")
+                    .and_then(Value::as_str)
+                    .unwrap_or(""),
                 240,
             );
             if requested_text.is_empty() {
@@ -263,7 +318,9 @@ fn synthesis_coverage_lanes_for_tools(response_tools: &[Value], limit: usize) ->
                 kind
             };
             let status = clean_text(
-                row.get("status").and_then(Value::as_str).unwrap_or("missing"),
+                row.get("status")
+                    .and_then(Value::as_str)
+                    .unwrap_or("missing"),
                 80,
             );
             push_synthesis_coverage_lane(
@@ -302,9 +359,12 @@ fn compact_tool_evidence_item(source: &str, row: &Value) -> Value {
         "term_hints": compact_string_array(row.get("term_hints"), 8, 80),
         "score": row.get("score").cloned().unwrap_or(Value::Null),
         "confidence": row.get("confidence").cloned().unwrap_or(Value::Null),
+        "materialization_quality": clean_text(row.get("materialization_quality").and_then(Value::as_str).unwrap_or(""), 80),
+        "counts_as_usable_evidence": row.get("counts_as_usable_evidence").cloned().unwrap_or(Value::Null),
         "quality_flags": compact_string_array(row.get("quality_flags").or_else(|| row.get("flags")), 8, 80),
         "coverage_facets": row.get("coverage_facets").cloned().unwrap_or_else(|| json!([])),
-        "freshness": row.get("freshness").cloned().unwrap_or(Value::Null)
+        "freshness": row.get("freshness").cloned().unwrap_or(Value::Null),
+        "evidence_claims": compact_claim_array(row.get("evidence_claims"), 4)
     })
 }
 
@@ -322,6 +382,44 @@ fn compact_string_array(value: Option<&Value>, limit: usize, item_len: usize) ->
         })
         .map(Value::Array)
         .unwrap_or_else(|| json!([]))
+}
+
+fn compact_claim_array(value: Option<&Value>, limit: usize) -> Value {
+    value
+        .and_then(Value::as_array)
+        .map(|rows| {
+            rows.iter()
+                .take(limit)
+                .map(|row| {
+                    json!({
+                        "claim": clean_text(row.get("claim").and_then(Value::as_str).unwrap_or(""), 220),
+                        "support_snippet": clean_text(row.get("support_snippet").and_then(Value::as_str).unwrap_or(""), 260),
+                        "confidence": row.get("confidence").cloned().unwrap_or(Value::Null),
+                        "entities": compact_string_array(row.get("entities"), 6, 120),
+                        "coverage_facets": row.get("coverage_facets").cloned().unwrap_or_else(|| json!([])),
+                        "limitations": compact_string_array(row.get("limitations"), 6, 120),
+                        "source_ref": json!({
+                            "title": clean_text(row.pointer("/source_ref/title").and_then(Value::as_str).unwrap_or(""), 180),
+                            "locator": clean_text(row.pointer("/source_ref/locator").and_then(Value::as_str).unwrap_or(""), 240),
+                            "source_domain": clean_text(row.pointer("/source_ref/source_domain").and_then(Value::as_str).unwrap_or(""), 120),
+                            "source_kind": clean_text(row.pointer("/source_ref/source_kind").and_then(Value::as_str).unwrap_or(""), 80),
+                            "materialization_quality": clean_text(row.pointer("/source_ref/materialization_quality").and_then(Value::as_str).unwrap_or(""), 80)
+                        })
+                    })
+                })
+                .collect::<Vec<_>>()
+        })
+        .map(Value::Array)
+        .unwrap_or_else(|| json!([]))
+}
+
+fn synthesis_first_hidden_object(response_tools: &[Value], key: &str) -> Value {
+    response_tools
+        .iter()
+        .filter_map(|tool| tool_hidden_value(tool, key))
+        .find(|value| value.is_object())
+        .cloned()
+        .unwrap_or_else(|| json!({}))
 }
 
 fn synthesis_evidence_pack_for_tools(response_tools: &[Value], limit: usize) -> Value {
@@ -354,7 +452,10 @@ fn synthesis_evidence_pack_for_tools(response_tools: &[Value], limit: usize) -> 
     }
     if items.is_empty() {
         for tool in response_tools.iter().take(limit) {
-            let result = clean_text(tool.get("result").and_then(Value::as_str).unwrap_or(""), 420);
+            let result = clean_text(
+                tool.get("result").and_then(Value::as_str).unwrap_or(""),
+                420,
+            );
             if result.is_empty() {
                 continue;
             }
@@ -362,6 +463,33 @@ fn synthesis_evidence_pack_for_tools(response_tools: &[Value], limit: usize) -> 
                 "source": "tool_result_summary",
                 "tool_name": normalize_tool_name(tool.get("name").and_then(Value::as_str).unwrap_or("tool")),
                 "snippet": result
+            }));
+        }
+    }
+    Value::Array(items)
+}
+
+fn synthesis_evidence_claims_for_tools(response_tools: &[Value], limit: usize) -> Value {
+    let mut items = Vec::<Value>::new();
+    for tool in response_tools.iter().take(8) {
+        for row in tool_hidden_array(tool, "evidence_claims") {
+            if items.len() >= limit {
+                return Value::Array(items);
+            }
+            items.push(json!({
+                "claim": clean_text(row.get("claim").and_then(Value::as_str).unwrap_or(""), 220),
+                "support_snippet": clean_text(row.get("support_snippet").and_then(Value::as_str).unwrap_or(""), 260),
+                "confidence": row.get("confidence").cloned().unwrap_or(Value::Null),
+                "entities": compact_string_array(row.get("entities"), 6, 120),
+                "coverage_facets": row.get("coverage_facets").cloned().unwrap_or_else(|| json!([])),
+                "limitations": compact_string_array(row.get("limitations"), 6, 120),
+                "source_ref": json!({
+                    "title": clean_text(row.pointer("/source_ref/title").and_then(Value::as_str).unwrap_or(""), 180),
+                    "locator": clean_text(row.pointer("/source_ref/locator").and_then(Value::as_str).unwrap_or(""), 240),
+                    "source_domain": clean_text(row.pointer("/source_ref/source_domain").and_then(Value::as_str).unwrap_or(""), 120),
+                    "source_kind": clean_text(row.pointer("/source_ref/source_kind").and_then(Value::as_str).unwrap_or(""), 80),
+                    "materialization_quality": clean_text(row.pointer("/source_ref/materialization_quality").and_then(Value::as_str).unwrap_or(""), 80)
+                })
             }));
         }
     }
@@ -380,7 +508,9 @@ fn synthesis_tool_receipt_refs(response_tools: &[Value]) -> Value {
                     format!(
                         "tool_observation:{}:{}",
                         idx,
-                        normalize_tool_name(tool.get("name").and_then(Value::as_str).unwrap_or("tool"))
+                        normalize_tool_name(
+                            tool.get("name").and_then(Value::as_str).unwrap_or("tool")
+                        )
                     )
                 } else {
                     receipt
@@ -409,9 +539,11 @@ fn synthesis_tool_result_quality(response_tools: &[Value]) -> String {
             tool_hidden_array_len(tool, "evidence_refs")
                 + tool_hidden_array_len(tool, "evidence_pack")
                 + tool_hidden_array_len(tool, "evidence_pack_candidates")
+                + tool_hidden_array_len(tool, "evidence_claims")
         })
         .sum::<usize>();
-    let has_evidence = search_result_count > 0 || provider_result_count > 0 || evidence_ref_count > 0;
+    let has_evidence =
+        search_result_count > 0 || provider_result_count > 0 || evidence_ref_count > 0;
     let has_error = !response_tools_failure_reason_for_user(response_tools, 4)
         .trim()
         .is_empty();
@@ -465,9 +597,12 @@ fn workflow_synthesis_input_for_final_response(
         "schema_version": "live_synthesis_input_v1",
         "source": "dashboard_tool_observation_handoff",
         "user_goal": clean_text(message, 1_200),
+        "research_brief": synthesis_first_hidden_object(response_tools, "research_brief"),
+        "evidence_needs": synthesis_first_hidden_object(response_tools, "evidence_needs"),
         "tool_result_quality": synthesis_tool_result_quality(response_tools),
         "tool_receipt_refs": synthesis_tool_receipt_refs(response_tools),
         "evidence_pack": synthesis_evidence_pack_for_tools(response_tools, 8),
+        "evidence_claims": synthesis_evidence_claims_for_tools(response_tools, 12),
         "coverage_gaps": synthesis_coverage_gaps(response_tools),
         "final_output_contract": final_output_contract
     })
@@ -481,15 +616,26 @@ fn workflow_tool_state_prompt_context(response_tools: &[Value]) -> String {
         .map(|tool| normalize_tool_name(tool.get("name").and_then(Value::as_str).unwrap_or("tool")))
         .filter(|name| !name.is_empty())
         .collect::<Vec<_>>();
-    let search_result_count = limited.iter().map(|tool| tool_hidden_array_len(tool, "search_results")).sum::<usize>();
-    let provider_result_count = limited.iter().map(|tool| tool_hidden_array_len(tool, "provider_results")).sum::<usize>();
+    let search_result_count = limited
+        .iter()
+        .map(|tool| tool_hidden_array_len(tool, "search_results"))
+        .sum::<usize>();
+    let provider_result_count = limited
+        .iter()
+        .map(|tool| tool_hidden_array_len(tool, "provider_results"))
+        .sum::<usize>();
     let evidence_ref_count = limited
         .iter()
         .map(|tool| {
             tool_hidden_array_len(tool, "evidence_refs")
                 + tool_hidden_array_len(tool, "evidence_pack")
                 + tool_hidden_array_len(tool, "evidence_pack_candidates")
+                + tool_hidden_array_len(tool, "evidence_claims")
         })
+        .sum::<usize>();
+    let evidence_claim_count = limited
+        .iter()
+        .map(|tool| tool_hidden_array_len(tool, "evidence_claims"))
         .sum::<usize>();
     let tool_statuses = limited
         .iter()
@@ -501,7 +647,9 @@ fn workflow_tool_state_prompt_context(response_tools: &[Value]) -> String {
         .iter()
         .filter(|tool| {
             let status = tool.get("status").and_then(Value::as_str).unwrap_or("");
-            tool.get("is_error").and_then(Value::as_bool).unwrap_or(false)
+            tool.get("is_error")
+                .and_then(Value::as_bool)
+                .unwrap_or(false)
                 || matches!(status, "error" | "failed" | "timeout" | "blocked")
         })
         .count();
@@ -512,7 +660,9 @@ fn workflow_tool_state_prompt_context(response_tools: &[Value]) -> String {
             let quality_flags = tool_result_quality_object(tool)
                 .map(|quality| tool_quality_string_array(quality, "/flags", 16))
                 .unwrap_or_default();
-            tool.get("low_signal").and_then(Value::as_bool).unwrap_or(false)
+            tool.get("low_signal")
+                .and_then(Value::as_bool)
+                .unwrap_or(false)
                 || matches!(status, "low_signal" | "no_results")
                 || tool_quality_retry_recommended(tool)
                 || quality_flags.iter().any(|flag| {
@@ -580,14 +730,15 @@ fn workflow_tool_state_prompt_context(response_tools: &[Value]) -> String {
         "recorded_search_results": search_result_count,
         "recorded_provider_results": provider_result_count,
         "recorded_evidence_refs": evidence_ref_count,
+        "recorded_evidence_claims": evidence_claim_count,
         "recorded_tool_result_available": tool_count > 0,
         "recorded_evidence_available": recorded_evidence_available
     });
-    let summary_json =
-        serde_json::to_string(&summary).unwrap_or_else(|_| "{\"recorded_tool_outcome_count\":0}".to_string());
+    let summary_json = serde_json::to_string(&summary)
+        .unwrap_or_else(|_| "{\"recorded_tool_outcome_count\":0}".to_string());
     clean_text(
         &format!(
-            "Recorded tool/evidence state for this turn:\n{summary_json}\n\nOnly use tool or evidence details that are explicitly present in this recorded state and the recorded tool outcomes below. Treat `recorded_tool_result_quality`, `recorded_quality_flags`, and `recorded_retry_recommended_count` as the tool boundary signals: retry recommendations, low-signal flags, errors, or no evidence mean the workflow ran but evidence may be insufficient. Choose exactly one internal outcome posture before answering: `supported_answer` when usable evidence is strong enough to answer directly, `bounded_partial_answer` when some usable evidence supports part of the request but meaningful gaps remain, or `evidence_insufficient_answer` when no usable evidence supports a direct source-backed answer. If evidence counts are zero, do not claim returned snippets, evidence refs, or source-backed findings for this turn. Evidence being insufficient does not prove that the underlying fact, source surface, or entity does not exist."
+            "Recorded tool/evidence state for this turn:\n{summary_json}\n\nOnly use tool or evidence details that are explicitly present in this recorded state and the recorded tool outcomes below. Treat `recorded_tool_result_quality`, `recorded_quality_flags`, `recorded_retry_recommended_count`, and `recorded_evidence_claims` as the tool boundary signals: retry recommendations, low-signal flags, missing claim-backed evidence, errors, or no evidence mean the workflow ran but evidence may be insufficient. Choose exactly one internal outcome posture before answering: `supported_answer` when usable evidence is strong enough to answer directly, `bounded_partial_answer` when some usable evidence supports part of the request but meaningful gaps remain, or `evidence_insufficient_answer` when no usable evidence supports a direct source-backed answer. If evidence counts are zero, do not claim returned snippets, evidence refs, or source-backed findings for this turn. Evidence being insufficient does not prove that the underlying fact, source surface, or entity does not exist."
         ),
         2_000,
     )
@@ -687,8 +838,10 @@ fn workflow_pending_tool_confirmation_fallback(
             .unwrap_or(""),
     );
     let fallback = if family.contains("web")
-        || matches!(tool_name.as_str(), "web_search" | "batch_query" | "web_fetch")
-    {
+        || matches!(
+            tool_name.as_str(),
+            "web_search" | "batch_query" | "web_fetch"
+        ) {
         "The permission policy requires your confirmation before I run that web research step. Say `confirm` and I'll run the search, then synthesize what comes back."
     } else if family.contains("workspace")
         || matches!(
@@ -783,13 +936,20 @@ fn persist_last_assistant_turn_metadata(
     if let Some(sessions) = state.get_mut("sessions").and_then(Value::as_array_mut) {
         for session in sessions.iter_mut() {
             let sid = clean_text(
-                session.get("session_id").and_then(Value::as_str).unwrap_or(""),
+                session
+                    .get("session_id")
+                    .and_then(Value::as_str)
+                    .unwrap_or(""),
                 120,
             );
             if sid != active_id {
                 continue;
             }
-            if !session.get("messages").map(Value::is_array).unwrap_or(false) {
+            if !session
+                .get("messages")
+                .map(Value::is_array)
+                .unwrap_or(false)
+            {
                 session["messages"] = Value::Array(Vec::new());
             }
             let messages = session
@@ -803,7 +963,8 @@ fn persist_last_assistant_turn_metadata(
             let idx = if let Some(found) = target_idx {
                 found
             } else {
-                messages.push(json!({"role": "assistant", "text": assistant, "ts": crate::now_iso()}));
+                messages
+                    .push(json!({"role": "assistant", "text": assistant, "ts": crate::now_iso()}));
                 messages.len().saturating_sub(1)
             };
             if let Some(target) = messages.get_mut(idx) {
@@ -816,7 +977,12 @@ fn persist_last_assistant_turn_metadata(
                         target[key] = value.clone();
                     }
                 }
-                if target.get("ts").and_then(Value::as_str).unwrap_or("").is_empty() {
+                if target
+                    .get("ts")
+                    .and_then(Value::as_str)
+                    .unwrap_or("")
+                    .is_empty()
+                {
                     target["ts"] = Value::String(crate::now_iso());
                 }
             }
@@ -837,7 +1003,9 @@ mod tool_turn_response_text_tests {
     fn tool_turn_response_text_withholds_non_llm_failure_fallback_copy() {
         let response = ensure_tool_turn_response_text(
             "",
-            &[json!({"name":"batch_query","status":"failed","is_error":true,"blocked":false,"result":"query_result_mismatch"})],
+            &[
+                json!({"name":"batch_query","status":"failed","is_error":true,"blocked":false,"result":"query_result_mismatch"}),
+            ],
         );
         assert!(response.trim().is_empty(), "{response}");
     }
@@ -846,7 +1014,9 @@ mod tool_turn_response_text_tests {
     fn tool_turn_response_text_withholds_non_llm_findings_fallback_copy() {
         let response = ensure_tool_turn_response_text(
             "",
-            &[json!({"name":"batch_query","status":"ok","is_error":false,"blocked":false,"result":"Key findings: OpenHands is an open-source AI software development agent platform."})],
+            &[
+                json!({"name":"batch_query","status":"ok","is_error":false,"blocked":false,"result":"Key findings: OpenHands is an open-source AI software development agent platform."}),
+            ],
         );
         assert!(response.trim().is_empty(), "{response}");
     }
@@ -952,7 +1122,8 @@ mod tool_turn_response_text_tests {
             "{rows}"
         );
         assert!(
-            rows.pointer("/0/quality_diagnostics/candidate_quality/0/locator").is_none(),
+            rows.pointer("/0/quality_diagnostics/candidate_quality/0/locator")
+                .is_none(),
             "{rows}"
         );
     }
@@ -973,9 +1144,19 @@ mod tool_turn_response_text_tests {
                 "status": "ok",
                 "result": "Battery chemistry and protein design examples were retrieved.",
                 "tool_attempt_receipt": {"receipt_id": "receipt-123"},
+                "research_brief": {
+                    "schema_version": "research_brief_v1",
+                    "research_objective": "What are some scientific breakthroughs in 2026?",
+                    "answer_shape": "briefing"
+                },
+                "evidence_needs": {
+                    "schema_version": "evidence_needs_v1",
+                    "minimum_claims": 3,
+                    "required_materialization": "materialized_or_trusted_feed"
+                },
                 "evidence_pack": [{
                     "pack_version": "evidence_pack_v1",
-                    "source_kind": "web_page",
+                    "source_kind": "browser_materialized_page",
                     "source_class": "news",
                     "title": "Battery milestone",
                     "locator": "https://example.test/battery",
@@ -984,7 +1165,23 @@ mod tool_turn_response_text_tests {
                     "claim_hints": ["battery chemistry milestone"],
                     "quality_flags": ["primary_source_needed"],
                     "score": 0.84,
-                    "confidence": "medium"
+                    "confidence": "medium",
+                    "materialization_quality": "full_materialized",
+                    "counts_as_usable_evidence": true
+                }],
+                "evidence_claims": [{
+                    "claim": "A lab reported a battery chemistry milestone.",
+                    "support_snippet": "A lab reported a battery chemistry milestone.",
+                    "confidence": "medium",
+                    "entities": ["battery chemistry"],
+                    "limitations": ["primary_source_needed"],
+                    "source_ref": {
+                        "title": "Battery milestone",
+                        "locator": "https://example.test/battery",
+                        "source_domain": "example.test",
+                        "source_kind": "browser_materialized_page",
+                        "materialization_quality": "full_materialized"
+                    }
                 }],
                 "tool_result_quality": {
                     "status": "ok",
@@ -1006,12 +1203,40 @@ mod tool_turn_response_text_tests {
             Some("usable")
         );
         assert_eq!(
-            input.pointer("/tool_receipt_refs/0").and_then(Value::as_str),
+            input
+                .pointer("/tool_receipt_refs/0")
+                .and_then(Value::as_str),
             Some("receipt-123")
         );
         assert_eq!(
-            input.pointer("/evidence_pack/0/title").and_then(Value::as_str),
+            input
+                .pointer("/evidence_pack/0/title")
+                .and_then(Value::as_str),
             Some("Battery milestone")
+        );
+        assert_eq!(
+            input
+                .pointer("/research_brief/answer_shape")
+                .and_then(Value::as_str),
+            Some("briefing")
+        );
+        assert_eq!(
+            input
+                .pointer("/evidence_needs/required_materialization")
+                .and_then(Value::as_str),
+            Some("materialized_or_trusted_feed")
+        );
+        assert_eq!(
+            input
+                .pointer("/evidence_claims/0/claim")
+                .and_then(Value::as_str),
+            Some("A lab reported a battery chemistry milestone.")
+        );
+        assert_eq!(
+            input
+                .pointer("/evidence_claims/0/source_ref/materialization_quality")
+                .and_then(Value::as_str),
+            Some("full_materialized")
         );
         assert_eq!(
             input
@@ -1033,10 +1258,7 @@ mod tool_turn_response_text_tests {
             ),
             "{prompt}"
         );
-        assert!(
-            prompt.contains("does not exist"),
-            "{prompt}"
-        );
+        assert!(prompt.contains("does not exist"), "{prompt}");
     }
 
     #[test]
@@ -1055,7 +1277,10 @@ mod tool_turn_response_text_tests {
         ] {
             assert!(response.contains(needle), "{response}");
         }
-        assert!(!response.contains("Infring") && !response.contains("agent frameworks"), "{response}");
+        assert!(
+            !response.contains("Infring") && !response.contains("agent frameworks"),
+            "{response}"
+        );
         assert!(
             workflow_missing_turn_tool_context_response_contract_satisfied(&response),
             "{response}"
@@ -1223,14 +1448,12 @@ mod tool_turn_response_text_tests {
                 .is_empty(),
             "auto-executed tool turns should still surface a user-facing response"
         );
-        assert!(
-            !response
-                .payload
-                .get("response")
-                .and_then(Value::as_str)
-                .unwrap_or("")
-                .contains("Say `confirm`")
-        );
+        assert!(!response
+            .payload
+            .get("response")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .contains("Say `confirm`"));
 
         let script = read_json(&script_path).expect("script file");
         assert_eq!(

@@ -132,6 +132,31 @@ mod quality_tests {
             "explicit_request_pack_with_metadata"
         );
         assert_eq!(plan.queries.first().map(String::as_str), Some(query));
+        let alpha_official_site = plan
+            .queries
+            .iter()
+            .position(|row| row == "\"Alpha Runtime\" official site -\"fashion model\"")
+            .expect("Alpha Runtime official site lane");
+        let alpha_facet_lane = plan
+            .queries
+            .iter()
+            .position(|row| row.contains("\"Alpha Runtime\" deployment readiness official documentation"))
+            .expect("Alpha Runtime facet lane");
+        assert!(alpha_official_site < alpha_facet_lane, "{:#?}", plan.queries);
+        assert!(
+            plan.queries
+                .iter()
+                .any(|row| row == "\"Alpha Runtime\" official site -\"fashion model\""),
+            "{:#?}",
+            plan.queries
+        );
+        assert!(
+            plan.queries
+                .iter()
+                .any(|row| row.contains("\"Alpha Runtime\" deployment readiness official documentation")),
+            "{:#?}",
+            plan.queries
+        );
         assert!(
             plan.queries
                 .iter()
@@ -164,6 +189,57 @@ mod quality_tests {
         assert_eq!(
             plan.query_metadata.entities,
             vec!["Alpha Runtime", "Beta Search"]
+        );
+    }
+
+    #[test]
+    fn explicit_query_packs_cap_metadata_expansion_to_top_discovery_lanes() {
+        let query =
+            "Compare LangGraph vs CrewAI for building a multi-agent research assistant.";
+        let request = json!({
+            "source": "web",
+            "query": query,
+            "queries": [
+                "LangGraph multi-agent research assistant reliability observability deployment maturity",
+                "CrewAI multi-agent research assistant reliability observability deployment maturity",
+                "LangGraph human-in-the-loop human review agent orchestration production",
+                "CrewAI human-in-the-loop human review agent orchestration production"
+            ],
+            "keywords": [
+                "LangGraph",
+                "CrewAI",
+                "multi-agent",
+                "research assistant",
+                "reliability",
+                "observability",
+                "deployment maturity"
+            ],
+            "required_coverage": {
+                "entities": ["LangGraph", "CrewAI"],
+                "facets": ["reliability", "observability", "human review", "deployment maturity"]
+            },
+            "aperture": "medium"
+        });
+        let budget = aperture_budget("medium").expect("budget");
+        let plan = resolve_query_plan(&json!({}), &request, query, budget);
+
+        assert_eq!(plan.queries.len(), 8, "{:#?}", plan.queries);
+        assert!(
+            plan.queries.iter().any(|row| row == "\"LangGraph\" official site"),
+            "{:#?}",
+            plan.queries
+        );
+        assert!(
+            plan.queries.iter().any(|row| row == "\"CrewAI\" official site"),
+            "{:#?}",
+            plan.queries
+        );
+        assert!(
+            plan.queries
+                .iter()
+                .all(|row| !row.contains("deployment maturity official documentation")),
+            "{:#?}",
+            plan.queries
         );
     }
 

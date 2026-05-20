@@ -234,32 +234,68 @@ fn backend_class_for(backend: &str) -> ToolBackendClass {
 
 fn retrieval_plane_health(state_root: &Path) -> ToolBackendHealth {
     let provider_path = state_root.join("provider_registry.json");
+    let server_path = state_root.join("server_status.json");
+    let server_status = read_json::<ServerStatus>(&server_path);
+    let server_alive = server_status
+        .as_ref()
+        .and_then(|row| row.ok)
+        .unwrap_or(false);
     let Some(registry) = read_json::<ProviderRegistry>(&provider_path) else {
+        let (status, reason_code, reason, auth_healthy) = if server_alive {
+            (
+                ToolCapabilityStatus::Degraded,
+                ToolReasonCode::BackendDegraded,
+                "provider_registry_missing_runtime_alive".to_string(),
+                None,
+            )
+        } else {
+            (
+                ToolCapabilityStatus::Unavailable,
+                ToolReasonCode::TransportUnavailable,
+                "provider_registry_missing".to_string(),
+                Some(false),
+            )
+        };
         return ToolBackendHealth {
             backend: "retrieval_plane".to_string(),
             backend_class: ToolBackendClass::RetrievalPlane,
-            status: ToolCapabilityStatus::Unavailable,
-            reason_code: ToolReasonCode::TransportUnavailable,
-            reason: "provider_registry_missing".to_string(),
+            status,
+            reason_code,
+            reason,
             source: provider_path.display().to_string(),
             daemon_healthy: Some(resident_ipc_authoritative()),
-            ws_healthy: None,
-            auth_healthy: Some(false),
+            ws_healthy: server_status.as_ref().and_then(|row| row.ws_bridge_enabled),
+            auth_healthy,
             resident_ipc_authoritative: resident_ipc_authoritative(),
         };
     };
     let providers = registry.providers.values().collect::<Vec<_>>();
     if providers.is_empty() {
+        let (status, reason_code, reason, auth_healthy) = if server_alive {
+            (
+                ToolCapabilityStatus::Degraded,
+                ToolReasonCode::BackendDegraded,
+                "provider_registry_empty_runtime_alive".to_string(),
+                None,
+            )
+        } else {
+            (
+                ToolCapabilityStatus::Unavailable,
+                ToolReasonCode::TransportUnavailable,
+                "provider_registry_empty".to_string(),
+                Some(false),
+            )
+        };
         return ToolBackendHealth {
             backend: "retrieval_plane".to_string(),
             backend_class: ToolBackendClass::RetrievalPlane,
-            status: ToolCapabilityStatus::Unavailable,
-            reason_code: ToolReasonCode::TransportUnavailable,
-            reason: "provider_registry_empty".to_string(),
+            status,
+            reason_code,
+            reason,
             source: provider_path.display().to_string(),
             daemon_healthy: Some(resident_ipc_authoritative()),
-            ws_healthy: None,
-            auth_healthy: Some(false),
+            ws_healthy: server_status.as_ref().and_then(|row| row.ws_bridge_enabled),
+            auth_healthy,
             resident_ipc_authoritative: resident_ipc_authoritative(),
         };
     }
@@ -499,4 +535,52 @@ pub fn live_backend_status_for(backend: &str) -> ToolBackendHealth {
             auth_healthy: None,
             resident_ipc_authoritative: resident_ipc_authoritative(),
         })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn temp_state_root(tag: &str) -> PathBuf {
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("clock")
+            .as_nanos();
+        let path = std::env::temp_dir().join(format!(
+            "infring_backend_registry_{tag}_{}_{}",
+            std::process::id(),
+            nonce
+        ));
+        std::fs::create_dir_all(&path).expect("create temp state root");
+        path
+    }
+
+    #[test]
+    fn retrieval_plane_is_degraded_not_unavailable_when_runtime_alive_without_provider_registry() {
+        let state_root = temp_state_root("runtime_alive_missing_provider_registry");
+        std::fs::write(
+            state_root.join("server_status.json"),
+            r#"{"ok":true,"ws_bridge_enabled":true}"#,
+        )
+        .expect("write server status");
+        let out = retrieval_plane_health(&state_root);
+        assert_eq!(out.status, ToolCapabilityStatus::Degraded);
+        assert_eq!(out.reason_code, ToolReasonCode::BackendDegraded);
+        assert_eq!(out.reason, "provider_registry_missing_runtime_alive");
+        assert_eq!(out.ws_healthy, Some(true));
+        assert_eq!(out.auth_healthy, None);
+        let _ = std::fs::remove_dir_all(state_root);
+    }
+
+    #[test]
+    fn retrieval_plane_stays_unavailable_when_provider_registry_missing_and_runtime_dead() {
+        let state_root = temp_state_root("runtime_dead_missing_provider_registry");
+        let out = retrieval_plane_health(&state_root);
+        assert_eq!(out.status, ToolCapabilityStatus::Unavailable);
+        assert_eq!(out.reason_code, ToolReasonCode::TransportUnavailable);
+        assert_eq!(out.reason, "provider_registry_missing");
+        assert_eq!(out.auth_healthy, Some(false));
+        let _ = std::fs::remove_dir_all(state_root);
+    }
 }

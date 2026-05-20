@@ -8,10 +8,28 @@
     let response_guard =
         final_response_guard_report(message, &response_text, &response_tools, false);
     if response_guard_bool(&response_guard, "final_contract_violation") {
-        // Chat output stays LLM-authored only; guard failures are telemetry,
-        // not retry prompts and not invisible suppression.
+        let rewritten_visible_response =
+            final_guard_retry_boilerplate_rewrite(message, &response_text);
+        if let Some(rewritten) = rewritten_visible_response.clone() {
+            response_text = rewritten;
+            finalized_response = clean_chat_text(&response_text, 32_000);
+            response_workflow["response"] = json!(response_text.clone());
+            response_workflow["text"] = json!(response_text.clone());
+            response_workflow["message"] = json!(response_text.clone());
+            response_workflow["final_llm_response"]["guard_rewrite_applied"] = json!(true);
+            response_workflow["final_llm_response"]["guard_rewrite_reason"] =
+                json!("retry_boilerplate_visible_response");
+            response_workflow["final_llm_response"]["guard_rewrite_excerpt"] =
+                json!(first_sentence(&response_text, 240));
+            finalization_outcome = merge_response_outcomes(
+                &finalization_outcome,
+                "final_response_guard_rewritten",
+                220,
+            );
+        }
         response_workflow["final_llm_response"]["runtime_interference_disabled"] = json!(true);
-        response_workflow["final_llm_response"]["final_guard_diagnostic_only"] = json!(true);
+        response_workflow["final_llm_response"]["final_guard_diagnostic_only"] =
+            json!(rewritten_visible_response.is_none());
         if response_guard_bool(&response_guard, "final_contamination_violation") {
             bump_workflow_quality_counter(&mut response_workflow, "contamination_reject");
         }
@@ -29,11 +47,13 @@
             final_response_guard_outcome(&response_guard),
             200,
         );
-        finalization_outcome = merge_response_outcomes(
-            &finalization_outcome,
-            "final_response_guard_diagnostic_only",
-            220,
-        );
+        if rewritten_visible_response.is_none() {
+            finalization_outcome = merge_response_outcomes(
+                &finalization_outcome,
+                "final_response_guard_diagnostic_only",
+                220,
+            );
+        }
     }
     let _ = (message, &response_tools);
     let direct_answer_rate =

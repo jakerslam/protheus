@@ -142,96 +142,14 @@ fn manual_toolbox_pending_request_from_latent_candidates(
 }
 
 fn workflow_repair_recovered_request_payload(
-    family_key: &str,
-    tool_key: &str,
-    mut input: Value,
-    message: &str,
+    _family_key: &str,
+    _tool_key: &str,
+    input: Value,
+    _message: &str,
 ) -> Value {
-    if canonical_manual_toolbox_tool_name(family_key, tool_key) != "batch_query" {
-        return input;
-    }
-    let Some(policy) = workflow_batch_query_recovery_repair_policy(family_key) else {
-        return input;
-    };
-    let Some(map) = input.as_object_mut() else {
-        return input;
-    };
-    let query = map
-        .get("query")
-        .or_else(|| map.get("context"))
-        .and_then(Value::as_str)
-        .map(|raw| clean_text(raw, 1_200))
-        .filter(|raw| !raw.is_empty())
-        .unwrap_or_else(|| clean_text(message, 1_200));
-    if query.is_empty() {
-        return input;
-    }
-
-    let source_class_terms = workflow_recovery_policy_terms(&policy, "source_class_terms", 6);
-    let generic_facet_terms = workflow_recovery_policy_terms(&policy, "generic_facet_terms", 8);
-    let entities = workflow_recovery_entity_terms(&query, message);
-    let facets = workflow_recovery_facet_terms(&query, message, &generic_facet_terms);
-    let broad = workflow_recovery_request_needs_metadata(&query, message, &entities);
-    let mut added_fields = Vec::<String>::new();
-
-    if broad {
-        if workflow_json_array_is_empty(map.get("queries")) {
-            let queries = workflow_recovery_query_lanes(&query, &entities, &facets, &source_class_terms);
-            if !queries.is_empty() {
-                map.insert("queries".to_string(), json!(queries));
-                added_fields.push("queries".to_string());
-            }
-        }
-        if workflow_json_array_is_empty(map.get("keywords")) {
-            let keywords = workflow_recovery_keywords(&entities, &facets, &source_class_terms);
-            if !keywords.is_empty() {
-                map.insert("keywords".to_string(), json!(keywords));
-                added_fields.push("keywords".to_string());
-            }
-        }
-        let required_coverage = workflow_recovery_required_coverage(map.get("required_coverage"), &entities, &facets);
-        if required_coverage.is_some() {
-            map.insert(
-                "required_coverage".to_string(),
-                required_coverage.unwrap_or_else(|| json!({})),
-            );
-            added_fields.push("required_coverage".to_string());
-        }
-        if !map.contains_key("aliases") {
-            map.insert("aliases".to_string(), json!([]));
-            added_fields.push("aliases".to_string());
-        }
-        if !map.contains_key("negative_terms") {
-            map.insert("negative_terms".to_string(), json!([]));
-            added_fields.push("negative_terms".to_string());
-        }
-    }
-
-    let marker_field = policy
-        .get("narrow_lookup_marker_field")
-        .and_then(Value::as_str)
-        .map(|raw| clean_text(raw, 80))
-        .filter(|raw| !raw.is_empty())
-        .unwrap_or_else(|| "query_metadata_policy".to_string());
-    if !map.contains_key(&marker_field) {
-        map.insert(
-            marker_field,
-            json!({
-                "source": "latent_candidate_recovery_contract",
-                "classification": if broad {
-                    "expanded_query_pack"
-                } else {
-                    "narrow_lookup_or_initial_discovery"
-                },
-                "reason": if broad {
-                    "request_shape_needed_multiple_evidence_lanes"
-                } else {
-                    "request_shape_did_not_require_extra_metadata"
-                },
-                "metadata_fields_added": added_fields
-            }),
-        );
-    }
+    // Raw-message recovery must stay mechanical and contract-driven. Do not
+    // infer entities, aliases, facets, comparison modes, or temporal classes
+    // from user prose in Rust.
     input
 }
 
@@ -291,6 +209,8 @@ fn workflow_recovery_request_needs_metadata(
             "evaluate",
             "assessment",
             "assess",
+            "best",
+            "defensible",
             "recommend",
             "selection",
             "landscape",
@@ -305,6 +225,7 @@ fn workflow_recovery_request_needs_metadata(
             "maturity",
             "risk",
             "security",
+            "marketing",
             "production",
             "strength",
             "weak",
@@ -352,7 +273,7 @@ fn workflow_recovery_entity_boundary_after(raw: &str) -> bool {
     raw.chars()
         .rev()
         .find(|ch| !ch.is_whitespace())
-        .map(|ch| matches!(ch, ',' | ';' | ':' | ')' | ']' | '}'))
+        .map(|ch| matches!(ch, ',' | ';' | ':' | '.' | '?' | '!' | ')' | ']' | '}'))
         .unwrap_or(false)
 }
 
@@ -394,6 +315,7 @@ fn workflow_recovery_entity_stopword(token: &str) -> bool {
             | "january"
             | "july"
             | "june"
+            | "look"
             | "march"
             | "may"
             | "me"
@@ -404,12 +326,16 @@ fn workflow_recovery_entity_stopword(token: &str) -> bool {
             | "or"
             | "practical"
             | "recommendation"
+            | "recent"
             | "research"
             | "search"
             | "september"
+            | "summarize"
+            | "summary"
             | "tell"
             | "the"
             | "to"
+            | "up"
             | "tradeoff"
             | "tradeoffs"
             | "use"
@@ -524,6 +450,65 @@ fn workflow_recovery_keywords(
     terms.extend(facets.iter().take(8).cloned());
     terms.extend(source_class_terms.iter().take(3).cloned());
     workflow_recovery_dedupe_limit(terms, 16)
+}
+
+fn workflow_recovery_aliases(entities: &[String]) -> Vec<String> {
+    let mut aliases = Vec::<String>::new();
+    for entity in entities {
+        for alias in workflow_recovery_parenthetical_aliases(entity) {
+            aliases.push(alias);
+        }
+        if let Some(alias) = workflow_recovery_initialism_alias(entity) {
+            aliases.push(alias);
+        }
+    }
+    workflow_recovery_dedupe_limit(aliases, 16)
+}
+
+fn workflow_recovery_parenthetical_aliases(raw: &str) -> Vec<String> {
+    let mut out = Vec::<String>::new();
+    let mut rest = raw;
+    while let Some(open_idx) = rest.find('(') {
+        let after_open = &rest[open_idx + 1..];
+        let Some(close_idx) = after_open.find(')') else {
+            break;
+        };
+        let alias = clean_text(&after_open[..close_idx], 80);
+        if workflow_recovery_alias_term_allowed(&alias) {
+            out.push(alias);
+        }
+        rest = &after_open[close_idx + 1..];
+    }
+    out
+}
+
+fn workflow_recovery_initialism_alias(raw: &str) -> Option<String> {
+    let tokens = raw
+        .split(|ch: char| !ch.is_ascii_alphanumeric())
+        .filter(|token| !token.is_empty())
+        .filter(|token| !workflow_recovery_entity_stopword(token))
+        .collect::<Vec<_>>();
+    if tokens.len() < 2 {
+        return None;
+    }
+    let alias = tokens
+        .iter()
+        .filter_map(|token| token.chars().next())
+        .collect::<String>()
+        .to_ascii_uppercase();
+    if workflow_recovery_alias_term_allowed(&alias) && alias.chars().count() >= 3 {
+        Some(alias)
+    } else {
+        None
+    }
+}
+
+fn workflow_recovery_alias_term_allowed(raw: &str) -> bool {
+    let alnum_count = raw.chars().filter(|ch| ch.is_ascii_alphanumeric()).count();
+    alnum_count >= 2
+        && raw
+            .chars()
+            .all(|ch| ch.is_ascii_alphanumeric() || ch == '-' || ch == '_' || ch.is_whitespace())
 }
 
 fn workflow_recovery_required_coverage(
@@ -895,6 +880,219 @@ fn workflow_request_payload_from_response(
         .filter(Value::is_object)
 }
 
+fn workflow_tool_menu_contract_from_response_workflow(response_workflow: &Value) -> Value {
+    let contract = response_workflow
+        .pointer("/selected_workflow/tool_menu_interface_contract")
+        .cloned()
+        .unwrap_or_else(default_workflow_tool_menu_contract);
+    let family_key = workflow_selected_tool_family_key_from_workflow(response_workflow);
+    if !family_key.is_empty() {
+        let family_contract = workflow_tool_menu_contract_for_family(&family_key);
+        let has_family = family_contract
+            .get("tool_menu_by_family")
+            .and_then(Value::as_object)
+            .and_then(|families| families.get(&family_key))
+            .is_some();
+        if has_family {
+            return family_contract;
+        }
+    }
+    contract
+}
+
+fn workflow_selected_tool_family_key_from_workflow(response_workflow: &Value) -> String {
+    clean_text(
+        response_workflow
+            .pointer("/tool_gate/selected_tool_family")
+            .or_else(|| {
+                response_workflow.pointer("/manual_toolbox_pending_tool_request/selected_tool_family")
+            })
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        120,
+    )
+}
+
+fn workflow_selected_tool_key_from_workflow(response_workflow: &Value) -> String {
+    clean_text(
+        response_workflow
+            .pointer("/tool_gate/selected_tool")
+            .or_else(|| response_workflow.pointer("/tool_gate/selected_tool_key"))
+            .or_else(|| {
+                response_workflow.pointer("/manual_toolbox_pending_tool_request/selected_tool_key")
+            })
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        120,
+    )
+}
+
+fn workflow_tool_contract_from_contract(
+    contract: &Value,
+    family_key: &str,
+    tool_key: &str,
+) -> Option<Value> {
+    contract
+        .get("tool_menu_by_family")
+        .and_then(Value::as_object)
+        .and_then(|families| families.get(family_key))
+        .and_then(Value::as_array)
+        .and_then(|tools| {
+            tools.iter()
+                .find(|tool| workflow_option_key(tool) == tool_key)
+                .cloned()
+        })
+}
+
+fn workflow_default_raw_message_recovery_tool_key(contract: &Value, family_key: &str) -> String {
+    let Some(tools) = contract
+        .get("tool_menu_by_family")
+        .and_then(Value::as_object)
+        .and_then(|families| families.get(family_key))
+        .and_then(Value::as_array)
+    else {
+        return String::new();
+    };
+    if let Some(tool) = tools.iter().find(|tool| {
+        tool.get("recovery_default_for_raw_message")
+            .and_then(Value::as_bool)
+            == Some(true)
+    }) {
+        return workflow_option_key(tool);
+    }
+    if tools.len() == 1 {
+        return workflow_option_key(&tools[0]);
+    }
+    String::new()
+}
+
+fn workflow_sanitize_request_format_for_raw_message(value: &Value) -> Option<Value> {
+    match value {
+        Value::Object(map) => {
+            let mut sanitized = serde_json::Map::new();
+            for (key, child) in map {
+                let normalized_key = normalized_workflow_token(key);
+                if matches!(
+                    normalized_key.as_str(),
+                    "queries"
+                        | "keywords"
+                        | "required coverage"
+                        | "aliases"
+                        | "negative terms"
+                        | "query metadata policy"
+                ) {
+                    continue;
+                }
+                if let Some(sanitized_child) =
+                    workflow_sanitize_request_format_for_raw_message(child)
+                {
+                    sanitized.insert(key.clone(), sanitized_child);
+                }
+            }
+            Some(Value::Object(sanitized))
+        }
+        Value::Array(_) => Some(Value::Array(Vec::new())),
+        Value::String(raw) => {
+            let cleaned = clean_text(raw, 240);
+            if cleaned.starts_with('<') && cleaned.ends_with('>') {
+                None
+            } else {
+                Some(Value::String(cleaned))
+            }
+        }
+        Value::Null => None,
+        _ => Some(value.clone()),
+    }
+}
+
+fn workflow_raw_message_binding_value(bind_field: &str, message: &str) -> Option<Value> {
+    let normalized = normalized_workflow_token(bind_field);
+    if normalized == "url" {
+        let url = message
+            .split_whitespace()
+            .find(|token| token.starts_with("https://") || token.starts_with("http://"))
+            .map(|token| token.trim_matches(|ch: char| ",.;:!?)]}\"'".contains(ch)))
+            .map(|raw| clean_text(raw, 1_200))
+            .filter(|raw| !raw.is_empty())?;
+        return Some(Value::String(url));
+    }
+    let query = clean_text(message, 1_200);
+    if query.is_empty() {
+        None
+    } else {
+        Some(Value::String(query))
+    }
+}
+
+fn workflow_request_payload_from_raw_message_contract(
+    contract: &Value,
+    family_key: &str,
+    tool_key: &str,
+    message: &str,
+) -> Option<Value> {
+    let tool = workflow_tool_contract_from_contract(contract, family_key, tool_key)?;
+    let raw_message_contract = tool
+        .get("raw_message_fallback_contract")
+        .filter(|value| value.is_object())?;
+    if raw_message_contract
+        .get("enabled")
+        .and_then(Value::as_bool)
+        != Some(true)
+    {
+        return None;
+    }
+    let bind_field = clean_text(
+        raw_message_contract
+            .get("bind_user_message_to")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        120,
+    );
+    if bind_field.is_empty() {
+        return None;
+    }
+    let mut payload = workflow_sanitize_request_format_for_raw_message(
+        tool.get("request_format").unwrap_or(&Value::Null),
+    )?;
+    let binding_value = workflow_raw_message_binding_value(&bind_field, message)?;
+    payload.as_object_mut()?.insert(bind_field, binding_value);
+    Some(payload)
+}
+
+fn workflow_pending_request_from_selected_tool_contract(
+    response_workflow: &Value,
+    message: &str,
+) -> Option<Value> {
+    let family_key = workflow_selected_tool_family_key_from_workflow(response_workflow);
+    if family_key.is_empty() || family_key == "none" || family_key == "unselected" {
+        return None;
+    }
+    let contract = workflow_tool_menu_contract_from_response_workflow(response_workflow);
+    let mut tool_key = workflow_selected_tool_key_from_workflow(response_workflow);
+    if tool_key.is_empty() {
+        tool_key = workflow_default_raw_message_recovery_tool_key(&contract, &family_key);
+    }
+    if tool_key.is_empty() {
+        return None;
+    }
+    let tool = workflow_tool_contract_from_contract(&contract, &family_key, &tool_key)?;
+    let tool_label = workflow_option_label(&tool);
+    let input =
+        workflow_request_payload_from_raw_message_contract(&contract, &family_key, &tool_key, message)?;
+    let mut pending = manual_toolbox_pending_request_from_parts(
+        &family_key,
+        &tool_key,
+        &tool_label,
+        input,
+        message,
+    )?;
+    pending["source"] = Value::String("workflow_selected_tool_contract_recovery".to_string());
+    pending["recovery_contract"] = Value::String(
+        "workflow_selected_tool_contract_plus_raw_user_message".to_string(),
+    );
+    Some(pending)
+}
+
 fn manual_toolbox_pending_request_from_parts(
     family_key: &str,
     tool_key: &str,
@@ -989,5 +1187,94 @@ fn manual_toolbox_invalid_reject_reason(
         "tool_without_selection_diagnostic_only"
     } else {
         "tool_request_without_payload_submission_diagnostic_only"
+    }
+}
+
+#[cfg(test)]
+mod manual_toolbox_pending_request_tests {
+    use super::*;
+
+    #[test]
+    fn recovered_payload_repair_does_not_infer_metadata_from_message() {
+        let payload = workflow_repair_recovered_request_payload(
+            "web_research",
+            "batch_query",
+            serde_json::json!({
+                "source": "web",
+                "query": "what is the public sentiment on xvacume versus yvacume?",
+                "aperture": "medium"
+            }),
+            "what is the public sentiment on xvacume versus yvacume?",
+        );
+        assert_eq!(
+            payload,
+            json!({
+                "source": "web",
+                "query": "what is the public sentiment on xvacume versus yvacume?",
+                "aperture": "medium"
+            })
+        );
+    }
+
+    #[test]
+    fn selected_web_research_tool_contract_recovers_raw_message_query() {
+        let workflow = json!({
+            "selected_workflow": {
+                "tool_menu_interface_contract": default_workflow_tool_menu_contract()
+            },
+            "tool_gate": {
+                "selected_tool_family": "web_research",
+                "selected_tool": "web_search"
+            }
+        });
+        let pending = workflow_pending_request_from_selected_tool_contract(
+            &workflow,
+            "what is the public sentiment on xvacume versus yvacume?",
+        )
+        .expect("pending request");
+        assert_eq!(
+            pending.get("tool_name").and_then(Value::as_str),
+            Some("web_search")
+        );
+        assert_eq!(
+            pending.pointer("/input/query").and_then(Value::as_str),
+            Some("what is the public sentiment on xvacume versus yvacume?")
+        );
+        assert_eq!(
+            pending.pointer("/input/aperture").and_then(Value::as_str),
+            Some("medium")
+        );
+        assert!(pending.pointer("/input/keywords").is_none(), "{pending:?}");
+        assert!(pending.pointer("/input/required_coverage").is_none(), "{pending:?}");
+        assert!(pending.pointer("/input/query_metadata_policy").is_none(), "{pending:?}");
+        assert_eq!(
+            pending.get("source").and_then(Value::as_str),
+            Some("workflow_selected_tool_contract_recovery")
+        );
+    }
+
+    #[test]
+    fn selected_web_research_family_uses_contract_default_tool_for_raw_message_recovery() {
+        let workflow = json!({
+            "selected_workflow": {
+                "tool_menu_interface_contract": default_workflow_tool_menu_contract()
+            },
+            "tool_gate": {
+                "selected_tool_family": "web_research"
+            }
+        });
+        let pending = workflow_pending_request_from_selected_tool_contract(
+            &workflow,
+            "what is the news today",
+        )
+        .expect("pending request");
+        assert_eq!(
+            pending.get("tool_name").and_then(Value::as_str),
+            Some("web_search")
+        );
+        assert_eq!(
+            pending.pointer("/input/query").and_then(Value::as_str),
+            Some("what is the news today")
+        );
     }
 }

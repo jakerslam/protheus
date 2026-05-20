@@ -1,9 +1,10 @@
 // Layer ownership: Core Layer 2 (Scheduling + Execution) - native prompt policy bridge.
 use crate::native_evidence::{
-    native_tool_changed_paths, native_tool_evidence_target_brief,
+    native_tool_changed_paths, native_tool_coding_task_lane, native_tool_evidence_target_brief,
     native_tool_failed_validation_receipt_details, native_tool_prompt_checkpoint_name,
     native_tool_prompt_expected_memory_row_id, native_tool_prompt_memory_cli_pattern,
-    native_tool_successful_receipt_refs,
+    native_tool_is_probable_micro_direct_write_task, native_tool_successful_receipt_refs,
+    native_tool_unique_code_path_mentions,
 };
 use crate::native_tools::NativeToolReceipt;
 use crate::native_workflow_artifact::native_tool_workflow_artifact_memory_tags;
@@ -26,6 +27,17 @@ pub(crate) fn native_tool_initial_prompt(original_prompt: &str, metadata: &Value
         .and_then(|value| value.get("force_read_first_turn"))
         .and_then(Value::as_bool)
         .unwrap_or(false);
+    let task_lane = native_tool_coding_task_lane(metadata, original_prompt);
+    if requires_native_tool_use
+        && !force_discovery_first
+        && !force_read_first
+        && task_lane == "new_file_fast_path"
+    {
+        return format!(
+            "{original_prompt}\n\n{}{evidence_target_brief}",
+            native_tool_micro_direct_write_rule(original_prompt)
+        );
+    }
     if force_discovery_first {
         return format!(
             "{original_prompt}\n\nNative tool-use initiation rule: before planning, editing, or final answering, return only JSON with a tool_calls array that discovers the local project shape. Start with file_list on the local project root or directory implied by the task. Use file_stat before reading any target path that may not exist. After discovery observations, classify the work as create, edit, extend, debug, or refactor; then read only relevant existing context files before writing or patching. For create/new-file tasks, do not file_read the target file unless file_stat or file_list shows it exists. If the task requires mutation, do not repeat discovery/read-only turns after sufficient context; transition to file_write/file_patch or return a structured blocker. Do not produce prose, analysis, or a final answer until native discovery observations are returned.{evidence_target_brief}"
@@ -38,14 +50,27 @@ pub(crate) fn native_tool_initial_prompt(original_prompt: &str, metadata: &Value
                 "initial_tool_use_rule",
                 "Native tool-use rule: choose the shortest safe native file-tool path for the task. Use discovery for unclear existing-project work, mutate only after enough context is available, validate after edits when requested, and do not claim success until native receipts prove the required file mutation and validation outcomes.",
             );
+            let guardrails = native_tool_initial_coding_guardrails(original_prompt);
             return format!(
-                "{original_prompt}\n\n{rule}{evidence_target_brief}"
+                "{original_prompt}\n\nNative coding task lane: {task_lane}.\n{rule}{guardrails}{evidence_target_brief}"
             );
         }
         return original_prompt.to_string();
     }
     format!(
         "{original_prompt}\n\nNative tool-use initiation rule: before planning or final answering, return only JSON with a tool_calls array that reads existing local context files relevant to the task. If a target may not exist yet, use file_stat first rather than file_read. Prefer file_read_many when multiple existing files are known. Do not produce prose, analysis, or a final answer until native file-read observations are returned.{evidence_target_brief}"
+    )
+}
+
+fn native_tool_micro_direct_write_rule(original_prompt: &str) -> String {
+    let targets = native_tool_unique_code_path_mentions(original_prompt);
+    let target_text = if targets.is_empty() {
+        "the explicit target path named by the user".to_string()
+    } else {
+        targets.join(", ")
+    };
+    format!(
+        "Native coding task lane: new_file_fast_path. This looks like isolated greenfield/create-one-file work, so use the shortest safe native path. Return only JSON with a tool_calls array containing file_write for {target_text}. Do not call file_list, file_stat, file_read, command_run, or final-answer before the first successful mutation. If local files, permissions, or missing target information genuinely prevent writing, return a structured blocker instead of doing project discovery."
     )
 }
 
@@ -63,6 +88,26 @@ pub(crate) fn native_tool_orchestration_prompt_text(
         .unwrap_or_else(|| fallback.to_string())
 }
 
+fn native_tool_initial_coding_guardrails(original_prompt: &str) -> String {
+    let lower = original_prompt.to_ascii_lowercase();
+    let mut guardrails = Vec::new();
+    if lower.contains("preserve ") {
+        guardrails.push("Preservation guardrail: existing public behavior named after `preserve` is a hard baseline. Do not change its constants, return shape, or observable result to make a new feature pass. Add adjacent APIs by composing or extending the existing behavior unless the prompt explicitly asks to replace it.");
+    }
+    if lower.contains("add tests")
+        || lower.contains("update tests")
+        || lower.contains("regression tests")
+        || lower.contains("tests for")
+        || lower.contains("test for")
+    {
+        guardrails.push("Test requirement closure: when tests are requested, source/product mutation is not enough. After the first product/source mutation, write or patch a focused test file before running validation, writing handoff artifacts, memory closure, or final output.");
+    }
+    if guardrails.is_empty() {
+        return String::new();
+    }
+    format!("\n\n{}", guardrails.join("\n"))
+}
+
 pub(crate) fn native_tool_completion_evidence_repair_prompt(
     metadata: &Value,
     original_prompt: &str,
@@ -76,14 +121,23 @@ pub(crate) fn native_tool_completion_evidence_repair_prompt(
     let failed_validation_details = native_tool_failed_validation_receipt_details(receipts);
     let repair_actions =
         native_tool_completion_repair_action_brief(metadata, original_prompt, repair_reasons);
+    let test_change_repair_hint =
+        native_tool_missing_test_change_repair_hint(receipts, repair_reasons);
+    let failed_validation_repair_hint = native_tool_failed_validation_repair_hint(receipts);
     let repair_rule = native_tool_orchestration_prompt_text(
         metadata,
         "completion_evidence_repair_prompt_rule",
         "This is a bounded continuation of the same native tool task. Repair only the listed uncovered requirements. Return JSON tool calls while repairing, or a structured blocker only when local completion is genuinely blocked.",
     );
+    let stage_rule = native_tool_orchestration_prompt_text(
+        metadata,
+        "completion_stage_controller_rule",
+        "Stage controller: advance in order through source mutation, test mutation, validation, checkpoint handoff, memory closure, and final answer. Do not skip to a later stage while earlier receipt evidence is missing.",
+    );
     format!(
-        "{}\n\nOriginal task:\n{}\n{}\n\nReceipt-backed changed files so far:\n{}\n\nSuccessful receipt refs:\n{}\n\nFailed validation receipt details:\n{}\n\nUncovered requirements detected by the runtime:\n{}\n\nRequired repair actions:\n{}\n\nPrevious output preview:\n{}",
+        "{}\n\nStage controller:\n{}\n\nOriginal task:\n{}\n{}\n\nReceipt-backed changed files so far:\n{}\n\nSuccessful receipt refs:\n{}\n\nFailed validation receipt details:\n{}\n\nUncovered requirements detected by the runtime:\n{}\n\nRequired repair actions:\n{}\n\nTest mutation repair hint:\n{}\n\nFailed validation repair hint:\n{}\n\nPrevious output preview:\n{}",
         repair_rule,
+        stage_rule,
         original_prompt.chars().take(2600).collect::<String>(),
         evidence_target_brief,
         changed_paths.join("\n"),
@@ -91,7 +145,76 @@ pub(crate) fn native_tool_completion_evidence_repair_prompt(
         failed_validation_details,
         repair_reasons.join("\n"),
         repair_actions,
+        test_change_repair_hint,
+        failed_validation_repair_hint,
         previous_output.chars().take(1400).collect::<String>()
+    )
+}
+
+pub(crate) fn native_tool_missing_test_change_repair_hint(
+    receipts: &[NativeToolReceipt],
+    repair_reasons: &[String],
+) -> String {
+    if !repair_reasons
+        .iter()
+        .any(|reason| reason == "missing_test_change_receipt")
+    {
+        return "<none>".to_string();
+    }
+
+    let observed_test_paths = native_tool_observed_test_paths(receipts);
+    if observed_test_paths.is_empty() {
+        return "The runtime still needs a successful test mutation receipt. The next response must be JSON tool_calls with file_write or file_patch targeting a focused regression test path under the project tests directory. Do not run validation, continue source edits, write checkpoint/handoff artifacts, or final-answer until that test mutation receipt exists.".to_string();
+    }
+
+    format!(
+        "The runtime still needs a successful test mutation receipt. The next response must be JSON tool_calls with file_write or file_patch targeting an observed test path, or a new focused regression test under the same tests directory. Prefer the smallest regression test that imports/calls the public API named by the user. Observed test paths:\n{}",
+        observed_test_paths.join("\n")
+    )
+}
+
+fn native_tool_observed_test_paths(receipts: &[NativeToolReceipt]) -> Vec<String> {
+    let mut paths = Vec::new();
+    for receipt in receipts {
+        let Some(path) = receipt.result.get("path").and_then(Value::as_str) else {
+            continue;
+        };
+        if native_tool_path_looks_like_test(path)
+            && !paths.iter().any(|existing| existing == path)
+        {
+            paths.push(path.to_string());
+        }
+    }
+    paths
+}
+
+fn native_tool_path_looks_like_test(path: &str) -> bool {
+    let lower = path.replace('\\', "/").to_ascii_lowercase();
+    lower.contains("/tests/")
+        || lower.ends_with("/tests")
+        || lower.contains("/test/")
+        || lower.contains("test_")
+        || lower.ends_with("_test.py")
+        || lower.ends_with(".test.js")
+        || lower.ends_with(".spec.js")
+        || lower.ends_with(".test.ts")
+        || lower.ends_with(".spec.ts")
+}
+
+pub(crate) fn native_tool_failed_validation_repair_hint(
+    receipts: &[NativeToolReceipt],
+) -> String {
+    let failed_validation_details = native_tool_failed_validation_receipt_details(receipts);
+    if failed_validation_details == "<none>" {
+        return "<none>".to_string();
+    }
+    let changed_paths = native_tool_changed_paths(receipts);
+    if changed_paths.is_empty() {
+        return "Validation is failing, but no successful mutation receipt exists yet. Produce the smallest source/test file_write or file_patch needed before running validation again.".to_string();
+    }
+    format!(
+        "Validation is failing after local mutations. Use the failed validation details as repair input and make the next substantive tool call a file_write or file_patch against the changed source/test file that caused the failure; do not continue read-only exploration once the failed source/test files have been inspected. Changed files:\n{}",
+        changed_paths.join("\n")
     )
 }
 
@@ -301,8 +424,15 @@ pub(crate) fn native_tool_empty_retry_prompt(
         "empty_tool_retry_rule",
         "This run requires native tool receipts before completion. Return only JSON with a tool_calls array now, or return a structured blocker only if local files, permissions, or missing user information genuinely prevent mutation.",
     );
+    let task_lane = native_tool_coding_task_lane(metadata, original_prompt);
+    let fast_lane_rule = if native_tool_is_probable_micro_direct_write_task(metadata, original_prompt)
+    {
+        format!("\n\n{}", native_tool_micro_direct_write_rule(original_prompt))
+    } else {
+        String::new()
+    };
     format!(
-        "{original_prompt}\n\nNative tool retry {retry}: {rule}\n\n{previous}{evidence_target_brief}"
+        "{original_prompt}\n\nNative coding task lane: {task_lane}.\nNative tool retry {retry}: {rule}{fast_lane_rule}\n\n{previous}{evidence_target_brief}"
     )
 }
 

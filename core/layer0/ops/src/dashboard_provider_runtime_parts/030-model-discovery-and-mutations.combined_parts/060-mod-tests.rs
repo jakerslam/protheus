@@ -163,6 +163,50 @@ mod tests {
     }
 
     #[test]
+    fn optimize_prompt_request_uses_system_prompt_json_contract_for_private_gate() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let optimized = optimize_prompt_request(
+            root.path(),
+            "openai",
+            "gpt-5",
+            "INTERNAL GATE. Output ONLY one JSON object and nothing else. Format: {\"gate\":\"<value>\"}.",
+            &[],
+            "Research Mastra for TypeScript agent workflows.",
+        );
+
+        assert_eq!(
+            optimized
+                .metadata
+                .pointer("/output_contract/type")
+                .and_then(Value::as_str),
+            Some("json")
+        );
+        assert_eq!(optimized.assistant_prefill, "{");
+    }
+
+    #[test]
+    fn optimize_prompt_request_does_not_force_json_for_plaintext_synthesis_prompts() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let optimized = optimize_prompt_request(
+            root.path(),
+            "openai",
+            "gpt-5",
+            "Synthesize a final user-visible answer from the recorded evidence state. The prompt may reference schema_version and JSON field names in the state description, but the final reply should be normal prose for the user.",
+            &[],
+            "Research Mastra for TypeScript agent workflows.",
+        );
+
+        assert_eq!(
+            optimized
+                .metadata
+                .pointer("/output_contract/type")
+                .and_then(Value::as_str),
+            Some("plain_text")
+        );
+        assert_eq!(optimized.assistant_prefill, "");
+    }
+
+    #[test]
     fn ensure_model_profile_backfills_metadata_for_new_model_ref() {
         let root = tempfile::tempdir().expect("tempdir");
         let out = ensure_model_profile(root.path(), "moonshot", "kimi-k2.5-preview");

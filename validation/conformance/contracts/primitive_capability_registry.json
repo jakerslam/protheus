@@ -113,6 +113,72 @@
       "contract_surface": "workflow_cd",
       "extension_surface": "repair_policy_contract",
       "promotion_status": "active"
+    },
+    {
+      "id": "workflow.existing_project_evidence_contract",
+      "name": "Existing Project Evidence Contract",
+      "kind": "primitive",
+      "owner_domain": "orchestration",
+      "layer": "2",
+      "path": "orchestration/src/control_plane/workflows/lab/primitives/coding_loop/existing_project_evidence_contract.workflow.json",
+      "contract_surface": "workflow_cd",
+      "extension_surface": "machine_readable_evidence_contract",
+      "promotion_status": "active"
+    },
+    {
+      "id": "workflow.sandbox_session_runtime",
+      "name": "Sandbox Session Runtime",
+      "kind": "primitive",
+      "owner_domain": "orchestration",
+      "layer": "2",
+      "path": "orchestration/src/control_plane/workflows/lab/primitives/coding_runtime/sandbox_session_runtime.workflow.json",
+      "contract_surface": "workflow_cd",
+      "extension_surface": "runtime_session_receipt_contract",
+      "promotion_status": "seed"
+    },
+    {
+      "id": "workflow.context_provider_registry",
+      "name": "Context Provider Registry",
+      "kind": "primitive",
+      "owner_domain": "orchestration",
+      "layer": "2",
+      "path": "orchestration/src/control_plane/workflows/lab/primitives/coding_context/context_provider_registry.workflow.json",
+      "contract_surface": "workflow_cd",
+      "extension_surface": "context_provider_manifest_contract",
+      "promotion_status": "seed"
+    },
+    {
+      "id": "workflow.mode_manifest_registry",
+      "name": "Mode Manifest Registry",
+      "kind": "primitive",
+      "owner_domain": "orchestration",
+      "layer": "2",
+      "path": "orchestration/src/control_plane/workflows/lab/primitives/coding_context/mode_manifest_registry.workflow.json",
+      "contract_surface": "workflow_cd",
+      "extension_surface": "mode_manifest_contract",
+      "promotion_status": "seed"
+    },
+    {
+      "id": "workflow.patch_artifact_synthesis",
+      "name": "Patch Artifact Synthesis",
+      "kind": "primitive",
+      "owner_domain": "orchestration",
+      "layer": "2",
+      "path": "orchestration/src/control_plane/workflows/lab/primitives/coding_artifacts/patch_artifact_synthesis.workflow.json",
+      "contract_surface": "workflow_cd",
+      "extension_surface": "patch_artifact_contract",
+      "promotion_status": "seed"
+    },
+    {
+      "id": "workflow.final_receipt_synthesis",
+      "name": "Final Receipt Synthesis",
+      "kind": "primitive",
+      "owner_domain": "orchestration",
+      "layer": "2",
+      "path": "orchestration/src/control_plane/workflows/lab/primitives/coding_artifacts/final_receipt_synthesis.workflow.json",
+      "contract_surface": "workflow_cd",
+      "extension_surface": "final_receipt_contract",
+      "promotion_status": "seed"
     }
   ]
 }

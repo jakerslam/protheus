@@ -82,18 +82,57 @@ fn summarize_message_window(rows: &[(String, String)], max_lines: usize) -> Stri
     clean_text(&lines.join("\n"), 2_400)
 }
 
-fn infer_output_contract(user_message: &str) -> (&'static str, &'static str, &'static str) {
-    let lowered = clean_text(user_message, 2_000).to_ascii_lowercase();
-    if lowered.contains("json")
-        || lowered.contains("schema")
-        || lowered.contains("structured output")
+fn prompt_explicitly_requires_json_output(text: &str) -> bool {
+    let lowered = clean_text(text, 4_000).to_ascii_lowercase();
+    [
+        "output only one json object",
+        "output only a json object",
+        "you must output only a json object",
+        "respond with valid json only",
+        "output must be parseable as a single json object",
+        "single json object with exactly one key",
+        "the only accepted artifact",
+        "a natural-language answer at this gate is invalid",
+        "internal gate",
+        "internal retry",
+        "format: {\"gate\":",
+        "format: {\"tool_family\":",
+        "format: {\"tool\":",
+        "format: {\"request_payload\":",
+    ]
+    .iter()
+    .any(|needle| lowered.contains(needle))
+}
+
+fn user_message_requests_json_output(text: &str) -> bool {
+    let lowered = clean_text(text, 4_000).to_ascii_lowercase();
+    [
+        "return json",
+        "respond with json",
+        "output json",
+        "json schema",
+        "valid json",
+        "json object",
+        "structured output",
+    ]
+    .iter()
+    .any(|needle| lowered.contains(needle))
+}
+
+fn infer_output_contract(
+    system_prompt: &str,
+    user_message: &str,
+) -> (&'static str, &'static str, &'static str) {
+    let user_lowered = clean_text(user_message, 2_000).to_ascii_lowercase();
+    if prompt_explicitly_requires_json_output(system_prompt)
+        || user_message_requests_json_output(user_message)
     {
         return ("json", "{", "Respond with valid JSON only.");
     }
-    if lowered.contains("list")
-        || lowered.contains("steps")
-        || lowered.contains("bullet")
-        || lowered.contains("checklist")
+    if user_lowered.contains("list")
+        || user_lowered.contains("steps")
+        || user_lowered.contains("bullet")
+        || user_lowered.contains("checklist")
     {
         return ("markdown_list", "-", "Respond as concise markdown bullet points.");
     }
@@ -233,7 +272,8 @@ fn optimize_prompt_request(
         context_cleared = true;
     }
 
-    let (output_contract, prefill, output_instruction) = infer_output_contract(&user_clean);
+    let (output_contract, prefill, output_instruction) =
+        infer_output_contract(system_prompt, &user_clean);
     let cache_lane =
         crate::model_router::prompt_cache_lane_for_route("default", output_contract, false);
     let stable_hash = crate::deterministic_receipt_hash(&json!({

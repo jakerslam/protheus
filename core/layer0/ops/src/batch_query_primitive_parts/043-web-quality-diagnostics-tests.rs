@@ -195,12 +195,16 @@ mod web_quality_diagnostics_tests {
             }),
             query,
         );
-        assert_eq!(out.get("status").and_then(Value::as_str), Some("no_results"));
+        assert_eq!(
+            out.get("status").and_then(Value::as_str),
+            Some("no_results")
+        );
         let flags = quality_flags(&out);
         assert!(flags.iter().any(|flag| flag == "anti_bot_filtered"));
         assert!(flags.iter().any(|flag| flag == "insufficient_evidence"));
         assert_eq!(
-            out.pointer("/tool_result_quality/retry/recommended").and_then(Value::as_bool),
+            out.pointer("/tool_result_quality/retry/recommended")
+                .and_then(Value::as_bool),
             Some(true)
         );
         assert_eq!(
@@ -266,8 +270,10 @@ mod web_quality_diagnostics_tests {
             Some("continue_with_alternate_provider_if_admitted")
         );
         assert_eq!(
-            out.pointer("/retrieval_broker/retry_stop_conditions/stop_conditions/capability_required")
-                .and_then(Value::as_bool),
+            out.pointer(
+                "/retrieval_broker/retry_stop_conditions/stop_conditions/capability_required"
+            )
+            .and_then(Value::as_bool),
             Some(true)
         );
         assert_eq!(
@@ -352,10 +358,20 @@ mod web_quality_diagnostics_tests {
             }),
             query,
         );
-        assert_eq!(out.get("status").and_then(Value::as_str), Some("no_results"));
+        assert_eq!(
+            out.get("status").and_then(Value::as_str),
+            Some("no_results")
+        );
         let flags = quality_flags(&out);
-        assert!(flags.iter().any(|flag| flag == "junk_filtered"), "{flags:?}");
-        assert!(!out.get("summary").and_then(Value::as_str).unwrap_or("").contains("Access denied"));
+        assert!(
+            flags.iter().any(|flag| flag == "junk_filtered"),
+            "{flags:?}"
+        );
+        assert!(!out
+            .get("summary")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .contains("Access denied"));
     }
 
     #[test]
@@ -421,11 +437,8 @@ mod web_quality_diagnostics_tests {
                 "https://news.example.com/ai-agent-frameworks-2026"
             ]
         });
-        let links = payload_links_for_fallback(
-            "current AI agent framework release notes",
-            &payload,
-            2,
-        );
+        let links =
+            payload_links_for_fallback("current AI agent framework release notes", &payload, 2);
         assert_eq!(
             links.first().map(String::as_str),
             Some("https://docs.example.com/agent-framework/releases")
@@ -499,12 +512,11 @@ mod web_quality_diagnostics_tests {
                 .and_then(Value::as_str),
             Some("alternate_provider")
         );
-        assert!(
-            out.pointer("/provider_results/0/summary")
-                .and_then(Value::as_str)
-                .unwrap_or("")
-                .contains("provider readiness mismatch")
-        );
+        assert!(out
+            .pointer("/provider_results/0/summary")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .contains("provider readiness mismatch"));
         assert_eq!(
             out.pointer("/retrieval_broker/provider_normalization/version")
                 .and_then(Value::as_str),
@@ -606,7 +618,9 @@ mod web_quality_diagnostics_tests {
             Some("usable")
         );
         assert_eq!(
-            first.pointer("/freshness/current_intent").and_then(Value::as_bool),
+            first
+                .pointer("/freshness/current_intent")
+                .and_then(Value::as_bool),
             Some(true)
         );
         assert!(first
@@ -646,20 +660,25 @@ mod web_quality_diagnostics_tests {
             Some("artifact_quarantine_v1")
         );
         assert_eq!(
-            out.pointer("/retrieval_broker/artifact_quarantine/evidence_promotions/0/promotion_decision")
-                .and_then(Value::as_str),
+            out.pointer(
+                "/retrieval_broker/artifact_quarantine/evidence_promotions/0/promotion_decision"
+            )
+            .and_then(Value::as_str),
             Some("promoted")
         );
         assert_eq!(
-            out.pointer("/evidence_pack_quality/status").and_then(Value::as_str),
+            out.pointer("/evidence_pack_quality/status")
+                .and_then(Value::as_str),
             Some("thin")
         );
         assert_eq!(
-            out.pointer("/source_class_coverage/status").and_then(Value::as_str),
+            out.pointer("/source_class_coverage/status")
+                .and_then(Value::as_str),
             Some("limited")
         );
         assert_eq!(
-            out.pointer("/retrieval_broker/primitive").and_then(Value::as_str),
+            out.pointer("/retrieval_broker/primitive")
+                .and_then(Value::as_str),
             Some("web_research")
         );
         assert!(
@@ -734,6 +753,85 @@ mod web_quality_diagnostics_tests {
     }
 
     #[test]
+    fn candidate_only_rows_do_not_count_as_usable_evidence() {
+        let candidate = candidate(
+            "https://search.example/results/open-source-agents",
+            "Open-source coding agents roundup with a long search snippet that sounds substantive enough to tempt the system, but it is still only a candidate row and not materialized source text with direct evidence support for synthesis.",
+        );
+        let pack = evidence_pack_from_ranked_candidates(
+            &default_policy(),
+            "best open source coding agents 2026",
+            &[],
+            1,
+            &[(candidate, 0.89)],
+            1,
+        );
+        let quality = evidence_pack_quality_report(&default_policy(), &pack, &json!([]));
+        let first = pack
+            .as_array()
+            .and_then(|rows| rows.first())
+            .expect("evidence item");
+        assert_eq!(
+            first.get("materialization_quality").and_then(Value::as_str),
+            Some("candidate_only")
+        );
+        assert_eq!(
+            first
+                .get("counts_as_usable_evidence")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(quality.get("usable_count").and_then(Value::as_u64), Some(0));
+        assert_eq!(
+            quality.get("candidate_only_count").and_then(Value::as_u64),
+            Some(1)
+        );
+        assert_eq!(quality.get("status").and_then(Value::as_str), Some("thin"));
+    }
+
+    #[test]
+    fn evidence_claims_promote_materialized_rows_into_claim_units() {
+        let pack = json!([{
+            "title": "Agent SDK docs",
+            "locator": "https://example.test/docs/agent-sdk",
+            "source_domain": "example.test",
+            "source_kind": "browser_materialized_page",
+            "snippet": "The Agent SDK docs say the SDK supports typed outputs and structured tool execution for agent workflows.",
+            "claim_hints": ["The SDK supports typed outputs.", "The SDK supports structured tool execution."],
+            "confidence": "usable",
+            "materialization_quality": "full_materialized",
+            "counts_as_usable_evidence": true,
+            "quality_flags": ["trusted_source"],
+            "coverage_facets": ["facet_01"],
+            "timestamp": "2026-05-20T00:00:00Z"
+        }]);
+        let claims = evidence_claims_from_pack(
+            &BatchQueryKeywordPack {
+                entities: vec!["Agent SDK".to_string()],
+                facets: vec!["typed outputs".to_string()],
+                ..BatchQueryKeywordPack::default()
+            },
+            &pack,
+            6,
+        );
+        assert_eq!(claims.as_array().map(Vec::len), Some(2), "{claims:#?}");
+        assert_eq!(
+            claims.pointer("/0/claim").and_then(Value::as_str),
+            Some("The SDK supports typed outputs.")
+        );
+        assert_eq!(
+            claims
+                .pointer("/0/source_ref/materialization_quality")
+                .and_then(Value::as_str),
+            Some("full_materialized")
+        );
+        assert_eq!(
+            claims.pointer("/0/entities/0").and_then(Value::as_str),
+            Some("Agent SDK")
+        );
+    }
+
+    #[test]
     fn quality_report_marks_comparison_sources_for_careful_synthesis() {
         let ranked = vec![
             (
@@ -765,11 +863,17 @@ mod web_quality_diagnostics_tests {
             .and_then(Value::as_array)
             .cloned()
             .unwrap_or_default();
-        assert!(flags.iter().any(|flag| flag == "comparative_synthesis_required"));
+        assert!(flags
+            .iter()
+            .any(|flag| flag == "comparative_synthesis_required"));
         assert!(flags.iter().any(|flag| flag == "potential_source_conflict"));
-        assert!(report.pointer("/candidate_quality/0/snippet_preview").is_some());
+        assert!(report
+            .pointer("/candidate_quality/0/snippet_preview")
+            .is_some());
         assert_eq!(
-            report.pointer("/coverage/bucket_status").and_then(Value::as_str),
+            report
+                .pointer("/coverage/bucket_status")
+                .and_then(Value::as_str),
             Some("covered")
         );
     }
@@ -1061,10 +1165,8 @@ mod web_quality_diagnostics_tests {
             "{queries:?}"
         );
         assert!(
-            queries
-                .iter()
-                .take(2)
-                .all(|query| !query.contains("Compare frameworks for production customer support agents")),
+            queries.iter().take(2).all(|query| !query
+                .contains("Compare frameworks for production customer support agents")),
             "{queries:?}"
         );
     }
@@ -1166,9 +1268,14 @@ mod web_quality_diagnostics_tests {
             .and_then(Value::as_array)
             .cloned()
             .unwrap_or_default();
-        assert!(flags.iter().any(|flag| flag == "weak_single_source"), "{flags:?}");
+        assert!(
+            flags.iter().any(|flag| flag == "weak_single_source"),
+            "{flags:?}"
+        );
         assert_eq!(
-            report.pointer("/retry/recommended").and_then(Value::as_bool),
+            report
+                .pointer("/retry/recommended")
+                .and_then(Value::as_bool),
             Some(true)
         );
         assert_eq!(
@@ -1292,7 +1399,9 @@ mod web_quality_diagnostics_tests {
             Some("weak_single_source")
         );
         assert_eq!(
-            report.pointer("/retry/recommended").and_then(Value::as_bool),
+            report
+                .pointer("/retry/recommended")
+                .and_then(Value::as_bool),
             Some(true)
         );
     }
@@ -1326,7 +1435,9 @@ mod web_quality_diagnostics_tests {
             "{flags:?}"
         );
         assert_eq!(
-            report.pointer("/retry/recommended").and_then(Value::as_bool),
+            report
+                .pointer("/retry/recommended")
+                .and_then(Value::as_bool),
             Some(true)
         );
         assert_eq!(
@@ -1410,19 +1521,22 @@ mod web_quality_diagnostics_tests {
                 "aperture":"medium"
             }),
         );
-        assert_eq!(out.get("status").and_then(Value::as_str), Some("no_results"));
+        assert_eq!(
+            out.get("status").and_then(Value::as_str),
+            Some("no_results")
+        );
         assert!(summary_lowered(&out).contains("retrieval-quality miss"));
         assert_eq!(
-            out.pointer("/search_results/0/title").and_then(Value::as_str),
+            out.pointer("/search_results/0/title")
+                .and_then(Value::as_str),
             Some("Web result from docs.langchain.com")
         );
-        assert!(
-            out.pointer("/search_results/0/snippet")
-                .and_then(Value::as_str)
-                .unwrap_or("")
-                .to_ascii_lowercase()
-                .contains("langgraph")
-        );
+        assert!(out
+            .pointer("/search_results/0/snippet")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .to_ascii_lowercase()
+            .contains("langgraph"));
     }
 
     #[test]
@@ -1450,23 +1564,26 @@ mod web_quality_diagnostics_tests {
                 "aperture":"medium"
             }),
         );
-        assert_eq!(out.get("status").and_then(Value::as_str), Some("no_results"));
+        assert_eq!(
+            out.get("status").and_then(Value::as_str),
+            Some("no_results")
+        );
         assert_eq!(
             out.pointer("/tool_result_quality/evidence_count")
                 .and_then(Value::as_u64),
             Some(0)
         );
         assert_eq!(
-            out.pointer("/search_results/0/locator").and_then(Value::as_str),
+            out.pointer("/search_results/0/locator")
+                .and_then(Value::as_str),
             Some("https://www.langchain.com/langgraph")
         );
-        assert!(
-            out.pointer("/tool_result_quality/flags")
-                .and_then(Value::as_array)
-                .into_iter()
-                .flatten()
-                .filter_map(Value::as_str)
-                .any(|flag| flag == "comparison_evidence_insufficient")
-        );
+        assert!(out
+            .pointer("/tool_result_quality/flags")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+            .filter_map(Value::as_str)
+            .any(|flag| flag == "comparison_evidence_insufficient"));
     }
 }

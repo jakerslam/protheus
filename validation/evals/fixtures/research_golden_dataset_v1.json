@@ -9,7 +9,8 @@
     "requires_live_or_recorded_evidence": true,
     "allow_reasoned_uncertainty": true,
     "generated_examples_allowed": false,
-    "notes": "The dataset defines prompts, expected workflow/tool path, rubric traits, and forbidden failure modes. It does not define final answer text."
+    "hidden_expected_entities_are_not_hard_answer_keys": true,
+    "notes": "The dataset defines prompts, expected workflow/tool path, rubric traits, and forbidden failure modes. It does not define final answer text. Entity coverage is hard-scored only for user-stated lanes derivable from the prompt; broad discovery prompts are judged by evidence/citation behavior and query satisfaction instead of fixed expected names."
   },
   "reliability_thresholds": {
     "min_cases_for_reliability_claim": 20,
@@ -64,6 +65,7 @@
         "points": 25,
         "requirements": [
           "Uses current or recorded source evidence for unstable factual claims.",
+          "Preserves compact citation/source-reference signal when citable evidence exists.",
           "Separates evidence from final prose instead of leaking raw tool payloads.",
           "Names source limitations when evidence is weak or noisy.",
           "Avoids unsupported rankings, dates, pricing, or capability claims."
@@ -74,6 +76,7 @@
         "points": 35,
         "requirements": [
           "Answers the user's actual comparison or research question.",
+          "Satisfies the original query scope using user-stated entities, constraints, and evidence gaps instead of hidden expected answers.",
           "Organizes findings into scannable dimensions.",
           "Explains tradeoffs, not just feature lists.",
           "Distinguishes facts from inference and recommendation.",
@@ -511,6 +514,9 @@
       "id": "research_gold_019_after_low_signal_tool_result",
       "category": "post_tool_synthesis",
       "prompt": "After the web tool returns low-signal results for Infring, synthesize a useful answer anyway. Tell me what we know, what we do not know, and the next best search query.",
+      "web_tooling_setup": {
+        "prompt": "Use web research to gather public source evidence about Infring. If retrieval is sparse or low-signal, preserve that as evidence state instead of inventing claims, and return a concise source-backed note with any source labels or evidence refs available."
+      },
       "expected_gate_path": {
         "gate_1": "tool_required_or_pending_tool_result",
         "gate_2": "web_research",
@@ -535,6 +541,9 @@
       "id": "research_gold_020_after_multiple_source_snippets",
       "category": "post_tool_synthesis",
       "prompt": "After the web tool returns several source snippets about agent frameworks, synthesize the tradeoffs and cite evidence refs without dumping the raw payload.",
+      "web_tooling_setup": {
+        "prompt": "Use web research to gather current source snippets about agent framework tradeoffs. Prioritize evidence-rich sources and return a concise source-backed note with source labels or evidence refs, without dumping raw payloads."
+      },
       "expected_gate_path": {
         "gate_1": "tool_required_or_pending_tool_result",
         "gate_2": "web_research",

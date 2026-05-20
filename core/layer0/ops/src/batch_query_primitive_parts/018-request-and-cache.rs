@@ -1816,6 +1816,55 @@ fn push_compiled_metadata_query(
     push_query_dedup(candidate, dedup, queries);
 }
 
+fn push_subject_facet_lanes(
+    subjects: &[String],
+    facets: &[String],
+    lane_suffix: Option<&str>,
+    pack: &BatchQueryKeywordPack,
+    dedup: &mut HashSet<String>,
+    queries: &mut Vec<String>,
+    max_queries: usize,
+) {
+    for facet in facets {
+        for subject in subjects {
+            let mut candidate = format!("{subject} {facet}");
+            if let Some(suffix) = lane_suffix {
+                candidate.push(' ');
+                candidate.push_str(suffix);
+            }
+            push_compiled_metadata_query(
+                clean_text(&candidate, 600),
+                pack,
+                dedup,
+                queries,
+                max_queries,
+            );
+            if queries.len() >= max_queries {
+                return;
+            }
+        }
+    }
+}
+
+fn push_subject_discovery_lanes(
+    subjects: &[String],
+    discovery_suffixes: &[&str],
+    pack: &BatchQueryKeywordPack,
+    dedup: &mut HashSet<String>,
+    queries: &mut Vec<String>,
+    max_queries: usize,
+) {
+    for subject in subjects {
+        for suffix in discovery_suffixes {
+            let candidate = clean_text(&format!("{subject} {suffix}"), 600);
+            push_compiled_metadata_query(candidate, pack, dedup, queries, max_queries);
+            if queries.len() >= max_queries {
+                return;
+            }
+        }
+    }
+}
+
 fn compile_keyword_pack_queries(
     primary_query: &str,
     pack: &BatchQueryKeywordPack,
@@ -1858,36 +1907,63 @@ fn compile_keyword_pack_queries(
         .filter_map(|term| plain_query_term(term))
         .collect::<Vec<_>>();
 
+    if !exact_subjects.is_empty() {
+        push_subject_discovery_lanes(
+            &exact_subjects,
+            &[
+                "official site",
+                "official documentation",
+                "official source",
+                "primary source evidence",
+            ],
+            pack,
+            &mut dedup,
+            &mut queries,
+            max_queries,
+        );
+        if queries.len() >= max_queries {
+            return queries;
+        }
+    }
+
     if !exact_subjects.is_empty() && !facets.is_empty() {
-        for facet in &facets {
-            for subject in &exact_subjects {
-                let candidate = clean_text(&format!("{subject} {facet}"), 600);
-                push_compiled_metadata_query(
-                    candidate,
-                    pack,
-                    &mut dedup,
-                    &mut queries,
-                    max_queries,
-                );
-                if queries.len() >= max_queries {
-                    return queries;
-                }
+        let prioritized_facets = facets.iter().take(4).cloned().collect::<Vec<_>>();
+        for suffix in [
+            Some("official documentation"),
+            Some("primary source evidence"),
+            None,
+        ] {
+            push_subject_facet_lanes(
+                &exact_subjects,
+                &prioritized_facets,
+                suffix,
+                pack,
+                &mut dedup,
+                &mut queries,
+                max_queries,
+            );
+            if queries.len() >= max_queries {
+                return queries;
             }
         }
     } else if !context_subjects.is_empty() && !exact_facets.is_empty() {
-        for facet in &exact_facets {
-            for subject in &context_subjects {
-                let candidate = clean_text(&format!("{subject} {facet}"), 600);
-                push_compiled_metadata_query(
-                    candidate,
-                    pack,
-                    &mut dedup,
-                    &mut queries,
-                    max_queries,
-                );
-                if queries.len() >= max_queries {
-                    return queries;
-                }
+        let prioritized_facets = exact_facets.iter().take(4).cloned().collect::<Vec<_>>();
+        for suffix in [
+            Some("official documentation"),
+            Some("primary source evidence"),
+            None,
+        ] {
+            push_subject_facet_lanes(
+                &context_subjects,
+                &prioritized_facets,
+                suffix,
+                pack,
+                &mut dedup,
+                &mut queries,
+                max_queries,
+            );
+            if queries.len() >= max_queries {
+                return queries;
             }
         }
     } else {
@@ -1984,6 +2060,17 @@ fn max_explicit_queries_for_budget(primary_query: &str, budget: ApertureBudget) 
     budget.max_candidates.clamp(2, 12)
 }
 
+fn metadata_expansion_budget(explicit_query_count: usize, max_queries: usize) -> usize {
+    let remaining = max_queries.saturating_sub(explicit_query_count);
+    if explicit_query_count >= 4 {
+        remaining.min(3)
+    } else if explicit_query_count >= 2 {
+        remaining.min(5)
+    } else {
+        remaining
+    }
+}
+
 fn normalize_requested_queries(
     request: &Value,
     primary_query: &str,
@@ -2007,7 +2094,11 @@ fn normalize_requested_queries(
             }
         }
     }
-    for value in compile_keyword_pack_queries(primary_query, keyword_pack, budget) {
+    let metadata_budget = metadata_expansion_budget(queries.len(), max_queries);
+    for value in compile_keyword_pack_queries(primary_query, keyword_pack, budget)
+        .into_iter()
+        .take(metadata_budget)
+    {
         if queries.len() >= max_queries {
             break;
         }

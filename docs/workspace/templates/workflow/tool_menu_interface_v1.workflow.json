@@ -284,10 +284,12 @@
         "i completed the run, but the final reply did not render",
         "i completed the workflow gate, but the final workflow state was unexpected",
         "lease_denied:client_ingress_domain_boundary",
+        "recorded evidence so far",
         "next actions",
         "not a true/false decision i control",
         "please retry",
         "please retry so i can rerun the chain cleanly",
+        "retrieval attempt did not produce enough",
         "requires manual step-by-step authorization for tool usage",
         "rerun the chain",
         "restricted from running web searches",
@@ -303,6 +305,7 @@
         "still classifying this as an \"info\" route rather than a \"task\" route",
         "still classifying this as an 'info' route rather than a 'task' route",
         "still classifying this as an info route rather than a task route",
+        "this retrieval attempt did not produce enough",
         "synthesize from the recorded workflow state",
         "targeted tool call",
         "task classification path",
@@ -611,14 +614,59 @@
           "option": 1,
           "key": "web_search",
           "label": "Search web",
+          "recovery_default_for_raw_message": true,
+          "raw_message_fallback_contract": {
+            "enabled": true,
+            "bind_user_message_to": "query",
+            "purpose": "When the workflow already selected web research but the model omitted a payload, bind the raw user message into the declared query field without Rust inferring a query type."
+          },
           "request_format": {
             "source": "web",
             "query": "<search criteria>",
+            "keywords": [
+              "<important exact entity, phrase, source-class, date, or aspect term>"
+            ],
+            "required_coverage": {
+              "entities": [
+                "<named entity or subject for this narrow lookup>"
+              ],
+              "facets": [
+                "<specific fact, source class, time window, or aspect this lookup should cover>"
+              ]
+            },
+            "aliases": [
+              "<optional alternate name or exact phrase>"
+            ],
+            "negative_terms": [
+              "<optional ambiguity filter>"
+            ],
+            "query_metadata_policy": {
+              "classification": "narrow_lookup_or_initial_discovery"
+            },
             "aperture": "medium"
           },
           "request_example": {
             "source": "web",
             "query": "latest rust 2026 release notes",
+            "keywords": [
+              "Rust",
+              "2026",
+              "release notes"
+            ],
+            "required_coverage": {
+              "entities": [
+                "Rust"
+              ],
+              "facets": [
+                "release notes",
+                "current version"
+              ]
+            },
+            "aliases": [],
+            "negative_terms": [],
+            "query_metadata_policy": {
+              "classification": "narrow_lookup_or_initial_discovery"
+            },
             "aperture": "medium"
           }
         },

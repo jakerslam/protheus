@@ -85,19 +85,18 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
         &search_scope,
     );
     let legacy_cache_key = cache_key(&source, &query, &aperture, &policy);
-    let (cached_response, cache_lookup_key) = if let Some(cached) =
-        load_cached_response(root, &cache_key_primary, &cache_control)
-    {
-        (Some(cached), cache_key_primary.clone())
-    } else if search_scope.is_empty() && cache_key_primary != legacy_cache_key {
-        if let Some(cached) = load_cached_response(root, &legacy_cache_key, &cache_control) {
-            (Some(cached), legacy_cache_key.clone())
+    let (cached_response, cache_lookup_key) =
+        if let Some(cached) = load_cached_response(root, &cache_key_primary, &cache_control) {
+            (Some(cached), cache_key_primary.clone())
+        } else if search_scope.is_empty() && cache_key_primary != legacy_cache_key {
+            if let Some(cached) = load_cached_response(root, &legacy_cache_key, &cache_control) {
+                (Some(cached), legacy_cache_key.clone())
+            } else {
+                (None, cache_key_primary.clone())
+            }
         } else {
             (None, cache_key_primary.clone())
-        }
-    } else {
-        (None, cache_key_primary.clone())
-    };
+        };
     if let Some(cached) = cached_response {
         let cached_status = clean_text(
             cached
@@ -131,20 +130,37 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             .cloned()
             .map(Value::Array)
             .unwrap_or_else(|| json!([]));
-        let search_results = cached.get("search_results").and_then(Value::as_array).cloned().map(Value::Array).unwrap_or_else(|| json!([]));
-        let evidence_pack = cached.get("evidence_pack").and_then(Value::as_array).cloned().map(Value::Array).unwrap_or_else(|| json!([]));
-        let evidence_coverage = cached.get("evidence_coverage").and_then(Value::as_array).cloned().map(Value::Array).unwrap_or_else(|| json!([]));
+        let search_results = cached
+            .get("search_results")
+            .and_then(Value::as_array)
+            .cloned()
+            .map(Value::Array)
+            .unwrap_or_else(|| json!([]));
+        let evidence_pack = cached
+            .get("evidence_pack")
+            .and_then(Value::as_array)
+            .cloned()
+            .map(Value::Array)
+            .unwrap_or_else(|| json!([]));
+        let evidence_coverage = cached
+            .get("evidence_coverage")
+            .and_then(Value::as_array)
+            .cloned()
+            .map(Value::Array)
+            .unwrap_or_else(|| json!([]));
         let retrieval_telemetry = cached
             .get("retrieval_telemetry")
             .and_then(Value::as_array)
             .cloned()
             .map(Value::Array)
             .unwrap_or_else(|| json!([]));
-        let (provider_results_rows, provider_result_dedup_count) = dedup_provider_results(cached
-            .get("provider_results")
-            .and_then(Value::as_array)
-            .cloned()
-            .unwrap_or_default());
+        let (provider_results_rows, provider_result_dedup_count) = dedup_provider_results(
+            cached
+                .get("provider_results")
+                .and_then(Value::as_array)
+                .cloned()
+                .unwrap_or_default(),
+        );
         let provider_results = Value::Array(provider_results_rows);
         let rewrite_set = cached
             .get("rewrite_set")
@@ -171,71 +187,77 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
         if cached_summary_requires_refresh {
             // Recompute instead of replaying stale forum-led framework summaries.
         } else {
-        let status = if cached_status == "ok" && looks_like_low_signal_search_summary(&raw_summary) {
-            "no_results".to_string()
-        } else {
-            cached_status
-        };
-        let summary = rewrite_cached_batch_query_summary(
-            &query,
-            &source,
-            &raw_summary,
-            &evidence_refs,
-            &partial_failure_details,
-        );
-        let cached_quality = cached.get("tool_result_quality").cloned();
-        let cached_quality_is_current = cached_quality
-            .as_ref()
-            .and_then(|quality| quality.get("version"))
-            .and_then(Value::as_str)
-            == Some(web_tool_quality_version());
-        let tool_result_quality = if cached_quality_is_current {
-            cached_quality.unwrap_or_else(|| json!({}))
-        } else {
-            cached_web_tool_quality_report(&query, &status, &partial_failure_details, &evidence_refs)
-        };
-        let source_class_coverage = cached
-            .get("source_class_coverage")
-            .cloned()
-            .unwrap_or_else(|| {
-                source_class_coverage_from_evidence_pack(
-                    &policy,
+            let status =
+                if cached_status == "ok" && looks_like_low_signal_search_summary(&raw_summary) {
+                    "no_results".to_string()
+                } else {
+                    cached_status
+                };
+            let summary = rewrite_cached_batch_query_summary(
+                &query,
+                &source,
+                &raw_summary,
+                &evidence_refs,
+                &partial_failure_details,
+            );
+            let cached_quality = cached.get("tool_result_quality").cloned();
+            let cached_quality_is_current = cached_quality
+                .as_ref()
+                .and_then(|quality| quality.get("version"))
+                .and_then(Value::as_str)
+                == Some(web_tool_quality_version());
+            let tool_result_quality = if cached_quality_is_current {
+                cached_quality.unwrap_or_else(|| json!({}))
+            } else {
+                cached_web_tool_quality_report(
                     &query,
-                    &evidence_pack,
-                    &evidence_coverage,
+                    &status,
+                    &partial_failure_details,
+                    &evidence_refs,
                 )
-            });
-        let evidence_pack_quality = cached
-            .get("evidence_pack_quality")
-            .cloned()
-            .unwrap_or_else(|| evidence_pack_quality_report(&policy, &evidence_pack, &evidence_coverage));
-        let query_lane_attribution = cached
-            .get("query_lane_attribution")
-            .cloned()
-            .unwrap_or_else(|| {
-                json!({
-                    "version": "query_lane_attribution_v1",
-                    "status": "not_available_from_cache",
-                    "lane_count": 0,
-                    "rows": [],
-                    "diagnostic_use": "telemetry_only"
-                })
-            });
-        let second_pass_recovery = cached
-            .get("second_pass_recovery")
-            .cloned()
-            .unwrap_or_else(|| {
-                json!({
-                    "enabled": second_pass_recovery_enabled(&policy),
-                    "used": false,
-                    "reason": "none",
-                    "queries": []
-                })
-            });
-        let retrieval_broker = cached
-            .get("retrieval_broker")
-            .cloned()
-            .unwrap_or_else(|| {
+            };
+            let source_class_coverage = cached
+                .get("source_class_coverage")
+                .cloned()
+                .unwrap_or_else(|| {
+                    source_class_coverage_from_evidence_pack(
+                        &policy,
+                        &query,
+                        &evidence_pack,
+                        &evidence_coverage,
+                    )
+                });
+            let evidence_pack_quality = cached
+                .get("evidence_pack_quality")
+                .cloned()
+                .unwrap_or_else(|| {
+                    evidence_pack_quality_report(&policy, &evidence_pack, &evidence_coverage)
+                });
+            let query_lane_attribution = cached
+                .get("query_lane_attribution")
+                .cloned()
+                .unwrap_or_else(|| {
+                    json!({
+                        "version": "query_lane_attribution_v1",
+                        "status": "not_available_from_cache",
+                        "lane_count": 0,
+                        "rows": [],
+                        "diagnostic_use": "telemetry_only"
+                    })
+                });
+            let second_pass_recovery =
+                cached
+                    .get("second_pass_recovery")
+                    .cloned()
+                    .unwrap_or_else(|| {
+                        json!({
+                            "enabled": second_pass_recovery_enabled(&policy),
+                            "used": false,
+                            "reason": "none",
+                            "queries": []
+                        })
+                    });
+            let retrieval_broker = cached.get("retrieval_broker").cloned().unwrap_or_else(|| {
                 retrieval_broker_report(
                     &status,
                     json!(query_plan_value.clone()),
@@ -254,146 +276,164 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
                     &evidence_pack_quality,
                 )
             });
-        let mut retrieval_broker = retrieval_broker;
-        if let Some(obj) = retrieval_broker.as_object_mut() {
-            obj.insert(
-                "query_lane_attribution".to_string(),
-                query_lane_attribution.clone(),
-            );
-        }
-        let parallel_retrieval_used = cached
-            .get("parallel_retrieval_used")
-            .and_then(Value::as_bool)
-            .unwrap_or(false);
-        let query_metadata = cached
-            .get("query_metadata")
-            .cloned()
-            .unwrap_or_else(|| query_plan.query_metadata.to_value());
-        let provider_snapshot = json!({
-            "id": crate::deterministic_receipt_hash(&json!({"source": source, "query": query, "cache_key": cache_lookup_key, "search_scope": search_scope_value.clone()})),
-            "source": source,
-            "adapter_version": "web_conduit_v1",
-            "disposable": true
-        });
-        let receipt = json!({
-            "type": "batch_query_receipt",
-            "ts": crate::now_iso(),
-            "source": source,
-            "query": query,
-            "aperture": aperture,
-            "query_timeout_ms": query_timeout.as_millis() as u64,
-            "parallel_window": parallel_window,
-            "rewrite_set": rewrite_set,
-            "query_plan": query_plan_value,
-            "query_plan_source": query_plan_source,
-            "query_metadata": query_metadata.clone(),
-            "query_contract": {
-                "authority": "agent_submitted",
-                "query_used": query,
-                "hidden_query_expansion": false,
+            let mut retrieval_broker = retrieval_broker;
+            if let Some(obj) = retrieval_broker.as_object_mut() {
+                obj.insert(
+                    "query_lane_attribution".to_string(),
+                    query_lane_attribution.clone(),
+                );
+            }
+            let parallel_retrieval_used = cached
+                .get("parallel_retrieval_used")
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
+            let query_metadata = cached
+                .get("query_metadata")
+                .cloned()
+                .unwrap_or_else(|| query_plan.query_metadata.to_value());
+            let provider_snapshot = json!({
+                "id": crate::deterministic_receipt_hash(&json!({"source": source, "query": query, "cache_key": cache_lookup_key, "search_scope": search_scope_value.clone()})),
+                "source": source,
+                "adapter_version": "web_conduit_v1",
+                "disposable": true
+            });
+            let receipt = json!({
+                "type": "batch_query_receipt",
+                "ts": crate::now_iso(),
+                "source": source,
+                "query": query,
+                "aperture": aperture,
+                "query_timeout_ms": query_timeout.as_millis() as u64,
+                "parallel_window": parallel_window,
+                "rewrite_set": rewrite_set,
+                "query_plan": query_plan_value,
                 "query_plan_source": query_plan_source,
                 "query_metadata": query_metadata.clone(),
-                "search_scope": search_scope_value.clone()
-            },
-            "adapter_version": "web_conduit_v1",
-            "provider_snapshot": provider_snapshot,
-            "snapshot_id": provider_snapshot.get("id").cloned().unwrap_or(Value::Null),
-            "candidate_count": 0,
-            "dedup_count": 0,
-            "provider_result_count": provider_results.as_array().map(|rows| rows.len()).unwrap_or(0),
-            "provider_result_dedup_count": provider_result_dedup_count,
-            "evidence_count": evidence_refs.as_array().map(|rows| rows.len()).unwrap_or(0),
-            "evidence_pack_count": evidence_pack.as_array().map(|rows| rows.len()).unwrap_or(0),
-            "cache_status": "hit",
-            "cache_mode": cache_control.mode.as_str(),
-            "latency_ms": started.elapsed().as_millis() as u64,
-            "token_usage": {"summary_tokens_estimate": summary.split_whitespace().count()},
-            "parallel_retrieval_used": parallel_retrieval_used,
-            "retrieval_telemetry": retrieval_telemetry.clone(),
-            "evidence_coverage": evidence_coverage.clone(),
-            "source_class_coverage": source_class_coverage.clone(),
-            "evidence_pack_quality": evidence_pack_quality.clone(),
-            "query_lane_attribution": query_lane_attribution.clone(),
-            "retrieval_broker": retrieval_broker.clone(),
-            "partial_failure_details": [],
-            "tool_result_quality": tool_result_quality.clone(),
-            "status": status
-        });
-        let receipt_id = crate::deterministic_receipt_hash(&receipt);
-        let mut receipt_with_id = receipt.clone();
-        receipt_with_id["receipt_id"] = Value::String(receipt_id.clone());
-        let _ = append_jsonl(&receipts_path(root), &receipt_with_id);
-        let mut out = json!({
-            "ok": status != "blocked",
-            "type": "batch_query",
-            "status": status,
-            "source": source,
-            "query": query,
-            "aperture": aperture,
-            "summary": summary,
-            "evidence_refs": evidence_refs,
-            "receipt_id": receipt_id,
-            "parallel_retrieval_used": parallel_retrieval_used,
-            "query_timeout_ms": query_timeout.as_millis() as u64,
-            "parallel_window": parallel_window,
-            "rewrite_set": rewrite_set,
-            "query_plan": cached
-                .get("query_plan")
-                .cloned()
-                .unwrap_or_else(|| json!(query_plan.queries)),
-            "query_plan_source": cached
-                .get("query_plan_source")
-                .cloned()
-                .unwrap_or_else(|| json!(query_plan.query_plan_source)),
-            "query_metadata": query_metadata.clone(),
-            "query_contract": {
-                "authority": "agent_submitted",
-                "query_used": query,
-                "hidden_query_expansion": false,
-                "query_plan_source": query_plan_source,
+                "query_contract": {
+                    "authority": "agent_submitted",
+                    "query_used": query,
+                    "hidden_query_expansion": false,
+                    "query_plan_source": query_plan_source,
+                    "query_metadata": query_metadata.clone(),
+                    "search_scope": search_scope_value.clone()
+                },
+                "adapter_version": "web_conduit_v1",
+                "provider_snapshot": provider_snapshot,
+                "snapshot_id": provider_snapshot.get("id").cloned().unwrap_or(Value::Null),
+                "candidate_count": 0,
+                "dedup_count": 0,
+                "provider_result_count": provider_results.as_array().map(|rows| rows.len()).unwrap_or(0),
+                "provider_result_dedup_count": provider_result_dedup_count,
+                "evidence_count": evidence_refs.as_array().map(|rows| rows.len()).unwrap_or(0),
+                "evidence_pack_count": evidence_pack.as_array().map(|rows| rows.len()).unwrap_or(0),
+                "cache_status": "hit",
+                "cache_mode": cache_control.mode.as_str(),
+                "latency_ms": started.elapsed().as_millis() as u64,
+                "token_usage": {"summary_tokens_estimate": summary.split_whitespace().count()},
+                "parallel_retrieval_used": parallel_retrieval_used,
+                "retrieval_telemetry": retrieval_telemetry.clone(),
+                "evidence_coverage": evidence_coverage.clone(),
+                "source_class_coverage": source_class_coverage.clone(),
+                "evidence_pack_quality": evidence_pack_quality.clone(),
+                "query_lane_attribution": query_lane_attribution.clone(),
+                "retrieval_broker": retrieval_broker.clone(),
+                "partial_failure_details": [],
+                "tool_result_quality": tool_result_quality.clone(),
+                "status": status
+            });
+            let receipt_id = crate::deterministic_receipt_hash(&receipt);
+            let mut receipt_with_id = receipt.clone();
+            receipt_with_id["receipt_id"] = Value::String(receipt_id.clone());
+            let _ = append_jsonl(&receipts_path(root), &receipt_with_id);
+            let mut out = json!({
+                "ok": status != "blocked",
+                "type": "batch_query",
+                "status": status,
+                "source": source,
+                "query": query,
+                "aperture": aperture,
+                "summary": summary,
+                "evidence_refs": evidence_refs,
+                "receipt_id": receipt_id,
+                "parallel_retrieval_used": parallel_retrieval_used,
+                "query_timeout_ms": query_timeout.as_millis() as u64,
+                "parallel_window": parallel_window,
+                "rewrite_set": rewrite_set,
+                "query_plan": cached
+                    .get("query_plan")
+                    .cloned()
+                    .unwrap_or_else(|| json!(query_plan.queries)),
+                "query_plan_source": cached
+                    .get("query_plan_source")
+                    .cloned()
+                    .unwrap_or_else(|| json!(query_plan.query_plan_source)),
                 "query_metadata": query_metadata.clone(),
-                "search_scope": search_scope_value.clone()
-            },
-            "partial_failure_details": partial_failure_details,
-            "retrieval_telemetry": retrieval_telemetry.clone(),
-            "tool_result_quality": tool_result_quality,
-            "source_class_coverage": source_class_coverage.clone(),
-            "evidence_pack_quality": evidence_pack_quality.clone(),
-            "query_lane_attribution": query_lane_attribution.clone(),
-            "retrieval_broker": retrieval_broker.clone(),
-            "provider_result_count": provider_results.as_array().map(|rows| rows.len()).unwrap_or(0),
-            "provider_result_dedup_count": provider_result_dedup_count,
-            "cache_status": "hit",
-            "cache_mode": cache_control.mode.as_str()
-        });
-        if search_results.as_array().map(|rows| !rows.is_empty()).unwrap_or(false) { out["search_results"] = search_results; }
-        if evidence_pack.as_array().map(|rows| !rows.is_empty()).unwrap_or(false) {
-            out["evidence_pack"] = evidence_pack;
-        }
-        if evidence_coverage.as_array().map(|rows| !rows.is_empty()).unwrap_or(false) {
-            out["evidence_coverage"] = evidence_coverage;
-        }
-        out["source_class_coverage"] = source_class_coverage;
-        out["evidence_pack_quality"] = evidence_pack_quality;
-        out["query_lane_attribution"] = query_lane_attribution;
-        out["retrieval_broker"] = retrieval_broker;
-        if provider_results.as_array().map(|rows| !rows.is_empty()).unwrap_or(false) {
-            out["provider_results"] = provider_results;
-        }
-        if retrieval_telemetry
-            .as_array()
-            .map(|rows| !rows.is_empty())
-            .unwrap_or(false)
-        {
-            out["retrieval_telemetry"] = retrieval_telemetry;
-        }
-        if let Some(code) = no_results_error_code(&summary, &partial_failure_details) {
-            out["error"] = Value::String(code.to_string());
-        }
-        if let Some(meta) = nexus_connection {
-            out["nexus_connection"] = meta;
-        }
-        return out;
+                "query_contract": {
+                    "authority": "agent_submitted",
+                    "query_used": query,
+                    "hidden_query_expansion": false,
+                    "query_plan_source": query_plan_source,
+                    "query_metadata": query_metadata.clone(),
+                    "search_scope": search_scope_value.clone()
+                },
+                "partial_failure_details": partial_failure_details,
+                "retrieval_telemetry": retrieval_telemetry.clone(),
+                "tool_result_quality": tool_result_quality,
+                "source_class_coverage": source_class_coverage.clone(),
+                "evidence_pack_quality": evidence_pack_quality.clone(),
+                "query_lane_attribution": query_lane_attribution.clone(),
+                "retrieval_broker": retrieval_broker.clone(),
+                "provider_result_count": provider_results.as_array().map(|rows| rows.len()).unwrap_or(0),
+                "provider_result_dedup_count": provider_result_dedup_count,
+                "cache_status": "hit",
+                "cache_mode": cache_control.mode.as_str()
+            });
+            if search_results
+                .as_array()
+                .map(|rows| !rows.is_empty())
+                .unwrap_or(false)
+            {
+                out["search_results"] = search_results;
+            }
+            if evidence_pack
+                .as_array()
+                .map(|rows| !rows.is_empty())
+                .unwrap_or(false)
+            {
+                out["evidence_pack"] = evidence_pack;
+            }
+            if evidence_coverage
+                .as_array()
+                .map(|rows| !rows.is_empty())
+                .unwrap_or(false)
+            {
+                out["evidence_coverage"] = evidence_coverage;
+            }
+            out["source_class_coverage"] = source_class_coverage;
+            out["evidence_pack_quality"] = evidence_pack_quality;
+            out["query_lane_attribution"] = query_lane_attribution;
+            out["retrieval_broker"] = retrieval_broker;
+            if provider_results
+                .as_array()
+                .map(|rows| !rows.is_empty())
+                .unwrap_or(false)
+            {
+                out["provider_results"] = provider_results;
+            }
+            if retrieval_telemetry
+                .as_array()
+                .map(|rows| !rows.is_empty())
+                .unwrap_or(false)
+            {
+                out["retrieval_telemetry"] = retrieval_telemetry;
+            }
+            if let Some(code) = no_results_error_code(&summary, &partial_failure_details) {
+                out["error"] = Value::String(code.to_string());
+            }
+            if let Some(meta) = nexus_connection {
+                out["nexus_connection"] = meta;
+            }
+            return out;
         }
     }
 
@@ -419,10 +459,9 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
                 String,
                 (Vec<Candidate>, Vec<String>, Vec<Value>),
             )>();
-            let mut chunk_rows =
-                std::iter::repeat_with(|| None)
-                    .take(expected)
-                    .collect::<Vec<Option<(String, (Vec<Candidate>, Vec<String>, Vec<Value>))>>>();
+            let mut chunk_rows = std::iter::repeat_with(|| None)
+                .take(expected)
+                .collect::<Vec<Option<(String, (Vec<Candidate>, Vec<String>, Vec<Value>))>>>();
             for (local_idx, q) in queries[offset..end].iter().enumerate() {
                 let tx_clone = tx.clone();
                 let query_item = q.clone();
@@ -471,20 +510,11 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
                 let fallback_query = clean_text(&queries[offset + local_idx], 120);
                 match chunk_rows[local_idx].take() {
                     Some((q, (mut rows, issues, artifacts))) => {
-                        query_lane_sources.push(query_lane_source(
-                            &q,
-                            "initial",
-                            &rows,
-                            &issues,
-                            &artifacts,
-                        ));
+                        query_lane_sources
+                            .push(query_lane_source(&q, "initial", &rows, &issues, &artifacts));
                         if retrieval_telemetry_enabled(&policy) {
                             retrieval_telemetry.push(retrieval_telemetry_row(
-                                &q,
-                                "initial",
-                                &rows,
-                                &issues,
-                                &artifacts,
+                                &q, "initial", &rows, &issues, &artifacts,
                             ));
                         }
                         provider_results.extend(artifacts);
@@ -499,10 +529,8 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
                                 .push(format!("{}:no_usable_summary", clean_text(&q, 120)));
                         } else {
                             if rows.is_empty() && !transport_only_issue {
-                                partial_failures.push(format!(
-                                    "{}:no_usable_summary",
-                                    clean_text(&q, 120)
-                                ));
+                                partial_failures
+                                    .push(format!("{}:no_usable_summary", clean_text(&q, 120)));
                             } else {
                                 candidates.append(&mut rows);
                             }
@@ -514,7 +542,8 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
                         }
                     }
                     None => {
-                        let timeout_issue = format!("query_timeout_ms_{}", query_timeout.as_millis());
+                        let timeout_issue =
+                            format!("query_timeout_ms_{}", query_timeout.as_millis());
                         query_lane_sources.push(query_lane_source(
                             &fallback_query,
                             "initial",
@@ -538,20 +567,10 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
                 page_fetch_budget.clone(),
                 query_timeout,
             );
-            query_lane_sources.push(query_lane_source(
-                q,
-                "initial",
-                &rows,
-                &issues,
-                &artifacts,
-            ));
+            query_lane_sources.push(query_lane_source(q, "initial", &rows, &issues, &artifacts));
             if retrieval_telemetry_enabled(&policy) {
                 retrieval_telemetry.push(retrieval_telemetry_row(
-                    q,
-                    "initial",
-                    &rows,
-                    &issues,
-                    &artifacts,
+                    q, "initial", &rows, &issues, &artifacts,
                 ));
             }
             provider_results.extend(artifacts);
@@ -602,8 +621,8 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             };
         }
     }
-    let query_pack_declares_coverage =
-        !query_plan.query_metadata.entities.is_empty() || !query_plan.query_metadata.facets.is_empty();
+    let query_pack_declares_coverage = !query_plan.query_metadata.entities.is_empty()
+        || !query_plan.query_metadata.facets.is_empty();
     let policy_recovery_already_spent_coverage_budget = matches!(
         query_plan.query_plan_source,
         "policy_general_research_recovery" | "policy_broad_current_research_recovery"
@@ -672,9 +691,11 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
                 } else {
                     candidates.append(&mut rows);
                 }
-                partial_failures.extend(issues.into_iter().map(|issue| {
-                    format!("{}:{issue}", clean_text(&recovery_query, 120))
-                }));
+                partial_failures.extend(
+                    issues
+                        .into_iter()
+                        .map(|issue| format!("{}:{issue}", clean_text(&recovery_query, 120))),
+                );
             }
             executed_queries.push(recovery_query.clone());
             second_pass_queries.push(recovery_query);
@@ -735,7 +756,9 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
     let retained_ranked = select_facet_covered_ranked_candidates(
         retained_ranked_pool,
         &research_facets,
-        budget.max_evidence.max(low_confidence_retention_max_items(&policy, budget)),
+        budget
+            .max_evidence
+            .max(low_confidence_retention_max_items(&policy, budget)),
         facet_min_terms,
     );
 
@@ -891,8 +914,29 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
         &evidence_ranked,
         budget.max_evidence,
     );
-    let evidence_coverage =
-        evidence_coverage_from_ranked_candidates(&research_facets, &evidence_ranked, facet_min_terms);
+    let research_brief = research_brief_value(
+        &query,
+        &query_plan.query_metadata,
+        &executed_queries,
+        &source,
+    );
+    let evidence_needs = evidence_needs_value(
+        &policy,
+        &query,
+        &query_plan.query_metadata,
+        &research_facets,
+        budget,
+    );
+    let evidence_claims = evidence_claims_from_pack(
+        &query_plan.query_metadata,
+        &evidence_pack,
+        budget.max_evidence * 2,
+    );
+    let evidence_coverage = evidence_coverage_from_ranked_candidates(
+        &research_facets,
+        &evidence_ranked,
+        facet_min_terms,
+    );
     let query_lane_attribution = query_lane_attribution_report(
         &query_lane_sources,
         &evidence_ranked,
@@ -952,7 +996,9 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
                 continue;
             }
             if benchmark_intent {
-                if !looks_like_metric_rich_text(&snippet_raw) && looks_like_instructional_query(&snippet_raw) {
+                if !looks_like_metric_rich_text(&snippet_raw)
+                    && looks_like_instructional_query(&snippet_raw)
+                {
                     continue;
                 }
                 let comparison_haystack = clean_text(
@@ -1007,8 +1053,7 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             let synthesized_joined = synthesized_insights.join(" ");
             let fallback_joined = fallback_insights.join(" ");
             if framework_name_hits(&synthesized_joined) < 2
-                && framework_name_hits(&fallback_joined)
-                    > framework_name_hits(&synthesized_joined)
+                && framework_name_hits(&fallback_joined) > framework_name_hits(&synthesized_joined)
             {
                 synthesized_insights = fallback_insights.clone();
             }
@@ -1050,10 +1095,23 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             )
         }
     };
-    let tool_result_quality = web_tool_quality_report(&query, status, before_dedup, evidence_refs.len(), &partial_failures, &hard_partial_failures, &evidence_ranked);
-    let source_class_coverage =
-        source_class_coverage_from_ranked_candidates(&policy, &query, &evidence_ranked, &evidence_coverage);
-    let evidence_pack_quality = evidence_pack_quality_report(&policy, &evidence_pack, &evidence_coverage);
+    let tool_result_quality = web_tool_quality_report(
+        &query,
+        status,
+        before_dedup,
+        evidence_refs.len(),
+        &partial_failures,
+        &hard_partial_failures,
+        &evidence_ranked,
+    );
+    let source_class_coverage = source_class_coverage_from_ranked_candidates(
+        &policy,
+        &query,
+        &evidence_ranked,
+        &evidence_coverage,
+    );
+    let evidence_pack_quality =
+        evidence_pack_quality_report(&policy, &evidence_pack, &evidence_coverage);
     let second_pass_recovery = json!({
         "enabled": second_pass_recovery_enabled(&policy),
         "used": !second_pass_queries.is_empty(),
@@ -1113,6 +1171,8 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             "query_metadata": query_plan.query_metadata.to_value(),
             "search_scope": search_scope_value.clone()
         },
+        "research_brief": research_brief.clone(),
+        "evidence_needs": evidence_needs.clone(),
         "adapter_version": "web_conduit_v1",
         "provider_snapshot": provider_snapshot,
         "snapshot_id": provider_snapshot.get("id").cloned().unwrap_or(Value::Null),
@@ -1122,6 +1182,7 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
         "provider_result_dedup_count": provider_result_dedup_count,
         "evidence_count": evidence_refs.len(),
         "evidence_pack_count": evidence_pack.as_array().map(|rows| rows.len()).unwrap_or(0),
+        "evidence_claim_count": evidence_claims.as_array().map(|rows| rows.len()).unwrap_or(0),
         "cache_status": fresh_cache_status,
         "cache_mode": cache_control.mode.as_str(),
         "latency_ms": started.elapsed().as_millis() as u64,
@@ -1169,6 +1230,9 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             "query_metadata": query_plan.query_metadata.to_value(),
             "search_scope": search_scope_value.clone()
         },
+        "research_brief": research_brief.clone(),
+        "evidence_needs": evidence_needs.clone(),
+        "evidence_claims": evidence_claims.clone(),
         "partial_failure_details": hard_partial_failures.clone(),
         "retrieval_telemetry": retrieval_telemetry.clone(),
         "evidence_coverage": evidence_coverage.clone(),
@@ -1182,11 +1246,25 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
         "cache_status": fresh_cache_status,
         "cache_mode": cache_control.mode.as_str()
     });
-    if comparison_guard_search_results.as_array().map(|rows| !rows.is_empty()).unwrap_or(false) { out["search_results"] = comparison_guard_search_results.clone(); }
-    if evidence_pack.as_array().map(|rows| !rows.is_empty()).unwrap_or(false) {
+    if comparison_guard_search_results
+        .as_array()
+        .map(|rows| !rows.is_empty())
+        .unwrap_or(false)
+    {
+        out["search_results"] = comparison_guard_search_results.clone();
+    }
+    if evidence_pack
+        .as_array()
+        .map(|rows| !rows.is_empty())
+        .unwrap_or(false)
+    {
         out["evidence_pack"] = evidence_pack.clone();
     }
-    if evidence_coverage.as_array().map(|rows| !rows.is_empty()).unwrap_or(false) {
+    if evidence_coverage
+        .as_array()
+        .map(|rows| !rows.is_empty())
+        .unwrap_or(false)
+    {
         out["evidence_coverage"] = evidence_coverage.clone();
     }
     out["source_class_coverage"] = source_class_coverage.clone();
@@ -1214,6 +1292,9 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             "query_plan_source": query_plan.query_plan_source,
             "query_metadata": query_plan.query_metadata.to_value(),
             "search_scope": search_scope_value,
+            "research_brief": research_brief,
+            "evidence_needs": evidence_needs,
+            "evidence_claims": evidence_claims,
             "partial_failure_details": hard_partial_failures,
             "retrieval_telemetry": retrieval_telemetry,
             "source_class_coverage": source_class_coverage,
@@ -1226,7 +1307,8 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
         status,
         &cache_control,
     );
-    if let Some(code) = no_results_error_code_from_failure_strings(&summary, &hard_partial_failures) {
+    if let Some(code) = no_results_error_code_from_failure_strings(&summary, &hard_partial_failures)
+    {
         out["error"] = Value::String(code.to_string());
     }
     if let Some(meta) = nexus_connection {

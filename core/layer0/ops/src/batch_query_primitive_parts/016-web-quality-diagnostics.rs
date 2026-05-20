@@ -25,6 +25,192 @@ fn current_year() -> String {
     crate::now_iso().chars().take(4).collect::<String>()
 }
 
+fn current_date() -> String {
+    crate::now_iso().chars().take(10).collect::<String>()
+}
+
+fn infer_research_answer_shape(query: &str) -> &'static str {
+    let lowered = clean_text(query, 800).to_ascii_lowercase();
+    if lowered.contains("compare ")
+        || lowered.contains("comparison")
+        || lowered.contains(" vs ")
+        || lowered.contains(" versus ")
+        || lowered.contains("tradeoff")
+        || lowered.contains("trade-off")
+    {
+        return "comparison";
+    }
+    if lowered.contains("report")
+        || lowered.contains("investigate")
+        || lowered.contains("analysis")
+        || lowered.contains("analyze")
+    {
+        return "report";
+    }
+    if lowered.contains("summary")
+        || lowered.contains("summarize")
+        || lowered.contains("overview")
+        || lowered.contains("update")
+        || lowered.contains("landscape")
+        || lowered.contains("news")
+        || current_web_intent(query)
+    {
+        return "briefing";
+    }
+    "unknown"
+}
+
+fn push_unique_clean_string(
+    out: &mut Vec<String>,
+    seen: &mut HashSet<String>,
+    raw: &str,
+    max_len: usize,
+) {
+    let cleaned = clean_text(raw, max_len);
+    if cleaned.is_empty() {
+        return;
+    }
+    let key = cleaned.to_ascii_lowercase();
+    if seen.insert(key) {
+        out.push(cleaned);
+    }
+}
+
+fn research_source_preferences(query: &str, query_metadata: &BatchQueryKeywordPack) -> Vec<String> {
+    let mut out = Vec::<String>::new();
+    let mut seen = HashSet::<String>::new();
+    let comparison_intent = is_benchmark_or_comparison_intent(query);
+    if current_web_intent(query) {
+        for value in [
+            "announcement_or_news",
+            "public_institution",
+            "documentation_or_reference",
+            "scholarly_or_research",
+        ] {
+            push_unique_clean_string(&mut out, &mut seen, value, 80);
+        }
+    }
+    if comparison_intent || !query_metadata.entities.is_empty() {
+        for value in [
+            "documentation_or_reference",
+            "repository_or_dataset",
+            "public_institution",
+            "community_or_forum",
+        ] {
+            push_unique_clean_string(&mut out, &mut seen, value, 80);
+        }
+    }
+    if out.is_empty() {
+        for value in [
+            "documentation_or_reference",
+            "public_institution",
+            "scholarly_or_research",
+            "repository_or_dataset",
+            "community_or_forum",
+        ] {
+            push_unique_clean_string(&mut out, &mut seen, value, 80);
+        }
+    }
+    out.into_iter().take(6).collect()
+}
+
+fn research_brief_value(
+    query: &str,
+    query_metadata: &BatchQueryKeywordPack,
+    query_plan: &[String],
+    source: &str,
+) -> Value {
+    let mut open_dimensions = Vec::<String>::new();
+    let mut open_seen = HashSet::<String>::new();
+    for facet in &query_metadata.facets {
+        push_unique_clean_string(&mut open_dimensions, &mut open_seen, facet, 180);
+    }
+    if open_dimensions.is_empty() {
+        for lane in query_plan.iter().skip(1).take(3) {
+            push_unique_clean_string(&mut open_dimensions, &mut open_seen, lane, 220);
+        }
+    }
+    let mut known_constraints = Vec::<String>::new();
+    let mut constraint_seen = HashSet::<String>::new();
+    for negative in &query_metadata.negative_terms {
+        push_unique_clean_string(&mut known_constraints, &mut constraint_seen, negative, 120);
+    }
+    json!({
+        "schema_version": "research_brief_v1",
+        "original_user_goal": clean_text(query, 1_200),
+        "research_objective": clean_text(query, 1_200),
+        "open_dimensions": open_dimensions,
+        "known_constraints": known_constraints,
+        "date_context": current_date(),
+        "source": clean_text(source, 80),
+        "source_preferences": research_source_preferences(query, query_metadata),
+        "answer_shape": infer_research_answer_shape(query),
+        "metadata_authority": clean_text(&query_metadata.metadata_authority, 120)
+    })
+}
+
+fn evidence_needs_value(
+    policy: &Value,
+    query: &str,
+    query_metadata: &BatchQueryKeywordPack,
+    facets: &[ResearchFacet],
+    budget: ApertureBudget,
+) -> Value {
+    let mut coverage_facets = Vec::<String>::new();
+    let mut seen = HashSet::<String>::new();
+    for facet in &query_metadata.facets {
+        push_unique_clean_string(&mut coverage_facets, &mut seen, facet, 180);
+    }
+    if !query_metadata.entities.is_empty() {
+        push_unique_clean_string(&mut coverage_facets, &mut seen, "entity_coverage", 80);
+    }
+    if current_web_intent(query) {
+        push_unique_clean_string(&mut coverage_facets, &mut seen, "freshness", 80);
+    }
+    if is_benchmark_or_comparison_intent(query) {
+        push_unique_clean_string(&mut coverage_facets, &mut seen, "cross_comparison", 80);
+    }
+    if coverage_facets.is_empty() && !facets.is_empty() {
+        push_unique_clean_string(&mut coverage_facets, &mut seen, "overall_objective", 80);
+    }
+    let minimum_claims_default = if budget.max_evidence >= 4 { 3 } else { 2 };
+    let minimum_distinct_domains_default =
+        if is_benchmark_or_comparison_intent(query) || query_metadata.entities.len() > 1 {
+            3
+        } else {
+            2
+        };
+    json!({
+        "schema_version": "evidence_needs_v1",
+        "coverage_facets": coverage_facets.into_iter().take(8).collect::<Vec<_>>(),
+        "source_classes": research_source_preferences(query, query_metadata),
+        "required_materialization": "materialized_or_trusted_feed",
+        "minimum_claims": policy_usize_at(
+            policy,
+            "/batch_query/evidence_needs/minimum_claims",
+            minimum_claims_default,
+            1,
+            12
+        ),
+        "minimum_distinct_domains": policy_usize_at(
+            policy,
+            "/batch_query/evidence_needs/minimum_distinct_domains",
+            minimum_distinct_domains_default,
+            1,
+            12
+        ),
+        "citation_expectation": "claim_backed_source_refs",
+        "recency_window": if current_web_intent(query) {
+            json!({
+                "mode": "current_context",
+                "anchor_date": current_date()
+            })
+        } else {
+            Value::Null
+        }
+    })
+}
+
 fn source_trust_adjustment(candidate: &Candidate) -> f64 {
     let domain = candidate_domain_hint(candidate).to_ascii_lowercase();
     let locator = clean_text(&candidate.locator, 2_200).to_ascii_lowercase();
@@ -602,9 +788,7 @@ fn backfill_missing_facet_ranked_candidates(
                     content_rich_text(&right.0.snippet).cmp(&content_rich_text(&left.0.snippet))
                 })
                 .then_with(|| right.1.total_cmp(&left.1))
-                .then_with(|| {
-                    candidate_domain_hint(&left.0).cmp(&candidate_domain_hint(&right.0))
-                })
+                .then_with(|| candidate_domain_hint(&left.0).cmp(&candidate_domain_hint(&right.0)))
         });
         let Some(candidate) = candidates.into_iter().next() else {
             continue;
@@ -691,9 +875,19 @@ fn evidence_coverage_from_ranked_candidates(
                     .collect::<Vec<_>>();
                 let usable_count = matching
                     .iter()
-                    .filter(|(candidate, _)| !candidate_is_low_confidence_retained(candidate))
+                    .filter(|(candidate, _)| candidate_counts_as_usable_evidence(candidate))
                     .count();
-                let low_confidence_count = matching.len().saturating_sub(usable_count);
+                let low_confidence_count = matching
+                    .iter()
+                    .filter(|(candidate, _)| candidate_is_low_confidence_retained(candidate))
+                    .count();
+                let candidate_only_count = matching
+                    .iter()
+                    .filter(|(candidate, _)| {
+                        !candidate_is_low_confidence_retained(candidate)
+                            && !candidate_counts_as_usable_evidence(candidate)
+                    })
+                    .count();
                 let mut domains = matching
                     .iter()
                     .map(|(candidate, _)| candidate_domain_hint(candidate).to_ascii_lowercase())
@@ -703,7 +897,7 @@ fn evidence_coverage_from_ranked_candidates(
                 domains.dedup();
                 let status = if usable_count > 0 {
                     "covered"
-                } else if low_confidence_count > 0 {
+                } else if low_confidence_count > 0 || candidate_only_count > 0 {
                     "weak"
                 } else {
                     "missing"
@@ -716,6 +910,7 @@ fn evidence_coverage_from_ranked_candidates(
                     "evidence_count": matching.len(),
                     "usable_evidence_count": usable_count,
                     "low_confidence_raw_count": low_confidence_count,
+                    "candidate_only_count": candidate_only_count,
                     "source_domain_count": domains.len(),
                     "source_domains": domains
                 })
@@ -734,7 +929,7 @@ fn usable_ranked_candidates_for_coverage(
     let min_score = minimum_synthesis_score(benchmark_intent);
     candidates
         .iter()
-        .filter(|candidate| !candidate_is_low_confidence_retained(candidate))
+        .filter(|candidate| candidate_counts_as_usable_evidence(candidate))
         .map(|candidate| {
             let score = if facets.is_empty() {
                 rerank_score(query, candidate)
@@ -879,9 +1074,12 @@ fn coverage_gap_recovery_queries(
             if template.contains("{entities}") && entities.is_empty() {
                 continue;
             }
-            if let Some(candidate) =
-                expand_coverage_gap_recovery_template(&template, query, &facet.requested_text, &entities)
-            {
+            if let Some(candidate) = expand_coverage_gap_recovery_template(
+                &template,
+                query,
+                &facet.requested_text,
+                &entities,
+            ) {
                 if seen.insert(candidate.to_ascii_lowercase()) {
                     out.push(candidate);
                 }
@@ -942,10 +1140,7 @@ fn locator_path_hint(raw: &str) -> String {
         .split_once("://")
         .and_then(|(_, rest)| rest.find('/').map(|index| &rest[index..]))
         .unwrap_or(locator.as_str());
-    let path = after_host
-        .split(['?', '#'])
-        .next()
-        .unwrap_or(after_host);
+    let path = after_host.split(['?', '#']).next().unwrap_or(after_host);
     clean_text(path, 1_200)
 }
 
@@ -1014,6 +1209,107 @@ fn evidence_pack_freshness_status(query: &str, candidate: &Candidate) -> String 
     } else {
         "freshness_unproven".to_string()
     }
+}
+
+fn materialization_quality_from_fields(
+    source_kind: &str,
+    permissions: &str,
+    snippet: &str,
+) -> &'static str {
+    let source_kind = clean_text(source_kind, 120).to_ascii_lowercase();
+    let permissions = clean_text(permissions, 240).to_ascii_lowercase();
+    let snippet_rich = content_rich_text(snippet);
+    let materialized = source_kind.contains("materialized")
+        || source_kind.contains("page_enriched")
+        || source_kind.contains("document_page_artifact")
+        || source_kind.contains("reader_output")
+        || source_kind.contains("rendered_page")
+        || source_kind.contains("page_artifact")
+        || permissions.contains("browser_materialized");
+    if materialized {
+        return if snippet_rich {
+            "full_materialized"
+        } else {
+            "partial_materialized"
+        };
+    }
+    let fetch_like = source_kind.contains("direct_fetch")
+        || source_kind.contains("fetch_candidate")
+        || permissions.contains("fetch_materialized");
+    if fetch_like {
+        return if snippet_rich {
+            "partial_materialized"
+        } else {
+            "failed_materialization"
+        };
+    }
+    let trusted_structured_feed = source_kind.contains("rss")
+        || source_kind.contains("feed")
+        || source_kind.contains("api")
+        || permissions.contains("structured_feed")
+        || permissions.contains("headline_feed");
+    if trusted_structured_feed {
+        return "trusted_structured_feed";
+    }
+    "candidate_only"
+}
+
+fn materialization_quality_counts_as_usable_evidence(materialization_quality: &str) -> bool {
+    matches!(
+        materialization_quality,
+        "full_materialized" | "partial_materialized" | "trusted_structured_feed"
+    )
+}
+
+fn candidate_materialization_quality(candidate: &Candidate) -> &'static str {
+    materialization_quality_from_fields(
+        &candidate.source_kind,
+        candidate.permissions.as_deref().unwrap_or(""),
+        &candidate.snippet,
+    )
+}
+
+fn candidate_counts_as_usable_evidence(candidate: &Candidate) -> bool {
+    !candidate_is_low_confidence_retained(candidate)
+        && materialization_quality_counts_as_usable_evidence(candidate_materialization_quality(
+            candidate,
+        ))
+}
+
+fn evidence_row_materialization_quality(row: &Value) -> String {
+    if let Some(explicit) = row.get("materialization_quality").and_then(Value::as_str) {
+        let cleaned = clean_text(explicit, 80);
+        if !cleaned.is_empty() {
+            return cleaned;
+        }
+    }
+    materialization_quality_from_fields(
+        row.get("source_kind").and_then(Value::as_str).unwrap_or(""),
+        row.get("permissions").and_then(Value::as_str).unwrap_or(""),
+        row.get("snippet")
+            .or_else(|| row.get("summary"))
+            .or_else(|| row.get("content"))
+            .or_else(|| row.get("markdown"))
+            .or_else(|| row.get("text"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+    )
+    .to_string()
+}
+
+fn evidence_row_counts_as_usable_evidence(row: &Value) -> bool {
+    if let Some(explicit) = row
+        .get("counts_as_usable_evidence")
+        .and_then(Value::as_bool)
+    {
+        return explicit;
+    }
+    let low_confidence =
+        row.get("confidence").and_then(Value::as_str) == Some("low_confidence_raw");
+    !low_confidence
+        && materialization_quality_counts_as_usable_evidence(&evidence_row_materialization_quality(
+            row,
+        ))
 }
 
 fn evidence_pack_claim_hints(query: &str, snippet: &str, limit: usize) -> Vec<String> {
@@ -1418,6 +1714,7 @@ fn evidence_pack_from_ranked_candidates(
                     &claim_hints,
                     &coverage_facets,
                 );
+                let materialization_quality = candidate_materialization_quality(candidate);
                 json!({
                     "pack_version": "evidence_pack_v1",
                     "source_kind": candidate.source_kind.clone(),
@@ -1437,6 +1734,9 @@ fn evidence_pack_from_ranked_candidates(
                         "freshness_delta": (recency_adjustment(query, candidate) * 100.0).round() / 100.0
                     },
                     "confidence": confidence,
+                    "materialization_quality": materialization_quality,
+                    "counts_as_usable_evidence": !candidate_is_low_confidence_retained(candidate)
+                        && materialization_quality_counts_as_usable_evidence(materialization_quality),
                     "quality_flags": quality_flags,
                     "coverage_facets": coverage_facets,
                     "freshness": {
@@ -1452,6 +1752,139 @@ fn evidence_pack_from_ranked_candidates(
             })
             .collect::<Vec<_>>(),
     )
+}
+
+fn evidence_claim_entities(query_metadata: &BatchQueryKeywordPack, row: &Value) -> Vec<String> {
+    let haystack = clean_text(
+        &format!(
+            "{} {} {}",
+            row.get("title").and_then(Value::as_str).unwrap_or(""),
+            row.get("snippet").and_then(Value::as_str).unwrap_or(""),
+            row.get("locator").and_then(Value::as_str).unwrap_or(""),
+        ),
+        2_400,
+    )
+    .to_ascii_lowercase();
+    let mut entities = Vec::<String>::new();
+    let mut seen = HashSet::<String>::new();
+    for entity in &query_metadata.entities {
+        let cleaned = clean_text(entity, 160);
+        if cleaned.is_empty() {
+            continue;
+        }
+        if haystack.contains(&cleaned.to_ascii_lowercase())
+            && seen.insert(cleaned.to_ascii_lowercase())
+        {
+            entities.push(cleaned);
+        }
+    }
+    entities
+}
+
+fn evidence_claim_limitations(row: &Value) -> Vec<String> {
+    let mut limitations = Vec::<String>::new();
+    let mut seen = HashSet::<String>::new();
+    let materialization_quality = evidence_row_materialization_quality(row);
+    match materialization_quality.as_str() {
+        "partial_materialized" => {
+            push_unique_clean_string(&mut limitations, &mut seen, "partial_materialization", 120);
+        }
+        "trusted_structured_feed" => {
+            push_unique_clean_string(
+                &mut limitations,
+                &mut seen,
+                "headline_or_structured_feed_level",
+                120,
+            );
+        }
+        "candidate_only" => {
+            push_unique_clean_string(
+                &mut limitations,
+                &mut seen,
+                "candidate_only_not_claim_backed",
+                120,
+            );
+        }
+        "failed_materialization" => {
+            push_unique_clean_string(&mut limitations, &mut seen, "materialization_failed", 120);
+        }
+        _ => {}
+    }
+    if let Some(flags) = row
+        .get("quality_flags")
+        .or_else(|| row.get("flags"))
+        .and_then(Value::as_array)
+    {
+        for flag in flags.iter().filter_map(Value::as_str).take(6) {
+            if matches!(
+                flag,
+                "freshness_unproven"
+                    | "low_trust_source"
+                    | "low_score"
+                    | "primary_source_needed"
+                    | "weak_query_overlap_only"
+                    | "thin_query_overlap"
+            ) {
+                push_unique_clean_string(&mut limitations, &mut seen, flag, 120);
+            }
+        }
+    }
+    limitations
+}
+
+fn evidence_claims_from_pack(
+    query_metadata: &BatchQueryKeywordPack,
+    evidence_pack: &Value,
+    limit: usize,
+) -> Value {
+    let mut claims = Vec::<Value>::new();
+    let max_claims = limit.max(1);
+    if let Some(rows) = evidence_pack.as_array() {
+        for row in rows {
+            if !evidence_row_counts_as_usable_evidence(row) {
+                continue;
+            }
+            let support_snippet = clean_text(
+                row.get("snippet").and_then(Value::as_str).unwrap_or(""),
+                420,
+            );
+            let entities = evidence_claim_entities(query_metadata, row);
+            let limitations = evidence_claim_limitations(row);
+            let coverage_facets = row
+                .get("coverage_facets")
+                .cloned()
+                .unwrap_or_else(|| json!([]));
+            let source_ref = json!({
+                "title": clean_text(row.get("title").and_then(Value::as_str).unwrap_or(""), 180),
+                "locator": clean_text(row.get("locator").and_then(Value::as_str).unwrap_or(""), 260),
+                "source_domain": clean_text(row.get("source_domain").and_then(Value::as_str).unwrap_or(""), 120),
+                "source_kind": clean_text(row.get("source_kind").and_then(Value::as_str).unwrap_or(""), 80),
+                "materialization_quality": evidence_row_materialization_quality(row)
+            });
+            if let Some(hints) = row.get("claim_hints").and_then(Value::as_array) {
+                for hint in hints.iter().filter_map(Value::as_str) {
+                    let claim = clean_text(hint, 240);
+                    if claim.is_empty() {
+                        continue;
+                    }
+                    claims.push(json!({
+                        "claim": claim,
+                        "source_ref": source_ref.clone(),
+                        "support_snippet": support_snippet.clone(),
+                        "date": row.get("timestamp").cloned().unwrap_or(Value::Null),
+                        "entities": entities.clone(),
+                        "coverage_facets": coverage_facets.clone(),
+                        "confidence": row.get("confidence").cloned().unwrap_or_else(|| json!("unknown")),
+                        "limitations": limitations.clone()
+                    }));
+                    if claims.len() >= max_claims {
+                        return Value::Array(claims);
+                    }
+                }
+            }
+        }
+    }
+    Value::Array(claims)
 }
 
 fn value_array_len(value: &Value) -> usize {
@@ -1505,42 +1938,62 @@ fn evidence_pack_quality_report(
     );
     let mut usable_count = 0usize;
     let mut low_confidence_count = 0usize;
+    let mut materialized_count = 0usize;
+    let mut trusted_structured_feed_count = 0usize;
+    let mut candidate_only_count = 0usize;
+    let mut failed_materialization_count = 0usize;
     let mut content_rich_count = 0usize;
     let mut claim_hint_count = 0usize;
+    let mut evidence_claim_count = 0usize;
     let mut domains = HashSet::<String>::new();
     let mut source_classes = HashSet::<String>::new();
     if let Some(rows) = evidence_pack.as_array() {
         for row in rows {
+            let materialization_quality = evidence_row_materialization_quality(row);
+            let counts_as_usable = evidence_row_counts_as_usable_evidence(row);
             let confidence = clean_text(
                 row.get("confidence").and_then(Value::as_str).unwrap_or(""),
                 80,
             );
             if confidence == "low_confidence_raw" {
                 low_confidence_count += 1;
-            } else {
+            }
+            if counts_as_usable {
                 usable_count += 1;
             }
-            if row
-                .get("snippet")
-                .and_then(Value::as_str)
-                .map(content_rich_text)
-                .unwrap_or(false)
+            match materialization_quality.as_str() {
+                "full_materialized" | "partial_materialized" => materialized_count += 1,
+                "trusted_structured_feed" => trusted_structured_feed_count += 1,
+                "candidate_only" => candidate_only_count += 1,
+                "failed_materialization" => failed_materialization_count += 1,
+                _ => {}
+            }
+            if counts_as_usable
+                && row
+                    .get("snippet")
+                    .and_then(Value::as_str)
+                    .map(content_rich_text)
+                    .unwrap_or(false)
             {
                 content_rich_count += 1;
             }
-            claim_hint_count += row
-                .get("claim_hints")
-                .and_then(Value::as_array)
-                .map(|rows| {
-                    rows.iter()
-                        .filter(|row| {
-                            row.as_str()
-                                .map(|raw| !raw.trim().is_empty())
-                                .unwrap_or(false)
-                        })
-                        .count()
-                })
-                .unwrap_or(0);
+            if counts_as_usable {
+                let row_claim_count = row
+                    .get("claim_hints")
+                    .and_then(Value::as_array)
+                    .map(|rows| {
+                        rows.iter()
+                            .filter(|row| {
+                                row.as_str()
+                                    .map(|raw| !raw.trim().is_empty())
+                                    .unwrap_or(false)
+                            })
+                            .count()
+                    })
+                    .unwrap_or(0);
+                claim_hint_count += row_claim_count;
+                evidence_claim_count += row_claim_count;
+            }
             let domain = clean_text(
                 row.get("source_domain")
                     .or_else(|| row.get("source_scope"))
@@ -1578,7 +2031,7 @@ fn evidence_pack_quality_report(
     let item_count = value_array_len(evidence_pack);
     let status = if item_count == 0 {
         "absent"
-    } else if usable_count == 0 {
+    } else if usable_count == 0 && low_confidence_count > 0 && candidate_only_count == 0 {
         "low_confidence_only"
     } else if usable_count < min_usable
         || domains.len() < min_domains
@@ -1596,8 +2049,13 @@ fn evidence_pack_quality_report(
         "item_count": item_count,
         "usable_count": usable_count,
         "low_confidence_count": low_confidence_count,
+        "materialized_item_count": materialized_count,
+        "trusted_structured_feed_count": trusted_structured_feed_count,
+        "candidate_only_count": candidate_only_count,
+        "failed_materialization_count": failed_materialization_count,
         "content_rich_item_count": content_rich_count,
         "claim_hint_count": claim_hint_count,
+        "evidence_claim_count": evidence_claim_count,
         "source_domain_count": domains.len(),
         "source_class_count": source_classes.len(),
         "missing_facet_count": missing_facets,
@@ -1887,12 +2345,16 @@ fn provider_normalization_report(provider_attempts: &Value) -> Value {
     if let Some(rows) = provider_attempts.as_array() {
         for row in rows {
             let status = clean_text(
-                row.get("status").and_then(Value::as_str).unwrap_or("unknown"),
+                row.get("status")
+                    .and_then(Value::as_str)
+                    .unwrap_or("unknown"),
                 80,
             );
             *status_counts.entry(status).or_insert(0) += 1;
             let phase = clean_text(
-                row.get("phase").and_then(Value::as_str).unwrap_or("unknown"),
+                row.get("phase")
+                    .and_then(Value::as_str)
+                    .unwrap_or("unknown"),
                 120,
             );
             *phase_counts.entry(phase).or_insert(0) += 1;
@@ -2525,10 +2987,8 @@ fn page_extraction_link_candidate_with_context(link: &str, context: &str) -> Can
     let mut candidate = page_extraction_link_candidate(link);
     let cleaned_context = clean_text(context, 1_800);
     if !cleaned_context.is_empty() {
-        candidate.snippet = clean_text(
-            &format!("{} {}", cleaned_context, candidate.locator),
-            2_200,
-        );
+        candidate.snippet =
+            clean_text(&format!("{} {}", cleaned_context, candidate.locator), 2_200);
     }
     candidate
 }
@@ -2549,7 +3009,9 @@ fn fallback_link_score_with_context(query: &str, link: &str, context: &str) -> f
         0.34 * (query_tokens.intersection(&context_tokens).count() as f64
             / query_tokens.len() as f64)
     };
-    base_score.max(context_score + overlap_bonus).clamp(-1.0, 1.0)
+    base_score
+        .max(context_score + overlap_bonus)
+        .clamp(-1.0, 1.0)
 }
 
 fn ranked_payload_links_for_fallback_with_context_and_min_score(
@@ -2589,8 +3051,8 @@ fn ranked_payload_links_for_fallback_with_min_score(
         query, payload, max_links, min_score,
     )
     .into_iter()
-        .map(|(link, _)| link)
-        .collect::<Vec<_>>()
+    .map(|(link, _)| link)
+    .collect::<Vec<_>>()
 }
 
 fn ranked_payload_links_for_fallback(
@@ -2722,10 +3184,17 @@ fn browser_materialization_blocker_taxonomy(
     let needs_js = has_flag("needs_js")
         || text_has_any_marker(
             &combined,
-            &["needs_js", "javascript required", "please enable javascript"],
+            &[
+                "needs_js",
+                "javascript required",
+                "please enable javascript",
+            ],
         );
     let rate_limited = has_flag("rate_limited")
-        || text_has_any_marker(&combined, &["rate limit", "rate_limited", "http_429", "429"]);
+        || text_has_any_marker(
+            &combined,
+            &["rate limit", "rate_limited", "http_429", "429"],
+        );
     let access_denied = has_flag("access_denied")
         || text_has_any_marker(
             &combined,
@@ -3004,14 +3473,20 @@ fn query_refinement_signals(
     if flags_include(flags, "comparison_evidence_insufficient") {
         strategy_signals.push("split_by_entities_or_comparison_facets");
     }
-    if flags_include(flags, "weak_single_source") || flags_include(flags, "source_diversity_limited") {
+    if flags_include(flags, "weak_single_source")
+        || flags_include(flags, "source_diversity_limited")
+    {
         strategy_signals.push("add_independent_source_or_source_class");
     }
     if matches!(primary_blocker, "off_intent_noise" | "low_signal") {
         strategy_signals.push("remove_terms_that_only_matched_off_intent_rows");
     }
-    if matches!(primary_blocker, "anti_bot_challenge" | "needs_js" | "content_materialization_missing") {
-        strategy_signals.push("try_candidate_specific_or_direct_source_queries_before_user_narrowing");
+    if matches!(
+        primary_blocker,
+        "anti_bot_challenge" | "needs_js" | "content_materialization_missing"
+    ) {
+        strategy_signals
+            .push("try_candidate_specific_or_direct_source_queries_before_user_narrowing");
     }
     if strategy_signals.is_empty() {
         strategy_signals.push("preserve_user_goal_and_add_missing_coverage_facets");
@@ -3286,14 +3761,44 @@ fn web_tool_quality_report(
     {
         flags.push("low_confidence_raw_evidence".to_string());
     }
+    let materialized_candidate_count = actionable_ranked
+        .iter()
+        .filter(|(candidate, _)| candidate_counts_as_usable_evidence(candidate))
+        .count();
+    let trusted_structured_feed_count = actionable_ranked
+        .iter()
+        .filter(|(candidate, _)| {
+            candidate_materialization_quality(candidate) == "trusted_structured_feed"
+        })
+        .count();
+    let candidate_only_count = actionable_ranked
+        .iter()
+        .filter(|(candidate, _)| candidate_materialization_quality(candidate) == "candidate_only")
+        .count();
+    let failed_materialization_count = actionable_ranked
+        .iter()
+        .filter(|(candidate, _)| {
+            candidate_materialization_quality(candidate) == "failed_materialization"
+        })
+        .count();
     let content_rich_candidate_count = actionable_ranked
         .iter()
-        .filter(|(candidate, _)| content_rich_text(&candidate.snippet))
+        .filter(|(candidate, _)| {
+            candidate_counts_as_usable_evidence(candidate) && content_rich_text(&candidate.snippet)
+        })
         .count();
     let claim_hint_count = actionable_ranked
         .iter()
+        .filter(|(candidate, _)| candidate_counts_as_usable_evidence(candidate))
         .map(|(candidate, _)| evidence_pack_claim_hints(query, &candidate.snippet, 2).len())
         .sum::<usize>();
+    let evidence_claim_count = claim_hint_count;
+    if evidence_count > 0 && materialized_candidate_count == 0 {
+        flags.push("materialized_evidence_missing".to_string());
+    }
+    if evidence_count > 0 && candidate_only_count > 0 && materialized_candidate_count == 0 {
+        flags.push("candidate_only_evidence".to_string());
+    }
     if evidence_count > 0 && content_rich_candidate_count == 0 {
         flags.push("content_rich_evidence_missing".to_string());
     }
@@ -3406,6 +3911,9 @@ fn web_tool_quality_report(
     if evidence_count == 0 {
         missing_buckets.push("usable_evidence".to_string());
     }
+    if evidence_count > 0 && materialized_candidate_count == 0 {
+        missing_buckets.push("materialized_source_content".to_string());
+    }
     if weak_single_source {
         missing_buckets.push("source_diversity_or_confidence".to_string());
     }
@@ -3493,6 +4001,11 @@ fn web_tool_quality_report(
         },
         "content_rich_candidate_count": content_rich_candidate_count,
         "claim_hint_count": claim_hint_count,
+        "evidence_claim_count": evidence_claim_count,
+        "materialized_candidate_count": materialized_candidate_count,
+        "trusted_structured_feed_count": trusted_structured_feed_count,
+        "candidate_only_count": candidate_only_count,
+        "failed_materialization_count": failed_materialization_count,
         "candidate_quality": candidate_quality,
         "blocker_taxonomy": blocker_taxonomy,
         "browser_materialization": browser_materialization,

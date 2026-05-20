@@ -274,6 +274,148 @@ fn attach_tool_pipeline(payload: &mut Value, pipeline: &Value) {
     }
 }
 
+fn attach_public_tool_pipeline(payload: &mut Value, pipeline: &Value) {
+    let projection = public_tool_pipeline_projection(payload, pipeline);
+    if let Some(obj) = payload.as_object_mut() {
+        obj.insert("tool_pipeline".to_string(), projection);
+    }
+}
+
+fn public_tool_pipeline_projection(payload: &Value, pipeline: &Value) -> Value {
+    let raw_payload = pipeline.get("raw_payload").unwrap_or(&Value::Null);
+    let normalized_result = pipeline.get("normalized_result").unwrap_or(&Value::Null);
+    let claim_rows = pipeline
+        .pointer("/claim_bundle/claims")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let claim_count = claim_rows.len();
+    let projected_claims = claim_rows
+        .iter()
+        .take(6)
+        .map(|row| {
+            json!({
+                "status": row.get("status").cloned().unwrap_or(Value::Null),
+                "text": clean_text(row.get("text").and_then(Value::as_str).unwrap_or(""), 360),
+                "evidence_ref_count": row
+                    .get("evidence_refs")
+                    .and_then(Value::as_array)
+                    .map(|rows| rows.len())
+                    .unwrap_or(0)
+            })
+        })
+        .collect::<Vec<_>>();
+    let raw_summary = clean_text(
+        raw_payload
+            .get("summary")
+            .and_then(Value::as_str)
+            .or_else(|| payload.get("summary").and_then(Value::as_str))
+            .unwrap_or(""),
+        800,
+    );
+    let raw_evidence_ref_count = raw_payload
+        .get("evidence_refs")
+        .and_then(Value::as_array)
+        .map(|rows| rows.len())
+        .unwrap_or_else(|| {
+            payload
+                .get("evidence_refs")
+                .and_then(Value::as_array)
+                .map(|rows| rows.len())
+                .unwrap_or(0)
+        });
+    let raw_candidate_count = json_number_u64(
+        raw_payload
+            .get("candidate_count")
+            .or_else(|| raw_payload.pointer("/tool_result_quality/candidate_count")),
+    )
+    .unwrap_or(0);
+    let raw_provider_result_count = raw_payload
+        .get("provider_results")
+        .and_then(Value::as_array)
+        .map(|rows| rows.len())
+        .unwrap_or(0);
+    let raw_evidence_pack_count = raw_payload
+        .get("evidence_pack")
+        .and_then(Value::as_array)
+        .map(|rows| rows.len())
+        .unwrap_or(0);
+    let raw_evidence_pack_candidate_count = raw_payload
+        .get("evidence_pack_candidates")
+        .and_then(Value::as_array)
+        .map(|rows| rows.len())
+        .unwrap_or(0);
+    let normalized_error_count = normalized_result
+        .get("errors")
+        .and_then(Value::as_array)
+        .map(|rows| rows.len())
+        .unwrap_or(0);
+    let normalized_warning_count = normalized_result
+        .get("warnings")
+        .and_then(Value::as_array)
+        .map(|rows| rows.len())
+        .unwrap_or(0);
+    json!({
+        "schema_contract": pipeline.get("schema_contract").cloned().unwrap_or(Value::Null),
+        "tool_display_meta": pipeline.get("tool_display_meta").cloned().unwrap_or(Value::Null),
+        "tool_capability_probe": {
+            "ok": pipeline.pointer("/tool_capability_probe/ok").cloned().unwrap_or(Value::Null),
+            "tool_name": pipeline.pointer("/tool_capability_probe/tool_name").cloned().unwrap_or(Value::Null),
+            "status": pipeline.pointer("/tool_capability_probe/capability/status").cloned().unwrap_or(Value::Null),
+            "reason_code": pipeline.pointer("/tool_capability_probe/capability/reason_code").cloned().unwrap_or(Value::Null)
+        },
+        "tool_attempt": {
+            "tool_name": pipeline.pointer("/tool_attempt/tool_name").cloned().unwrap_or(Value::Null),
+            "status": pipeline.pointer("/tool_attempt/status").cloned().unwrap_or(Value::Null),
+            "error": pipeline.pointer("/tool_attempt/error").cloned().unwrap_or(Value::Null)
+        },
+        "tool_attempt_receipt": {
+            "tool_name": pipeline.pointer("/tool_attempt_receipt/tool_name").cloned().unwrap_or(Value::Null),
+            "status": pipeline.pointer("/tool_attempt_receipt/status").cloned().unwrap_or(Value::Null),
+            "reason": pipeline.pointer("/tool_attempt_receipt/reason").cloned().unwrap_or(Value::Null),
+            "task_id": pipeline.pointer("/tool_attempt_receipt/task_id").cloned().unwrap_or(Value::Null),
+            "trace_id": pipeline.pointer("/tool_attempt_receipt/trace_id").cloned().unwrap_or(Value::Null)
+        },
+        "normalized_result": {
+            "tool_name": normalized_result.get("tool_name").cloned().unwrap_or(Value::Null),
+            "status": normalized_result.get("status").cloned().unwrap_or(Value::Null),
+            "error_count": normalized_error_count,
+            "warning_count": normalized_warning_count
+        },
+        "claim_bundle": {
+            "claim_count": claim_count,
+            "claims": projected_claims
+        },
+        "worker_output": {
+            "task_id": pipeline.pointer("/worker_output/task_id").cloned().unwrap_or(Value::Null),
+            "status": pipeline.pointer("/worker_output/status").cloned().unwrap_or(Value::Null),
+            "produced_evidence_count": pipeline.pointer("/worker_output/produced_evidence_ids").and_then(Value::as_array).map(|rows| rows.len()).unwrap_or(0),
+            "blocker_count": pipeline.pointer("/worker_output/blockers").and_then(Value::as_array).map(|rows| rows.len()).unwrap_or(0)
+        },
+        "synthesis_input": {
+            "claim_count": pipeline.pointer("/synthesis_input/claims").and_then(Value::as_array).map(|rows| rows.len()).unwrap_or(0)
+        },
+        "raw_payload_summary": {
+            "ok": raw_payload.get("ok").cloned().unwrap_or(Value::Null),
+            "status": raw_payload.get("status").cloned().unwrap_or(Value::Null),
+            "type": raw_payload.get("type").cloned().unwrap_or(Value::Null),
+            "summary": if raw_summary.is_empty() { Value::Null } else { Value::String(raw_summary) },
+            "candidate_count": raw_candidate_count,
+            "evidence_ref_count": raw_evidence_ref_count,
+            "provider_result_count": raw_provider_result_count,
+            "evidence_pack_count": raw_evidence_pack_count,
+            "evidence_pack_candidate_count": raw_evidence_pack_candidate_count
+        }
+    })
+}
+
+fn json_number_u64(value: Option<&Value>) -> Option<u64> {
+    value.and_then(|row| match row {
+        Value::Number(number) => number.as_u64(),
+        _ => None,
+    })
+}
+
 fn tool_pipeline_supported_tool(tool_name: &str) -> bool {
     matches!(normalize_tool_name(tool_name).as_str(), "web_search" | "web_fetch" | "batch_query" | "web_tooling_health_probe" | "file_read" | "file_read_many" | "folder_export" | "manage_agent" | "spawn_subagents" | "terminal_exec" | "workspace_analyze")
 }

@@ -791,8 +791,12 @@ fn candidate_is_synthesis_eligible(
         {
             return false;
         }
+        let trusted_overview_exception = source_trust_adjustment(candidate) >= 0.15
+            && content_rich_text(&candidate.snippet)
+            && query_overlap_terms(query, candidate) >= 1;
         if !looks_like_metric_rich_text(&candidate.snippet)
             && query_overlap_terms(query, candidate) < 2
+            && !trusted_overview_exception
         {
             return false;
         }

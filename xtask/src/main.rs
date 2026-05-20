@@ -712,6 +712,19 @@ fn compact_success_criteria_summary(criteria: &Value) -> String {
     {
         parts.push("synthesizes completion evidence on finalization timeout".to_string());
     }
+    if criteria
+        .get("repair_uncovered_requirements_before_final")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+    {
+        parts.push("repairs uncovered requirements before final".to_string());
+    }
+    if let Some(limit) = criteria
+        .get("completion_evidence_repair_max_turns")
+        .and_then(Value::as_u64)
+    {
+        parts.push(format!("completion evidence repair max turns {limit}"));
+    }
     if let Some(limit) = criteria
         .get("empty_tool_retry_limit")
         .and_then(Value::as_u64)

@@ -34,8 +34,8 @@ Interpretation:
 
 | Finding | Location | Classification | Repair direction | Status |
 |---|---|---|---|---|
-| Level-specific evidence contract is embedded in the high-level coding program builder. | `orchestration/src/control_plane/workflows/lab/frameworks/coding/local_coding_program_builder.workflow.json` | `hardcoding_contamination` | Replace `level6_existing_project_evidence_contract` with a general `existing_project_evidence_contract` primitive/composite and keep Level 6 fixture names only in evals. | open |
-| Level-specific stage name exists in normal coding workflow stages. | `orchestration/src/control_plane/workflows/lab/frameworks/coding/local_coding_program_builder.workflow.json` | `hardcoding_contamination` | Rename/replace `level6_evidence_contract_self_check` with a general existing-project evidence self-check. | open |
+| Level-specific evidence contract was embedded in the high-level coding program builder. | `orchestration/src/control_plane/workflows/lab/frameworks/coding/local_coding_program_builder.workflow.json` | `hardcoding_contamination` | Replaced with general `existing_project_evidence_contract` and moved the primitive foundation toward reusable runtime, context, mode, patch, evidence, and final receipt contracts. | patched-primitive-reset |
+| Level-specific stage name exists in normal coding workflow stages. | `orchestration/src/control_plane/workflows/lab/frameworks/coding/local_coding_program_builder.workflow.json` | `hardcoding_contamination` | Rename/replace `existing_project_evidence_contract_self_check` with a general existing-project evidence self-check. | open |
 | Native product-slice evidence scanned changed source for benchmark-shaped terms such as retryable, schema version, idempotence, malformed record handling, mixed v1/v2, sequence, and import/export. | `core/layer2/agent_surface/src/native_evidence.rs` | `hardcoding_contamination` | Remove domain-term evidence checks from the primitive gate. Use generic mutation/category evidence in production; leave domain specifics to eval judges or project contracts. | patched-first-wave |
 | Official coding operator repair prompt included benchmark-shaped repair examples around persistence/model/report/import/export/retryable behavior. | `orchestration/src/control_plane/workflows/official/coding_project_operator.workflow.json` | `hardcoding_contamination` | Replace domain-shaped instructions with generic evidence categories: source, tests, public interface, config, docs, checkpoint artifacts. | patched-first-wave |
 | Python-only preserved API behavior signature exists in native agent runtime. | `core/layer2/agent_surface/src/agent.rs` | `primitive_candidate` | Keep temporarily as a preservation primitive candidate, but move toward a language-neutral public-surface preservation contract. | open |
@@ -52,8 +52,10 @@ Completed in this reset wave:
 
 ## Reset sequence from here
 
-1. Create a general `existing_project_evidence_contract` workflow to replace `level6_existing_project_evidence_contract`.
-2. Move Level 6 artifact names and fixture paths into eval fixtures only.
+0. Use the cross-system primitive architecture ledger before inventing new coding primitives:
+   `docs/workspace/primitive_coding_architecture_assimilation_ledger.md`
+1. Run the primitive-first guard against the new `existing_project_evidence_contract` and primitive spine once validation is authorized.
+2. Move Existing-project artifact names and fixture paths into eval fixtures only.
 3. Register the general existing-project evidence contract in the primitive capability registry.
 4. Re-run `ops:primitive-first:guard` and fix true positives before allowlisting anything.
 5. Audit the native agent runtime for remaining level/eval-specific branches.

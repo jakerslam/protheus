@@ -259,7 +259,7 @@ fn handle_global_post_delete_routes(
                 .cloned()
                 .unwrap_or_else(|| json!({"ok": false, "error": "tool_pipeline_failed"}));
             if pipeline.get("ok").and_then(Value::as_bool).unwrap_or(false) {
-                attach_tool_pipeline(&mut payload, &pipeline);
+                attach_public_tool_pipeline(&mut payload, &pipeline);
             }
             finalize_global_post_tool_payload(
                 root,
@@ -329,7 +329,7 @@ fn handle_global_post_delete_routes(
                 .cloned()
                 .unwrap_or_else(|| json!({"ok": false, "error": "tool_pipeline_failed"}));
             if pipeline.get("ok").and_then(Value::as_bool).unwrap_or(false) {
-                attach_tool_pipeline(&mut payload, &pipeline);
+                attach_public_tool_pipeline(&mut payload, &pipeline);
             }
             finalize_global_post_tool_payload(
                 root,
@@ -392,7 +392,7 @@ fn handle_global_post_delete_routes(
                 .cloned()
                 .unwrap_or_else(|| json!({"status":"blocked","error":"tool_pipeline_failed"}));
             if pipeline.get("ok").and_then(Value::as_bool).unwrap_or(false) {
-                attach_tool_pipeline(&mut payload, &pipeline);
+                attach_public_tool_pipeline(&mut payload, &pipeline);
             }
             finalize_global_post_tool_payload(
                 root,
