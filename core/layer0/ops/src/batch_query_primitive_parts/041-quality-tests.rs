@@ -914,14 +914,71 @@ mod quality_tests {
         assert!(
             plan.queries
                 .iter()
-                .any(|row| row == "Research deployment fit security posture"),
+                .any(|row| row == "security posture cost profile latest developments"),
             "{:#?}",
             plan.queries
         );
         assert!(
             plan.queries
                 .iter()
-                .any(|row| row == "Research deployment fit cost profile"),
+                .any(|row| row == "security posture cost profile independent analysis"),
+            "{:#?}",
+            plan.queries
+        );
+    }
+
+    #[test]
+    fn facet_only_current_research_compiles_source_diverse_query_lanes() {
+        let query = "Give me an update on the AI agentic landscape in May 2026.";
+        let request = json!({
+            "source": "web",
+            "query": query,
+            "required_coverage": {
+                "facets": ["AI agentic landscape", "May 2026"]
+            },
+            "aperture": "medium"
+        });
+        let budget = aperture_budget("medium").expect("budget");
+        let plan = resolve_query_plan(&json!({}), &request, query, budget);
+
+        assert_eq!(
+            plan.query_plan_source,
+            "explicit_request_pack_with_metadata"
+        );
+        assert!(
+            plan.queries
+                .iter()
+                .any(|row| row == "AI agentic landscape May 2026 latest developments"),
+            "{:#?}",
+            plan.queries
+        );
+        assert!(
+            plan.queries
+                .iter()
+                .any(|row| row == "AI agentic landscape May 2026 independent analysis"),
+            "{:#?}",
+            plan.queries
+        );
+    }
+
+    #[test]
+    fn facet_only_sentiment_research_compiles_public_report_lanes() {
+        let query = "Summarize public sentiment around Figma AI features in 2026.";
+        let request = json!({
+            "source": "web",
+            "query": query,
+            "required_coverage": {
+                "facets": ["Figma AI public sentiment", "2026"]
+            },
+            "aperture": "medium"
+        });
+        let budget = aperture_budget("medium").expect("budget");
+        let plan = resolve_query_plan(&json!({}), &request, query, budget);
+
+        assert!(
+            plan.queries
+                .iter()
+                .any(|row| row == "Figma AI public sentiment 2026 public sentiment user reports"),
             "{:#?}",
             plan.queries
         );
@@ -2305,6 +2362,43 @@ mod quality_tests {
     }
 
     #[test]
+    fn page_extraction_globally_prioritizes_strong_payload_sources_over_lane_order() {
+        let query = "LangGraph deployment maturity and approval boundaries";
+        let mut policy = default_policy();
+        policy["batch_query"]["page_extraction"]["max_links_per_stage"] = json!(1);
+        policy["batch_query"]["page_extraction"]["candidate_locator_followup"]["max_per_stage"] =
+            json!(1);
+        let candidates = vec![Candidate {
+            source_kind: "web".to_string(),
+            title: "Deployment maturity thread".to_string(),
+            locator: "https://forum.example.com/deployment-maturity-thread".to_string(),
+            snippet: "A discussion thread mentions deployment maturity in broad terms.".to_string(),
+            excerpt_hash: "forum-deployment".to_string(),
+            timestamp: None,
+            permissions: Some("public_web".to_string()),
+            status_code: 200,
+        }];
+        let links = links_for_page_extraction(
+            query,
+            &policy,
+            &json!({
+                "summary": "LangGraph official documentation overview for agent orchestration, deployment, approval boundaries, and workflow architecture.",
+                "links": [
+                    "https://docs.langchain.com/oss/python/langgraph/overview"
+                ]
+            }),
+            &candidates,
+            1,
+            false,
+        );
+        assert_eq!(
+            links,
+            vec!["https://docs.langchain.com/oss/python/langgraph/overview"],
+            "{links:?}"
+        );
+    }
+
+    #[test]
     fn page_extraction_rejects_generic_model_pages_before_fetch_budget() {
         let query = "Model Context Protocol ecosystem maturity risks";
         let policy = default_policy();
@@ -3004,6 +3098,70 @@ mod quality_tests {
     }
 
     #[test]
+    fn official_source_provider_recovery_stays_on_source_discovery_lanes() {
+        let policy = default_policy();
+        let providers = provider_recovery_providers(&policy, "Firecrawl official documentation");
+        assert!(
+            providers
+                .iter()
+                .any(|provider| provider == "browser_serp" || provider == "duckduckgo_lite"),
+            "{providers:#?}"
+        );
+        assert!(
+            !providers.iter().any(|provider| matches!(
+                provider.as_str(),
+                "serperdev" | "tavily" | "exa" | "brave" | "google_news_rss" | "bing_rss"
+            )),
+            "{providers:#?}"
+        );
+
+        let broad_providers =
+            provider_recovery_providers(&policy, "web retrieval quality evidence promotion");
+        assert!(
+            broad_providers.iter().any(|provider| provider == "serperdev"),
+            "{broad_providers:#?}"
+        );
+    }
+
+    #[test]
+    fn official_source_retrieval_skips_bing_rss_fallback_lane() {
+        let query = "Firecrawl official documentation";
+        let out = run_query_with_fixture(
+            json!({
+                query: {"ok": false, "error": "access_denied"},
+                format!("duckduckgo_instant::{query}"): {
+                    "ok": false,
+                    "error": "duckduckgo_instant_no_usable_summary"
+                }
+            }),
+            query,
+            "small",
+        );
+        let providers = out
+            .get("provider_results")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default()
+            .into_iter()
+            .filter_map(|row| {
+                row.get("provider")
+                    .and_then(Value::as_str)
+                    .map(str::to_string)
+            })
+            .collect::<Vec<_>>();
+        assert!(
+            !providers.iter().any(|provider| provider == "bing_rss"),
+            "{providers:#?}"
+        );
+        assert!(
+            providers
+                .iter()
+                .any(|provider| provider == "browser_serp" || provider == "duckduckgo_lite"),
+            "{providers:#?}"
+        );
+    }
+
+    #[test]
     fn access_blocked_provider_payload_is_quarantined_and_recovered_by_clean_provider() {
         let query = "web retrieval access recovery evidence";
         let out = run_query_with_fixture(
@@ -3539,6 +3697,78 @@ mod quality_tests {
             selected
                 .iter()
                 .any(|(candidate, _)| candidate.locator == "https://www.beta.example.com/"),
+            "{selected:#?}"
+        );
+    }
+
+    #[test]
+    fn trusted_primary_lane_candidates_covering_missing_entity_survive_low_score_rerank() {
+        let query =
+            "Research browser-use, Playwright, and OpenHands for browser task automation.";
+        let mut facets = vec![
+            research_facet_from_metadata_text("browser-use", 0, "entity").unwrap(),
+            research_facet_from_metadata_text("OpenHands", 1, "entity").unwrap(),
+        ];
+        assign_distinctive_facet_terms(&mut facets);
+        let openhands = Candidate {
+            source_kind: "web".to_string(),
+            title: "OpenHands browser docs".to_string(),
+            locator: "https://docs.all-hands.dev/modules/usage/browser".to_string(),
+            snippet:
+                "OpenHands documentation covering browser task automation and repeatable workflows."
+                    .to_string(),
+            excerpt_hash: "openhands-browser".to_string(),
+            timestamp: None,
+            permissions: None,
+            status_code: 200,
+        };
+        let browser_use = Candidate {
+            source_kind: "web".to_string(),
+            title: "browser-use official site".to_string(),
+            locator: "https://browser-use.com/".to_string(),
+            snippet:
+                "browser-use official site for browser automation, agent control, and repeatable task workflows."
+                    .to_string(),
+            excerpt_hash: "browser-use-official".to_string(),
+            timestamp: None,
+            permissions: None,
+            status_code: 200,
+        };
+        let mut selected = vec![(openhands, 0.81)];
+        let ranked_pool = vec![(browser_use.clone(), 0.05)];
+        let lane_sources = vec![query_lane_source(
+            "browser-use official site",
+            "initial",
+            std::slice::from_ref(&browser_use),
+            &[],
+            &[json!({
+                "provider": "direct_http",
+                "stage": "primary",
+                "provider_transport_ok": true,
+                "result_quality": "low_relevance",
+                "provider_raw_count": 1,
+                "provider_candidate_count": 1,
+                "synthesis_candidate_count": 1,
+                "provider_filtered_count": 0,
+                "failure_reasons": ["primary:candidate_low_relevance"]
+            })],
+        )];
+
+        let added = preserve_trusted_primary_lane_candidates(
+            query,
+            &mut selected,
+            &ranked_pool,
+            &lane_sources,
+            &facets,
+            2,
+            1,
+        );
+
+        assert_eq!(added, 1, "{selected:#?}");
+        assert!(
+            selected
+                .iter()
+                .any(|(candidate, _)| candidate.locator == "https://browser-use.com/"),
             "{selected:#?}"
         );
     }

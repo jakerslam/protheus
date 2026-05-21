@@ -1870,6 +1870,128 @@ fn push_subject_discovery_lanes(
     }
 }
 
+fn broad_facet_topic(primary_query: &str, facets: &[String], keywords: &[String]) -> String {
+    let topical_facets = facets
+        .iter()
+        .filter(|facet| !looks_like_temporal_or_scope_facet(facet))
+        .take(2)
+        .cloned()
+        .collect::<Vec<_>>();
+    let temporal_facets = facets
+        .iter()
+        .filter(|facet| looks_like_temporal_or_scope_facet(facet))
+        .take(1)
+        .cloned()
+        .collect::<Vec<_>>();
+    let mut pieces = Vec::<String>::new();
+    pieces.extend(topical_facets);
+    pieces.extend(temporal_facets);
+    if pieces.is_empty() {
+        pieces.extend(keywords.iter().take(4).cloned());
+    }
+    let topic = clean_text(&pieces.join(" "), 240);
+    if topic.is_empty() {
+        clean_text(primary_query, 240)
+    } else {
+        topic
+    }
+}
+
+fn looks_like_temporal_or_scope_facet(raw: &str) -> bool {
+    let lowered = clean_text(raw, 240).to_ascii_lowercase();
+    [
+        "this week",
+        "this month",
+        "this year",
+        "last week",
+        "last month",
+        "today",
+        "current",
+        "recent",
+        "latest",
+        "2025",
+        "2026",
+        "2027",
+    ]
+    .iter()
+    .any(|needle| lowered.contains(needle))
+}
+
+fn broad_facet_sentiment_intent(primary_query: &str, facets: &[String], keywords: &[String]) -> bool {
+    let mut text = clean_text(primary_query, 600).to_ascii_lowercase();
+    for value in facets.iter().chain(keywords.iter()) {
+        text.push(' ');
+        text.push_str(&clean_text(value, 160).to_ascii_lowercase());
+    }
+    ["sentiment", "saying", "reviews", "complaints", "praise"]
+        .iter()
+        .any(|needle| text.contains(needle))
+}
+
+fn push_broad_facet_lanes(
+    primary_query: &str,
+    facets: &[String],
+    keywords: &[String],
+    pack: &BatchQueryKeywordPack,
+    dedup: &mut HashSet<String>,
+    queries: &mut Vec<String>,
+    max_queries: usize,
+) {
+    let topic = broad_facet_topic(primary_query, facets, keywords);
+    if !topic.is_empty() {
+        for suffix in [
+            "latest developments",
+            "primary source evidence",
+            "official reports announcements",
+            "independent analysis",
+        ] {
+            push_compiled_metadata_query(
+                clean_text(&format!("{topic} {suffix}"), 600),
+                pack,
+                dedup,
+                queries,
+                max_queries,
+            );
+            if queries.len() >= max_queries {
+                return;
+            }
+        }
+        if broad_facet_sentiment_intent(primary_query, facets, keywords) {
+            for suffix in ["public sentiment user reports", "reviews complaints praise"] {
+                push_compiled_metadata_query(
+                    clean_text(&format!("{topic} {suffix}"), 600),
+                    pack,
+                    dedup,
+                    queries,
+                    max_queries,
+                );
+                if queries.len() >= max_queries {
+                    return;
+                }
+            }
+        }
+    }
+
+    for facet in facets {
+        let facet = clean_text(facet, 160);
+        if facet.is_empty() {
+            continue;
+        }
+        for suffix in ["source-backed evidence", "recent developments"] {
+            push_compiled_metadata_query(
+                clean_text(&format!("{facet} {suffix}"), 600),
+                pack,
+                dedup,
+                queries,
+                max_queries,
+            );
+            if queries.len() >= max_queries {
+                return;
+            }
+        }
+    }
+}
+
 fn compile_keyword_pack_queries(
     primary_query: &str,
     pack: &BatchQueryKeywordPack,
@@ -2023,18 +2145,15 @@ fn compile_keyword_pack_queries(
     }
 
     if exact_subjects.is_empty() && queries.len() < max_queries && !facets.is_empty() {
-        let primary = clean_text(primary_query, 320);
-        for facet in &facets {
-            let candidate = if primary.is_empty() {
-                facet.clone()
-            } else {
-                clean_text(&format!("{primary} {facet}"), 600)
-            };
-            push_compiled_metadata_query(candidate, pack, &mut dedup, &mut queries, max_queries);
-            if queries.len() >= max_queries {
-                return queries;
-            }
-        }
+        push_broad_facet_lanes(
+            primary_query,
+            &facets,
+            &keywords,
+            pack,
+            &mut dedup,
+            &mut queries,
+            max_queries,
+        );
     }
 
     if queries.len() < max_queries && !keywords.is_empty() {
@@ -2416,6 +2535,30 @@ fn provider_recovery_list(policy: &Value, pointer: &str) -> Vec<String> {
         .unwrap_or_default()
 }
 
+fn official_source_provider_recovery_providers(policy: &Value) -> Vec<String> {
+    let configured = provider_recovery_list(
+        policy,
+        "/batch_query/quality_gate/provider_recovery/official_source_providers",
+    );
+    let base = if configured.is_empty() {
+        vec![
+            "browser_serp".to_string(),
+            "duckduckgo_lite".to_string(),
+            "duckduckgo".to_string(),
+        ]
+    } else {
+        configured
+    };
+    base.into_iter()
+        .filter(|provider| {
+            matches!(
+                provider.as_str(),
+                "browser_serp" | "duckduckgo_lite" | "duckduckgo"
+            )
+        })
+        .collect()
+}
+
 fn provider_recovery_providers(policy: &Value, query: &str) -> Vec<String> {
     if !provider_recovery_enabled(policy) {
         return Vec::new();
@@ -2430,6 +2573,13 @@ fn provider_recovery_providers(policy: &Value, query: &str) -> Vec<String> {
             providers.push(provider);
         }
     };
+    if is_official_source_query_lane(query) {
+        for provider in official_source_provider_recovery_providers(policy) {
+            push_provider(provider);
+        }
+        providers.truncate(provider_recovery_max_providers(policy));
+        return providers;
+    }
     if current_web_intent(query) {
         for provider in provider_recovery_list(
             policy,
@@ -2782,6 +2932,12 @@ fn preserve_trusted_primary_lane_candidates(
         if !is_official_source_query_lane(&source.query) || source.candidates.is_empty() {
             continue;
         }
+        let uncovered_lane_facet_ids = source
+            .candidates
+            .iter()
+            .flat_map(|candidate| selected_candidate_coverage_ids(facets, candidate, min_terms))
+            .filter(|facet_id| !covered_facet_ids.contains(facet_id))
+            .collect::<HashSet<_>>();
         let lane_keys = source
             .candidates
             .iter()
@@ -2793,11 +2949,23 @@ fn preserve_trusted_primary_lane_candidates(
         let mut ranked = supplemental_pool
             .iter()
             .filter(|(candidate, score)| {
-                lane_keys.contains(&candidate_identity_key(candidate))
-                    && !candidate_is_low_confidence_retained(candidate)
-                    && !citation_wrapper_link(&candidate.locator)
-                    && candidate_retention_preview_eligible(query, candidate, *score)
-                    && candidate_has_trusted_primary_source_signal(&source.query, candidate)
+                if !lane_keys.contains(&candidate_identity_key(candidate))
+                    || candidate_is_low_confidence_retained(candidate)
+                    || citation_wrapper_link(&candidate.locator)
+                {
+                    return false;
+                }
+                let trusted_primary =
+                    candidate_has_trusted_primary_source_signal(&source.query, candidate);
+                if !trusted_primary {
+                    return false;
+                }
+                let preview_ok = candidate_retention_preview_eligible(query, candidate, *score);
+                let covers_uncovered_lane_facet = !uncovered_lane_facet_ids.is_empty()
+                    && selected_candidate_coverage_ids(facets, candidate, min_terms)
+                        .iter()
+                        .any(|facet_id| uncovered_lane_facet_ids.contains(facet_id));
+                preview_ok || covers_uncovered_lane_facet
             })
             .cloned()
             .collect::<Vec<_>>();

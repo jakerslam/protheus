@@ -915,7 +915,7 @@ fn retrieve_web_candidates_for_query(
         return (Vec::new(), issues, provider_results);
     }
 
-    if !has_usable_synthesis_candidate(&candidates) {
+    if !has_usable_synthesis_candidate(&candidates) && !is_official_source_query_lane(query) {
         let bing_payload =
             stage_search_payload(root, Some("bing_rss"), query, Some("bing"), policy, search_scope);
         let (bing_candidates, bing_issues, bing_provider_result) =
