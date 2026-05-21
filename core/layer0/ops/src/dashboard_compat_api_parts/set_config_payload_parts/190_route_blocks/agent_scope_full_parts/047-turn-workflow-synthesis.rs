@@ -1120,11 +1120,21 @@ fn maybe_apply_rejected_tool_evidence_fallback(
     workflow: &mut Value,
     message: &str,
     response_tools: &[Value],
+    last_invalid_response_text: &str,
     last_invalid_excerpt: &str,
     last_reject_reason: &str,
 ) -> bool {
     if response_tools.is_empty() || last_invalid_excerpt.trim().is_empty() {
         return false;
+    }
+    if maybe_preserve_rejected_synthesis_with_coverage_note(
+        workflow,
+        response_tools,
+        last_invalid_response_text,
+        last_invalid_excerpt,
+        last_reject_reason,
+    ) {
+        return true;
     }
     let fallback_response = clean_text(
         &fallback_final_response_from_tool_evidence(message, response_tools),
@@ -1144,6 +1154,115 @@ fn maybe_apply_rejected_tool_evidence_fallback(
         "tool_evidence_verifier_reject_rewritten",
         "synthesis_failure_diagnostic",
     );
+    true
+}
+
+fn final_verifier_reject_reason_missing_coverage_lanes(reason: &str) -> bool {
+    clean_text(reason, 240)
+        .to_ascii_lowercase()
+        .starts_with("final_response_verifier_contract:missing_coverage_lanes=")
+}
+
+fn missing_coverage_lanes_from_reject_reason(reason: &str) -> Vec<String> {
+    let cleaned = clean_text(reason, 1_000);
+    let Some((_, lanes)) = cleaned.split_once("missing_coverage_lanes=") else {
+        return Vec::new();
+    };
+    lanes
+        .split(',')
+        .map(|lane| clean_text(lane, 120))
+        .filter(|lane| !lane.is_empty())
+        .take(8)
+        .collect()
+}
+
+fn missing_coverage_lane_note_from_reject_reason(reason: &str) -> String {
+    let lanes = missing_coverage_lanes_from_reject_reason(reason);
+    if lanes.is_empty() {
+        return String::new();
+    }
+    clean_text(
+        &format!(
+            "Coverage note: the available evidence did not separately support {}; treat those as weak or folded-in lanes rather than independently proven claims.",
+            lanes.join(", ")
+        ),
+        500,
+    )
+}
+
+fn rejected_synthesized_response_is_salvageable(
+    response_text: &str,
+    response_tools: &[Value],
+) -> bool {
+    let cleaned = clean_chat_text(response_text, 32_000);
+    if cleaned.is_empty()
+        || response_is_no_findings_placeholder(&cleaned)
+        || response_looks_like_tool_ack_without_findings(&cleaned)
+        || response_is_deferred_execution_preamble(&cleaned)
+        || response_is_deferred_retry_prompt(&cleaned)
+        || response_contains_unexpected_state_retry_boilerplate(&cleaned)
+        || response_looks_like_raw_tool_payload_dump(&cleaned)
+        || response_looks_like_unsynthesized_web_snippet_dump(&cleaned)
+        || response_looks_like_raw_web_artifact_dump(&cleaned)
+        || response_contains_prompt_scaffold(&cleaned)
+    {
+        return false;
+    }
+    response_tools_have_recorded_evidence_refs(response_tools)
+        || response_has_public_source_signal(&cleaned)
+}
+
+fn maybe_preserve_rejected_synthesis_with_coverage_note(
+    workflow: &mut Value,
+    response_tools: &[Value],
+    last_invalid_response_text: &str,
+    last_invalid_excerpt: &str,
+    last_reject_reason: &str,
+) -> bool {
+    if !final_verifier_reject_reason_missing_coverage_lanes(last_reject_reason)
+        || !rejected_synthesized_response_is_salvageable(last_invalid_response_text, response_tools)
+    {
+        return false;
+    }
+    let note = missing_coverage_lane_note_from_reject_reason(last_reject_reason);
+    let mut preserved = clean_chat_text(last_invalid_response_text, 32_000);
+    if !note.is_empty() {
+        preserved = clean_text(&format!("{preserved}\n\n{note}"), 4_000);
+    }
+    if preserved.is_empty() {
+        return false;
+    }
+    workflow["quality_telemetry"]["final_fallback_used"] = Value::Bool(false);
+    workflow["quality_telemetry"]["final_fallback_suppressed"] = Value::Bool(true);
+    workflow["final_llm_response"]["used"] = Value::Bool(true);
+    workflow["response"] = Value::String(preserved.clone());
+    workflow["text"] = Value::String(preserved.clone());
+    workflow["message"] = Value::String(preserved.clone());
+    workflow["response_finalization"]["finalized_output"] = Value::String(preserved.clone());
+    workflow["response_finalization"]["final_output"] = Value::String(preserved.clone());
+    workflow["response_finalization"]["final_response"]["text"] = Value::String(preserved.clone());
+    workflow["response_workflow"]["final_llm_response"]["text"] = Value::String(preserved.clone());
+    workflow["final_llm_response"]["status"] =
+        Value::String("synthesized_with_coverage_note".to_string());
+    workflow["final_llm_response"]["runtime_interference_disabled"] = Value::Bool(true);
+    workflow["final_llm_response"]["visible_response_preserved"] = Value::Bool(true);
+    workflow["final_llm_response"]["replacement_response_used"] = Value::Bool(false);
+    workflow["final_llm_response"]["coverage_note_appended"] = Value::Bool(!note.is_empty());
+    workflow["final_llm_response"]["error"] =
+        Value::String("coverage_note_appended_after_verifier_reject".to_string());
+    workflow["final_llm_response"]["last_reject_reason"] =
+        Value::String(clean_text(last_reject_reason, 240));
+    workflow["final_llm_response"]["original_reject_reason"] =
+        Value::String(clean_text(last_reject_reason, 240));
+    workflow["final_llm_response"]["original_reject_excerpt"] =
+        Value::String(clean_text(last_invalid_excerpt, 600));
+    annotate_final_evidence_outcome_posture(workflow, response_tools);
+    record_workflow_diagnostic_event(
+        workflow,
+        "tool_evidence_verifier_reject_preserved_with_coverage_note",
+        "synthesis_failure_diagnostic",
+    );
+    set_turn_workflow_final_stage_status(workflow, "synthesized_with_coverage_note");
     true
 }
 
@@ -1633,6 +1752,52 @@ fn response_text_contains_domain_like_source_marker(text: &str) -> bool {
     })
 }
 
+fn primary_query_texts_for_coverage_tool(tool: &Value) -> Vec<String> {
+    let mut out = Vec::<String>::new();
+    for key in ["query", "primary_query", "user_goal", "prompt", "question"] {
+        let value = clean_text(tool.get(key).and_then(Value::as_str).unwrap_or(""), 1_200);
+        if !value.is_empty() {
+            out.push(value);
+        }
+    }
+    let raw_input = clean_text(tool.get("input").and_then(Value::as_str).unwrap_or(""), 4_000);
+    if raw_input.is_empty() {
+        return out;
+    }
+    match serde_json::from_str::<Value>(&raw_input) {
+        Ok(Value::Object(map)) => {
+            for key in ["query", "primary_query", "user_goal", "prompt", "question"] {
+                let value = clean_text(map.get(key).and_then(Value::as_str).unwrap_or(""), 1_200);
+                if !value.is_empty() {
+                    out.push(value);
+                }
+            }
+        }
+        _ => out.push(raw_input),
+    }
+    out
+}
+
+fn coverage_lane_should_be_hard_required(
+    requested: &str,
+    response_tools: &[Value],
+) -> bool {
+    let mut saw_primary_query = false;
+    for tool in response_tools {
+        for query in primary_query_texts_for_coverage_tool(tool) {
+            let normalized_query = normalize_coverage_lane_text(&query);
+            if normalized_query.is_empty() {
+                continue;
+            }
+            saw_primary_query = true;
+            if normalized_response_covers_coverage_lane(&normalized_query, requested) {
+                return true;
+            }
+        }
+    }
+    !saw_primary_query
+}
+
 fn response_missing_required_entity_lanes(
     response_text: &str,
     response_tools: &[Value],
@@ -1659,6 +1824,9 @@ fn response_missing_required_entity_lanes(
                 .iter()
                 .any(|row| row.eq_ignore_ascii_case(&requested))
         {
+            continue;
+        }
+        if !coverage_lane_should_be_hard_required(&requested, response_tools) {
             continue;
         }
         if !normalized_response_covers_coverage_lane(&normalized_response, &requested) {
@@ -1997,6 +2165,7 @@ fn run_turn_workflow_final_response(
     let mut manual_toolbox_selected_tool_key = String::new();
     let mut manual_toolbox_selected_tool_label = String::new();
     let mut last_error = String::new();
+    let mut last_invalid_response_text = String::new();
     let mut last_invalid_excerpt = String::new();
     let mut last_reject_reason = String::new();
     let has_structured_block_evidence = response_tools.iter().any(|row| {
@@ -2449,6 +2618,7 @@ fn run_turn_workflow_final_response(
                     } else {
                         reject_reason.to_string()
                     };
+                    last_invalid_response_text = retried_text.clone();
                     last_invalid_excerpt = first_sentence(&retried_text, 240);
                     workflow["final_llm_response"]["runtime_interference_disabled"] =
                         Value::Bool(true);
@@ -2569,6 +2739,7 @@ fn run_turn_workflow_final_response(
         &mut workflow,
         message,
         response_tools,
+        &last_invalid_response_text,
         &last_invalid_excerpt,
         &last_reject_reason,
     ) {
@@ -3438,6 +3609,42 @@ mod workflow_fallback_tests {
             "Bottom line: Infring, LangGraph, and CrewAI have enough evidence for a provisional comparison. AutoGen and OpenHands remain weakly covered in this retrieval turn, so treat their tradeoffs as explicit coverage gaps rather than source-backed conclusions.",
             &tools,
         ));
+    }
+
+    #[test]
+    fn final_verifier_does_not_hard_require_expanded_query_alias_lanes() {
+        let tools = vec![json!({
+            "name": "batch_query",
+            "status": "ok",
+            "result": "Retrieved source-backed evidence for a broad landscape update.",
+            "input": json!({
+                "query": "Give me an update on the AI agentic landscape in May 2026",
+                "queries": ["autonomous AI agents enterprise adoption May 2026"],
+                "required_coverage": {
+                    "entities": ["AI agents", "agentic AI", "autonomous agents", "multi-agent systems"]
+                }
+            }).to_string(),
+            "evidence_refs": [{
+                "title": "Agentic AI landscape",
+                "locator": "https://example.test/agentic-ai-landscape",
+                "snippet": "Agentic AI adoption and orchestration are changing in 2026."
+            }],
+            "tool_result_quality": {
+                "coverage": {
+                    "bucket_status": "covered",
+                    "missing_buckets": []
+                },
+                "evidence_count": 1
+            }
+        })];
+
+        assert_eq!(
+            tool_backed_final_verifier_violation_reason(
+                "Bottom line: according to the retrieved source, the agentic AI landscape in May 2026 is centered on enterprise adoption, orchestration, and platform/infrastructure maturation.",
+                &tools,
+            ),
+            None
+        );
     }
 
     #[test]
@@ -4614,7 +4821,7 @@ mod workflow_fallback_tests {
     }
 
     #[test]
-    fn rejected_tool_backed_response_prefers_bounded_fallback() {
+    fn rejected_tool_backed_response_preserves_synthesis_with_coverage_note() {
         let mut workflow = json!({
             "response": "",
             "quality_telemetry": {},
@@ -4637,12 +4844,15 @@ mod workflow_fallback_tests {
                 }
             }
         })];
+        let rejected_response =
+            "Based on the available evidence, here's a pragmatic recommendation for a small team's RAG stack: pgvector is the simplest default for small teams, while Weaviate has more managed operational surface according to the recorded source.";
 
         let rewritten = maybe_apply_rejected_tool_evidence_fallback(
             &mut workflow,
             "Research current RAG stack options for a small team.",
             &tools,
-            "Based on the available evidence, here's a pragmatic recommendation for a small team's RAG stack.",
+            rejected_response,
+            rejected_response,
             "final_response_verifier_contract:missing_coverage_lanes=Weaviate, Chroma",
         );
 
@@ -4651,7 +4861,7 @@ mod workflow_fallback_tests {
             .get("response")
             .and_then(Value::as_str)
             .unwrap_or("");
-        assert!(response.contains("partial conclusion"), "{response}");
+        assert!(response.contains("pragmatic recommendation"), "{response}");
         assert!(response.contains("Coverage"), "{response}");
         assert!(response.contains("Weaviate"), "{response}");
         assert!(response.contains("Chroma"), "{response}");
@@ -4659,7 +4869,13 @@ mod workflow_fallback_tests {
             workflow
                 .pointer("/final_llm_response/status")
                 .and_then(Value::as_str),
-            Some("tool_evidence_fallback_used")
+            Some("synthesized_with_coverage_note")
+        );
+        assert_eq!(
+            workflow
+                .pointer("/final_llm_response/replacement_response_used")
+                .and_then(Value::as_bool),
+            Some(false)
         );
         assert_eq!(
             workflow
@@ -4716,6 +4932,43 @@ mod workflow_fallback_tests {
             &tools
         )
         .is_empty());
+    }
+
+    #[test]
+    fn tool_quality_covered_marks_query_metadata_coverage_usable() {
+        let input = json!({
+            "query": "Give me a broad market landscape update.",
+            "required_coverage": {
+                "entities": ["expanded alias lane"],
+                "facets": ["adoption"]
+            }
+        })
+        .to_string();
+        let tools = vec![json!({
+            "name": "batch_query",
+            "status": "ok",
+            "is_error": false,
+            "input": input,
+            "evidence_refs": [{
+                "title": "Market landscape source",
+                "snippet": "A substantive source-backed landscape result."
+            }],
+            "tool_result_quality": {
+                "coverage": {
+                    "bucket_status": "covered",
+                    "missing_buckets": []
+                }
+            }
+        })];
+
+        let lanes = synthesis_coverage_lanes_for_tools(&tools, 8);
+        assert!(
+            lanes.iter().any(|row| {
+                row.get("requested_text").and_then(Value::as_str) == Some("expanded alias lane")
+                    && row.get("status").and_then(Value::as_str) == Some("usable")
+            }),
+            "{lanes:#?}"
+        );
     }
 
     #[test]

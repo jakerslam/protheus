@@ -465,6 +465,31 @@ fn synthesis_coverage_status_rank(status: &str) -> u8 {
     }
 }
 
+fn query_metadata_required_coverage_default_status(tool: &Value) -> &'static str {
+    let Some(coverage) = tool_result_quality_object(tool).and_then(|quality| quality.get("coverage"))
+    else {
+        return "missing";
+    };
+    let bucket_status = clean_text(
+        coverage
+            .get("bucket_status")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        80,
+    )
+    .to_ascii_lowercase();
+    let missing_bucket_count = coverage
+        .get("missing_buckets")
+        .and_then(Value::as_array)
+        .map(|rows| rows.iter().filter(|row| row.as_str().is_some()).count())
+        .unwrap_or(0);
+    match bucket_status.as_str() {
+        "covered" if missing_bucket_count == 0 => "usable",
+        "weak" | "partial" => "partial",
+        _ => "missing",
+    }
+}
+
 fn push_synthesis_coverage_lane(
     lanes: &mut Vec<Value>,
     kind: &str,
@@ -538,13 +563,19 @@ fn synthesis_coverage_lanes_for_tools(response_tools: &[Value], limit: usize) ->
     for tool in response_tools.iter().take(8) {
         let query_metadata = tool_query_metadata_value(tool);
         let query_metadata = query_metadata.as_ref();
+        let required_coverage_status = query_metadata_required_coverage_default_status(tool);
+        let required_coverage_source = if required_coverage_status == "usable" {
+            "query_metadata_required_coverage_tool_quality"
+        } else {
+            "query_metadata_required_coverage"
+        };
         for entity in tool_string_array_at(query_metadata, "/required_coverage/entities", 16, 240) {
             push_synthesis_coverage_lane(
                 &mut lanes,
                 "entity",
                 &entity,
-                "missing",
-                "query_metadata_required_coverage",
+                required_coverage_status,
+                required_coverage_source,
                 limit,
             );
         }
@@ -553,8 +584,8 @@ fn synthesis_coverage_lanes_for_tools(response_tools: &[Value], limit: usize) ->
                 &mut lanes,
                 "facet",
                 &facet,
-                "missing",
-                "query_metadata_required_coverage",
+                required_coverage_status,
+                required_coverage_source,
                 limit,
             );
         }

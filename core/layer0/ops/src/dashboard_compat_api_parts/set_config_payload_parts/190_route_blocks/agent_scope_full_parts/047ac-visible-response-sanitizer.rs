@@ -112,8 +112,10 @@ fn tool_payload_shape_looks_raw(response_payload: &Value) -> bool {
 
 fn sanitize_workflow_visible_response_text(response_text: &str) -> String {
     let cleaned = strip_trailing_research_follow_up_offer(
-        &sanitize_workflow_final_response_candidate(&strip_internal_cache_control_markup(
-            &strip_internal_context_metadata_prefix(response_text),
+        &strip_internal_evidence_posture_prefix(&sanitize_workflow_final_response_candidate(
+            &strip_internal_cache_control_markup(&strip_internal_context_metadata_prefix(
+                response_text,
+            )),
         )),
     );
     if response_looks_like_raw_tool_payload_dump(&cleaned) {
@@ -121,6 +123,25 @@ fn sanitize_workflow_visible_response_text(response_text: &str) -> String {
     } else {
         cleaned
     }
+}
+
+fn strip_internal_evidence_posture_prefix(response_text: &str) -> String {
+    let cleaned = clean_chat_text(response_text, 32_000);
+    let trimmed = cleaned.trim_start();
+    for posture in [
+        "supported_answer",
+        "bounded_partial_answer",
+        "evidence_insufficient_answer",
+    ] {
+        let Some(after_posture) = trimmed.strip_prefix(posture) else {
+            continue;
+        };
+        let after_posture = after_posture.trim_start_matches(|ch: char| {
+            ch.is_whitespace() || matches!(ch, ':' | '-' | '.' | ';')
+        });
+        return clean_chat_text(after_posture.trim_start(), 32_000);
+    }
+    cleaned
 }
 
 fn strip_trailing_research_follow_up_offer(response_text: &str) -> String {
@@ -299,6 +320,16 @@ mod visible_response_sanitizer_tests {
         let cleaned = sanitize_workflow_visible_response_text(response);
         assert!(cleaned.contains("My recommendation is to start with Aider"));
         assert!(!cleaned.to_ascii_lowercase().contains("if you want, i can narrow"));
+    }
+
+    #[test]
+    fn sanitizer_strips_internal_evidence_posture_prefix_from_visible_answer() {
+        let response =
+            "bounded_partial_answer Here is the useful answer from the recorded evidence.";
+        assert_eq!(
+            sanitize_workflow_visible_response_text(response),
+            "Here is the useful answer from the recorded evidence."
+        );
     }
 
     #[test]

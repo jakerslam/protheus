@@ -455,7 +455,13 @@ fn response_tool_evidence_snippets_for_user(tool: &Value, max_items: usize) -> V
     let limit = max_items.clamp(1, 6);
     let mut snippets = Vec::<String>::new();
     let mut seen = HashSet::<String>::new();
-    for key in ["evidence_refs", "search_results", "provider_results"] {
+    for key in [
+        "evidence_refs",
+        "evidence_pack",
+        "evidence_pack_candidates",
+        "search_results",
+        "provider_results",
+    ] {
         let Some(value) = tool.get(key) else {
             continue;
         };
@@ -480,7 +486,7 @@ fn response_tools_summary_for_user(response_tools: &[Value], max_items: usize) -
         let name = if raw_name == "batch_query" || raw_name == "batch-query" {
             "web_search".to_string()
         } else {
-            raw_name
+            raw_name.clone()
         };
         if name.is_empty() || name == "thought_process" {
             continue;
@@ -500,7 +506,7 @@ fn response_tools_summary_for_user(response_tools: &[Value], max_items: usize) -
         let mut snippet_seen = HashSet::<String>::new();
         if !raw_result.is_empty() && !response_tool_summary_text_is_rejected(&raw_result) {
             let user_result =
-                rewrite_tool_result_for_user_summary(&name, &raw_result).unwrap_or(raw_result);
+                rewrite_tool_result_for_user_summary(&raw_name, &raw_result).unwrap_or(raw_result);
             if !response_tool_summary_text_is_rejected(&user_result) {
                 let snippet = if user_result.starts_with("Key findings:") {
                     trim_text(&strip_redundant_key_findings_prefix(&user_result), 220)

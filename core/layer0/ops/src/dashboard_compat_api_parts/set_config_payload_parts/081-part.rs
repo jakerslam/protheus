@@ -297,10 +297,16 @@ fn rewrite_tool_result_for_user_summary(tool_name: &str, raw_result: &str) -> Op
             .trim_end_matches(|ch| matches!(ch, '.' | '!' | '?'))
             .trim()
             .to_string();
+        let tool_label = clean_text(&tool_name.replace('_', " "), 80);
+        let tool_prefix = if tool_label.is_empty() {
+            "tool result".to_string()
+        } else {
+            format!("{tool_label} result")
+        };
         return Some(trim_text(
             &format!(
-                "{}; this is a retrieval-quality miss, not proof that the systems are equivalent.",
-                base
+                "{}; this {} is a retrieval-quality miss, not proof that the systems are equivalent.",
+                base, tool_prefix
             ),
             420,
         ));
