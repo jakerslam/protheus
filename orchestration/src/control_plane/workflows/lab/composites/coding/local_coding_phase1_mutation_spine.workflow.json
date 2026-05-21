@@ -12,6 +12,12 @@
     "special_case_policy": "This composite wires generic primitives only. Eval-specific setup, filenames, expected outputs, and scoring must remain in eval fixtures.",
     "monotonic_lower_level_regression_policy": "This spine must preserve Level 1 create-file behavior as higher coding workflows compose additional context, validation, repair, and memory primitives."
   },
+  "native_execution_success_contract": {
+    "native_success_criteria": {
+      "synthesize_final_after_successful_validation": true,
+      "synthesize_completion_evidence_on_finalization_timeout": true
+    }
+  },
   "provenance_contract": {
     "source_systems": [
       "mini-SWE-agent",

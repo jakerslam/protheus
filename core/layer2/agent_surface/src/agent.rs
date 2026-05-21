@@ -964,6 +964,19 @@ impl AgentContract {
                 );
             }
         }
+        if native_tool_synthesize_final_after_successful_validation(&self.metadata)
+            && native_tool_has_successful_mutation(&all_receipts)
+            && native_tool_has_successful_validation_command(&all_receipts)
+            && native_tool_prompt_evidence_gaps(&self.initial_prompt, &all_receipts).is_empty()
+        {
+            response = native_tool_synthetic_completion_evidence_response(
+                &response,
+                &self.metadata,
+                &self.initial_prompt,
+                &all_receipts,
+                "successful_validation_terminal_receipt_synthesis",
+            );
+        }
         let mut unresolved_final_reasons = native_tool_artifact_repair_reasons(
             &self.metadata,
             &self.initial_prompt,

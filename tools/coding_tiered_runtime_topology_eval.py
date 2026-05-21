@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Evaluate Tier 0, Tier 1, and Tier 2 coding runtime topology.
+"""Evaluate Tier 0 through Tier 3 coding runtime topology.
 
 This harness proves routing shape, not just file existence:
 
 - Tier 0 explicit content must use direct_mutation.
 - Tier 1 deterministic manifests must use deterministic_local_loop.
 - Tier 2 bounded natural-language local tasks must use model_manifest_planner.
+- Tier 3 existing-project tasks must use native discovery/read/edit/validation tooling.
 - Tier 0 and Tier 1 must skip provider startup and model calls.
 - Tier 2 must skip provider startup, but may use one model planning call.
 - Mutation/validation claims must be receipt-backed.
@@ -162,6 +163,34 @@ def tier2_cases() -> list[dict]:
     ]
 
 
+def tier3_cases() -> list[dict]:
+    return [
+        {
+            "name": "tier3-existing-project-edit",
+            "initial_files": {
+                "math_tools.py": "def add(a, b):\n    return a + b\n",
+                "test_math_tools.py": (
+                    "import unittest\n"
+                    "from math_tools import add\n\n"
+                    "class MathToolsTests(unittest.TestCase):\n"
+                    "    def test_add(self):\n"
+                    "        self.assertEqual(add(2, 3), 5)\n\n"
+                    "if __name__ == \"__main__\":\n"
+                    "    unittest.main()\n"
+                ),
+            },
+            "expected_paths": ["math_tools.py", "test_math_tools.py"],
+            "prompt": lambda root: (
+                f"Project root: {root}\n"
+                "This is an existing project. Inspect the local files and add a subtract(a, b) "
+                "function to math_tools.py, then add a unittest for it in test_math_tools.py. "
+                "Run the local unittest validation after editing."
+            ),
+            "expected_content_markers": ["def subtract", "test_subtract"],
+        }
+    ]
+
+
 def evaluate_tier0(case: dict) -> dict:
     root = Path(tempfile.mkdtemp(prefix=f"infring-{case['name']}-root-"))
     prompt = case["prompt"](root)
@@ -293,6 +322,88 @@ def evaluate_tier2(case: dict) -> dict:
     return result
 
 
+def evaluate_tier3(case: dict) -> dict:
+    root = Path(tempfile.mkdtemp(prefix=f"infring-{case['name']}-root-"))
+    for relative_path, content in case["initial_files"].items():
+        target = root / relative_path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(content, encoding="utf-8")
+
+    prompt = case["prompt"](root)
+    run, _ = run_infring(prompt, case["name"])
+    response = run["response"] or {}
+    receipts = response.get("receipt", {}).get("native_tool_receipts", [])
+    output = response.get("output", "")
+    tool_names = [receipt.get("tool_name") for receipt in receipts]
+    expected_files_exist = all((root / path).exists() for path in case["expected_paths"])
+    content_markers_present = all(
+        marker in "\n".join(
+            (root / path).read_text(encoding="utf-8")
+            for path in case["expected_paths"]
+            if (root / path).exists()
+        )
+        for marker in case["expected_content_markers"]
+    )
+    lower_output = output.lower()
+    false_receipt_blocker = any(
+        marker in lower_output
+        for marker in [
+            "receipt-backed evidence unavailable",
+            "receipts are not present",
+            "none confirmed",
+            "pending tool receipts",
+            "no command_run receipt surfaced",
+        ]
+    )
+    result = {
+        "case": case["name"],
+        "tier": 3,
+        "provider": response.get("contract", {}).get("provider"),
+        "workflow_native_success_criteria": response.get("contract", {})
+        .get("workflow", {})
+        .get("native_success_criteria"),
+        "tool_names": tool_names,
+        "has_read_before_mutation": any(
+            name in ["file_read", "file_read_many"] for name in tool_names
+        )
+        and any(name in ["file_write", "file_patch"] for name in tool_names)
+        and min(
+            idx
+            for idx, name in enumerate(tool_names)
+            if name in ["file_read", "file_read_many"]
+        )
+        < min(
+            idx
+            for idx, name in enumerate(tool_names)
+            if name in ["file_write", "file_patch"]
+        ),
+        "has_mutation": any(name in ["file_write", "file_patch"] for name in tool_names),
+        "has_validation": "command_run" in tool_names,
+        "validation_status": response.get("receipt", {}).get("status"),
+        "expected_files_exist": expected_files_exist,
+        "content_markers_present": content_markers_present,
+        "false_receipt_blocker": false_receipt_blocker,
+        "elapsed_ms": run["elapsed_ms"],
+        "root": str(root),
+    }
+    result["ok"] = (
+        response.get("ok") is True
+        and result["provider"] is not None
+        and (result["workflow_native_success_criteria"] or {}).get(
+            "synthesize_final_after_successful_validation"
+        )
+        is True
+        and result["has_read_before_mutation"]
+        and result["has_mutation"]
+        and result["has_validation"]
+        and result["validation_status"] == "ok"
+        and expected_files_exist
+        and content_markers_present
+        and not false_receipt_blocker
+    )
+    return result
+
+
 def main() -> int:
     results = []
     for case in tier0_cases():
@@ -301,9 +412,11 @@ def main() -> int:
         results.append(evaluate_tier1(case))
     for case in tier2_cases():
         results.append(evaluate_tier2(case))
+    for case in tier3_cases():
+        results.append(evaluate_tier3(case))
 
     payload = {
-        "schema_version": "coding_tiered_runtime_topology_eval_v2",
+        "schema_version": "coding_tiered_runtime_topology_eval_v3",
         "attempts": len(results),
         "passes": sum(1 for result in results if result["ok"]),
         "results": results,
@@ -312,10 +425,13 @@ def main() -> int:
             "tier1_requires_lane": "deterministic_local_loop",
             "tier2_requires_lane": "model_manifest_planner",
             "tier2_requires_execution_lane": "deterministic_local_loop",
+            "tier3_requires_native_existing_project_loop": True,
             "tier0_tier1_provider_start_ms": 0,
             "tier0_tier1_model_call_ms": 0,
             "tier2_provider_start_ms": 0,
             "tier2_model_call_ms": "greater_than_zero",
+            "tier3_requires_read_before_mutation": True,
+            "tier3_forbids_false_receipt_blocker": True,
         },
     }
     print(json.dumps(payload, indent=2))
