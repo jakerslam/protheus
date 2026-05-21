@@ -305,6 +305,25 @@
       ]
     },
     {
+      "workflow_id": "model_manifest_planner",
+      "tier": "lab",
+      "source_framework": "primitive_first_coding_runtime_spine",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_runtime/model_manifest_planner.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "bounded_greenfield_prompt_generates_manifest_then_executes_receipted_mutations",
+        "invalid_model_manifest_returns_structured_blocker",
+        "existing_project_discovery_escalates_instead_of_using_manifest_lane"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "primitive_contract_reviewed",
+        "tier2_topology_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
       "workflow_id": "file_mutation_executor",
       "tier": "lab",
       "source_framework": "primitive_first_coding_runtime_spine",

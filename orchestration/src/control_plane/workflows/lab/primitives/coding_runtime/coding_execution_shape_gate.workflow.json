@@ -95,6 +95,8 @@
       "set_requires_model_false_for_deterministic_local_loop",
       "set_provider_and_model_latency_to_zero_for_direct_mutation",
       "route_declared_local_action_manifests_to_deterministic_local_loop",
+      "route_bounded_greenfield_tasks_with_known_workspace_root_to_model_manifest_planner",
+      "require_escalation_to_model_tool_loop_for_existing_project_discovery_or_debugging",
       "emit_escalation_reason_when_a_higher_tier_is_selected",
       "return_structured_blocker_for_unsafe_overwrite_or_path_escape"
     ],

@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-"""Evaluate Tier 0 and Tier 1 coding runtime topology.
+"""Evaluate Tier 0, Tier 1, and Tier 2 coding runtime topology.
 
 This harness proves routing shape, not just file existence:
 
 - Tier 0 explicit content must use direct_mutation.
 - Tier 1 deterministic manifests must use deterministic_local_loop.
-- Both lanes must skip provider startup and model calls.
+- Tier 2 bounded natural-language local tasks must use model_manifest_planner.
+- Tier 0 and Tier 1 must skip provider startup and model calls.
+- Tier 2 must skip provider startup, but may use one model planning call.
 - Mutation/validation claims must be receipt-backed.
 """
 
@@ -45,7 +47,7 @@ def run_infring(prompt: str, name: str) -> tuple[dict, int]:
         cwd=WORKSPACE,
         text=True,
         capture_output=True,
-        timeout=90,
+        timeout=180,
     )
     elapsed_ms = round((time.time() - started) * 1000)
     json_start = proc.stdout.find("{")
@@ -143,6 +145,23 @@ def tier1_cases() -> list[dict]:
     ]
 
 
+def tier2_cases() -> list[dict]:
+    return [
+        {
+            "name": "tier2-python-utility",
+            "expected_paths": ["palindrome.py", "test_palindrome.py"],
+            "prompt": lambda root: (
+                f"Project root: {root}\n"
+                "Build a tiny Python palindrome utility using only the standard library.\n"
+                "Create palindrome.py and test_palindrome.py.\n"
+                "The utility should expose is_palindrome(value: str) -> bool.\n"
+                "The tests should cover mixed case, spacing, punctuation, and a negative example.\n"
+                "Run the local unittest validation after writing the files."
+            ),
+        }
+    ]
+
+
 def evaluate_tier0(case: dict) -> dict:
     root = Path(tempfile.mkdtemp(prefix=f"infring-{case['name']}-root-"))
     prompt = case["prompt"](root)
@@ -229,23 +248,74 @@ def evaluate_tier1(case: dict) -> dict:
     return result
 
 
+def evaluate_tier2(case: dict) -> dict:
+    root = Path(tempfile.mkdtemp(prefix=f"infring-{case['name']}-root-"))
+    prompt = case["prompt"](root)
+    run, _ = run_infring(prompt, case["name"])
+    response = run["response"] or {}
+    receipts = response.get("receipt", {}).get("native_tool_receipts", [])
+    expected_files_exist = all((root / path).exists() for path in case["expected_paths"])
+    result = {
+        "case": case["name"],
+        "tier": 2,
+        "lane": response.get("contract", {}).get("execution_shape", {}).get("lane"),
+        "execution_lane": response.get("contract", {})
+        .get("execution_shape", {})
+        .get("execution_lane"),
+        "provider": response.get("contract", {}).get("provider"),
+        "planner_provider": response.get("receipt", {}).get("planner_provider"),
+        "provider_start_ms": response.get("trace_summary", {})
+        .get("phase_latency_ms", {})
+        .get("provider_start"),
+        "model_call_ms": response.get("trace_summary", {})
+        .get("phase_latency_ms", {})
+        .get("model_call"),
+        "validation_status": response.get("receipt", {}).get("validation_status"),
+        "tool_names": [receipt.get("tool_name") for receipt in receipts],
+        "expected_files_exist": expected_files_exist,
+        "elapsed_ms": run["elapsed_ms"],
+        "root": str(root),
+    }
+    result["ok"] = (
+        response.get("ok") is True
+        and result["lane"] == "model_manifest_planner"
+        and result["execution_lane"] == "deterministic_local_loop"
+        and result["provider"] is None
+        and result["planner_provider"] is not None
+        and result["provider_start_ms"] == 0
+        and isinstance(result["model_call_ms"], int)
+        and result["model_call_ms"] > 0
+        and result["tool_names"].count("file_write") >= len(case["expected_paths"])
+        and "command_run" in result["tool_names"]
+        and result["validation_status"] == "passed"
+        and expected_files_exist
+    )
+    return result
+
+
 def main() -> int:
     results = []
     for case in tier0_cases():
         results.append(evaluate_tier0(case))
     for case in tier1_cases():
         results.append(evaluate_tier1(case))
+    for case in tier2_cases():
+        results.append(evaluate_tier2(case))
 
     payload = {
-        "schema_version": "coding_tiered_runtime_topology_eval_v1",
+        "schema_version": "coding_tiered_runtime_topology_eval_v2",
         "attempts": len(results),
         "passes": sum(1 for result in results if result["ok"]),
         "results": results,
         "acceptance": {
             "tier0_requires_lane": "direct_mutation",
             "tier1_requires_lane": "deterministic_local_loop",
-            "provider_start_ms": 0,
-            "model_call_ms": 0,
+            "tier2_requires_lane": "model_manifest_planner",
+            "tier2_requires_execution_lane": "deterministic_local_loop",
+            "tier0_tier1_provider_start_ms": 0,
+            "tier0_tier1_model_call_ms": 0,
+            "tier2_provider_start_ms": 0,
+            "tier2_model_call_ms": "greater_than_zero",
         },
     }
     print(json.dumps(payload, indent=2))

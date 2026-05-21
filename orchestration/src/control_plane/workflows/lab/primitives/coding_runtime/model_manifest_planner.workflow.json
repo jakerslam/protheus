@@ -1,0 +1,168 @@
+{
+  "name": "model_manifest_planner",
+  "workflow_type": "control_plane_orchestration_workflow",
+  "workflow_role": "assistant_response_workflow",
+  "default": false,
+  "description": "Tier 2 primitive that converts bounded natural-language local coding tasks into deterministic local action manifests, then delegates execution to deterministic_local_loop.",
+  "primitive_first_contract": {
+    "case_specific_hardcoding_allowed": false,
+    "specificity_owner": "primitive",
+    "extension_surface": "workflow_cd",
+    "registered_capability_id": "workflow.model_manifest_planner",
+    "special_case_policy": "The planner may use model judgment to produce a generic action manifest for bounded local tasks. It must not branch on eval levels, fixture filenames, benchmark IDs, or canned prompt phrases.",
+    "monotonic_lower_level_regression_policy": "Tier 2 must not intercept Tier 0 explicit-content writes or Tier 1 declared manifests, and must not execute unreceipted mutations."
+  },
+  "provenance_contract": {
+    "source_systems": [
+      "mini-SWE-agent",
+      "SWE-agent",
+      "ForgeCode"
+    ],
+    "import_rule": "model_generates_plan_manifest_while_lower_tier_executes_deterministically",
+    "artifact_corpus_ref": "references/coding-agent-systems"
+  },
+  "stages": [
+    "bounded_task_intake",
+    "model_manifest_generation",
+    "manifest_shape_validation",
+    "deterministic_local_loop_execution",
+    "receipt_backed_final_synthesis"
+  ],
+  "workflow_composition": {
+    "primitive_level": 1,
+    "composed_of_workflow_ids": [
+      "deterministic_local_loop"
+    ]
+  },
+  "child_workflows": [
+    {
+      "capability": "deterministic_local_loop",
+      "workflow_id": "deterministic_local_loop",
+      "input_contract": "deterministic_local_loop_manifest_v1",
+      "output_artifact": "deterministic_local_loop_result_artifact_v1"
+    }
+  ],
+  "final_response_policy": "control_plane_packaged_response",
+  "final_output_contract": {
+    "schema_version": "model_manifest_planner_final_output_contract_v1",
+    "source": "workflow_cd",
+    "visible_chat_source": "runtime_terminal_artifact_only",
+    "required_summary_fields": [
+      "status",
+      "lane",
+      "execution_lane",
+      "planner_provider",
+      "changed_file_summary",
+      "validation_status",
+      "native_tool_receipts",
+      "phase_latency_ms",
+      "error"
+    ],
+    "internal_streams": [
+      "workflow_state",
+      "tool_trace",
+      "eval_trace"
+    ],
+    "quality_contract": {
+      "answer_user_goal": "turn a bounded local coding request into a receipted deterministic action execution",
+      "scope_boundary": "do not use this lane for existing-project discovery, architecture planning, broad refactors, debugging, external dependency research, or user-ambiguous requests",
+      "validation_calibration": "only claim validation when deterministic_local_loop command_run receipts pass",
+      "visibility": "show public lane, changed files, validation status, receipts, and blockers without hidden chain-of-thought"
+    }
+  },
+  "model_manifest_planner_contract": {
+    "version": "model_manifest_planner_v1",
+    "input_contract": {
+      "schema": "model_manifest_planner_input_envelope_v1",
+      "required_fields": [
+        "workspace_root",
+        "user_task",
+        "capability_pack",
+        "permission_receipt"
+      ],
+      "optional_fields": [
+        "validation_requested",
+        "preferred_language",
+        "trace_parent"
+      ]
+    },
+    "eligibility_rules": [
+      "workspace_root_must_be_known",
+      "task_must_be_bounded_and_local",
+      "task_must_require_model_generation_but_not_project_discovery",
+      "explicit_content_tasks_must_route_to_single_mutation_execution",
+      "declared_manifest_tasks_must_route_to_deterministic_local_loop",
+      "existing_project_or_debug_or_refactor_tasks_must_escalate_to_model_tool_loop"
+    ],
+    "required_behaviors": [
+      "provider_call_may_generate_manifest_only",
+      "manifest_must_validate_before_execution",
+      "execution_must_delegate_to_deterministic_local_loop",
+      "file_mutation_and_validation_claims_must_be_receipt_backed",
+      "structured_blocker_required_when_model_manifest_is_invalid_or_unsafe",
+      "record_model_call_latency_separately_from_tool_dispatch_and_validation_latency"
+    ],
+    "output_receipts": [
+      "model_manifest_planner_receipt_v1",
+      "file_mutation_receipt_v1",
+      "validation_command_receipt_v1",
+      "coding_lane_trace_v1"
+    ],
+    "failure_modes": [
+      "provider_unavailable",
+      "provider_timeout",
+      "manifest_parse_failed",
+      "manifest_shape_invalid",
+      "unsafe_manifest_path",
+      "permission_denied",
+      "validation_failed"
+    ],
+    "non_goals": [
+      "do_not_execute_model_freeform_tool_calls",
+      "do_not_read_or_discover_existing_project_files",
+      "do_not_plan_large_architecture",
+      "do_not_repair_validation_failures",
+      "do_not_branch_on_eval_level_or_fixture_name"
+    ]
+  },
+  "typed_execution_contract": {
+    "gate_kind": "structured_control_plane_gate",
+    "input_kind": "model_manifest_planner_input_envelope_v1",
+    "allowed_transitions": [
+      "bounded_task_intake->model_manifest_generation",
+      "model_manifest_generation->manifest_shape_validation",
+      "manifest_shape_validation->deterministic_local_loop_execution",
+      "deterministic_local_loop_execution->receipt_backed_final_synthesis",
+      "receipt_backed_final_synthesis->completed",
+      "bounded_task_intake->structured_blocker",
+      "model_manifest_generation->failed",
+      "manifest_shape_validation->structured_blocker",
+      "deterministic_local_loop_execution->failed"
+    ],
+    "timeout_ms": 120000,
+    "retry_policy": {
+      "max_retries": 0,
+      "on_failure": "return_structured_failure"
+    },
+    "terminal_states": [
+      "completed",
+      "structured_blocker",
+      "failed",
+      "aborted"
+    ],
+    "telemetry_streams": [
+      "workflow_state",
+      "tool_trace",
+      "eval_trace",
+      "final_answer"
+    ],
+    "visible_chat_policy": "terminal_artifact_only",
+    "run_budgets": {
+      "max_stages": 5,
+      "max_model_turns": 1,
+      "max_tool_calls": 8,
+      "token_budget": 4000,
+      "loop_signature_detector": "model_manifest_planner_v1"
+    }
+  }
+}
