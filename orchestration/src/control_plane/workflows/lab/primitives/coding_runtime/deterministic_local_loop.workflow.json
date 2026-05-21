@@ -1,0 +1,162 @@
+{
+  "name": "deterministic_local_loop",
+  "workflow_type": "control_plane_orchestration_workflow",
+  "workflow_role": "assistant_response_workflow",
+  "default": false,
+  "description": "Tier 1 primitive for executing a bounded manifest of deterministic local coding actions without provider startup.",
+  "primitive_first_contract": {
+    "case_specific_hardcoding_allowed": false,
+    "specificity_owner": "primitive",
+    "extension_surface": "workflow_cd",
+    "registered_capability_id": "workflow.deterministic_local_loop",
+    "special_case_policy": "The loop may branch on declared action type, path safety, permissions, and validation command outcome. It must not branch on eval levels, fixture filenames, benchmark IDs, or canned prompt phrases.",
+    "monotonic_lower_level_regression_policy": "The loop must not intercept explicit single-mutation tasks that belong to single_mutation_execution, and must not force provider startup."
+  },
+  "provenance_contract": {
+    "source_systems": [
+      "mini-SWE-agent"
+    ],
+    "import_rule": "assimilate_small_traceable_local_action_loop_not_provider_prompting",
+    "artifact_corpus_ref": "references/coding-agent-systems"
+  },
+  "stages": [
+    "action_manifest_intake",
+    "action_shape_validation",
+    "path_and_permission_check",
+    "bounded_native_action_execution",
+    "trajectory_and_receipt_packaging"
+  ],
+  "workflow_composition": {
+    "primitive_level": 0,
+    "composed_of_workflow_ids": []
+  },
+  "final_response_policy": "control_plane_packaged_response",
+  "final_output_contract": {
+    "schema_version": "deterministic_local_loop_final_output_contract_v1",
+    "source": "workflow_cd",
+    "visible_chat_source": "runtime_terminal_artifact_only",
+    "required_summary_fields": [
+      "status",
+      "lane",
+      "actions_executed",
+      "changed_file_summary",
+      "validation_status",
+      "native_tool_receipts",
+      "phase_latency_ms",
+      "error"
+    ],
+    "internal_streams": [
+      "workflow_state",
+      "tool_trace",
+      "eval_trace"
+    ],
+    "quality_contract": {
+      "answer_user_goal": "execute a bounded declared local coding action sequence with receipts",
+      "scope_boundary": "do not infer project architecture, discover context, ask broad planning questions, or call a live provider",
+      "validation_calibration": "validation action success is only claimed when command_run receipts show success",
+      "visibility": "return compact action receipts and safe failure envelopes"
+    }
+  },
+  "deterministic_local_loop_contract": {
+    "version": "deterministic_local_loop_v1",
+    "input_contract": {
+      "schema": "deterministic_local_loop_manifest_v1",
+      "required_fields": [
+        "workspace_root",
+        "actions"
+      ],
+      "action_types": [
+        "write_file",
+        "create_file",
+        "command_run",
+        "validation"
+      ],
+      "optional_fields": [
+        "validation",
+        "trace_parent",
+        "safety_policy"
+      ]
+    },
+    "required_behaviors": [
+      "require_absolute_workspace_root",
+      "deny_parent_path_escape_segments",
+      "deny_paths_outside_workspace_root",
+      "require_at_least_one_mutation_action",
+      "execute_actions_in_declared_order",
+      "stop_on_first_failed_action",
+      "emit_native_receipts_for_every_executed_action",
+      "set_provider_start_and_model_call_latency_to_zero",
+      "never_treat_manifest_execution_as_architecture_or_project_completion"
+    ],
+    "output_receipts": [
+      "file_mutation_receipt_v1",
+      "validation_command_receipt_v1",
+      "coding_lane_trace_v1"
+    ],
+    "failure_modes": [
+      "workspace_root_required",
+      "absolute_workspace_root_required",
+      "actions_required",
+      "unsupported_action_type",
+      "unsafe_overwrite",
+      "path_escape",
+      "content_required",
+      "command_required",
+      "permission_denied",
+      "io_error",
+      "validation_failed"
+    ],
+    "native_tool_mapping": {
+      "write_file": "file_write",
+      "create_file": "file_write",
+      "command_run": "command_run",
+      "validation": "command_run"
+    },
+    "non_goals": [
+      "do_not_generate_action_manifest_from_vague_prompt",
+      "do_not_select_repo_context",
+      "do_not_plan_architecture",
+      "do_not_loop_for_repair",
+      "do_not_branch_on_eval_level_or_fixture_name"
+    ]
+  },
+  "typed_execution_contract": {
+    "gate_kind": "structured_control_plane_gate",
+    "input_kind": "deterministic_local_loop_manifest_v1",
+    "allowed_transitions": [
+      "action_manifest_intake->action_shape_validation",
+      "action_shape_validation->path_and_permission_check",
+      "path_and_permission_check->bounded_native_action_execution",
+      "bounded_native_action_execution->trajectory_and_receipt_packaging",
+      "trajectory_and_receipt_packaging->completed",
+      "action_shape_validation->blocked",
+      "path_and_permission_check->blocked",
+      "bounded_native_action_execution->failed"
+    ],
+    "timeout_ms": 30000,
+    "retry_policy": {
+      "max_retries": 0,
+      "on_failure": "return_structured_failure"
+    },
+    "terminal_states": [
+      "completed",
+      "blocked",
+      "failed",
+      "aborted"
+    ],
+    "telemetry_streams": [
+      "workflow_state",
+      "tool_trace",
+      "eval_trace",
+      "final_answer"
+    ],
+    "visible_chat_policy": "terminal_artifact_only",
+    "run_budgets": {
+      "max_stages": 5,
+      "max_model_turns": 0,
+      "max_tool_calls": 8,
+      "token_budget": 2000,
+      "loop_signature_detector": "deterministic_local_loop_v1"
+    }
+  }
+}

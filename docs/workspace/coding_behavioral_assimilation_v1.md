@@ -11,15 +11,21 @@ ForgeCode is included as a first-class benchmark reference, not a side note. Its
 Related artifacts:
 
 - `docs/workspace/coding_runtime_model_v1.md`
+- `docs/workspace/coding_runtime_behavioral_model_v2.md`
+- `docs/workspace/coding_runtime_behavioral_model_v2_1_implementation_blueprint.md`
 - `docs/workspace/coding_runtime_implementation_spec_v1.md`
+- `docs/workspace/coding_level1_reference_trace_observations.md`
 - `docs/workspace/coding_runtime_reference_observations.md`
 - `docs/workspace/coding_runtime_live_trace_observations.md`
+- `docs/workspace/coding_level1_reference_trace_observations.md`
 - `references/coding-agent-systems/runtime_trace_observations.json`
 - `references/coding-agent-systems/runtime_live_trace_observations.json`
+- `references/coding-agent-systems/level1_reference_runtime_trace_observations.json`
 - `references/coding-agent-systems/runtime_trace_schema.json`
 - `references/coding-agent-systems/runtime_live_trace_schema.json`
 - `references/coding-agent-systems/runtime_trace_harness/trace_coding_runtime.py`
 - `references/coding-agent-systems/runtime_trace_harness/live_trace_coding_runtime.py`
+- `references/coding-agent-systems/runtime_trace_harness/level1_reference_runtime_trace.py`
 
 ## Behavioral assimilation rule
 

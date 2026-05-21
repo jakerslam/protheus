@@ -248,6 +248,63 @@
       ]
     },
     {
+      "workflow_id": "coding_execution_shape_gate",
+      "tier": "lab",
+      "source_framework": "primitive_first_coding_runtime_spine",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_runtime/coding_execution_shape_gate.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "direct_mutation_selected_for_explicit_safe_single_file_content",
+        "model_loop_escalation_requires_reason",
+        "unsafe_direct_mutation_returns_structured_blocker"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "primitive_contract_reviewed",
+        "tier0_topology_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "single_mutation_execution",
+      "tier": "lab",
+      "source_framework": "primitive_first_coding_runtime_spine",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_runtime/single_mutation_execution.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "explicit_content_file_create_without_provider_startup",
+        "unsafe_overwrite_is_blocked",
+        "path_escape_is_blocked"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "primitive_contract_reviewed",
+        "tier0_topology_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "deterministic_local_loop",
+      "tier": "lab",
+      "source_framework": "primitive_first_coding_runtime_spine",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_runtime/deterministic_local_loop.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "declared_multi_file_manifest_executes_without_provider_startup",
+        "manifest_validation_command_emits_command_receipt",
+        "unsafe_manifest_path_returns_structured_blocker"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "primitive_contract_reviewed",
+        "tier1_topology_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
       "workflow_id": "file_mutation_executor",
       "tier": "lab",
       "source_framework": "primitive_first_coding_runtime_spine",

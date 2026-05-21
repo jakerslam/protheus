@@ -1,0 +1,161 @@
+{
+  "name": "single_mutation_execution",
+  "workflow_type": "control_plane_orchestration_workflow",
+  "workflow_role": "assistant_response_workflow",
+  "default": false,
+  "description": "Tier 0 primitive for applying one explicit safe local file mutation through native file tooling without provider startup.",
+  "primitive_first_contract": {
+    "case_specific_hardcoding_allowed": false,
+    "specificity_owner": "primitive",
+    "extension_surface": "workflow_cd",
+    "registered_capability_id": "workflow.single_mutation_execution",
+    "special_case_policy": "This primitive may vary by generic mutation operation and safety policy only. Eval filenames, prompt phrases, and benchmark IDs are forbidden outside eval fixtures.",
+    "monotonic_lower_level_regression_policy": "The primitive must remain a cheap direct lane and must not grow project discovery, validation, repair, or synthesis responsibilities."
+  },
+  "provenance_contract": {
+    "source_systems": [
+      "SWE-agent",
+      "mini-SWE-agent"
+    ],
+    "import_rule": "copy_the_fast_mutation_topology_not_the_brand_specific_tool_name",
+    "artifact_corpus_ref": "references/coding-agent-systems"
+  },
+  "stages": [
+    "mutation_request_intake",
+    "path_scope_check",
+    "content_or_patch_check",
+    "native_file_tool_dispatch",
+    "mutation_receipt_packaging"
+  ],
+  "workflow_composition": {
+    "primitive_level": 0,
+    "composed_of_workflow_ids": []
+  },
+  "final_response_policy": "control_plane_packaged_response",
+  "final_output_contract": {
+    "schema_version": "single_mutation_execution_final_output_contract_v1",
+    "source": "workflow_cd",
+    "visible_chat_source": "runtime_terminal_artifact_only",
+    "required_summary_fields": [
+      "status",
+      "lane",
+      "path",
+      "operation",
+      "mutation_receipt",
+      "changed_file_summary",
+      "phase_latency_ms",
+      "error"
+    ],
+    "internal_streams": [
+      "workflow_state",
+      "tool_trace",
+      "eval_trace"
+    ],
+    "quality_contract": {
+      "answer_user_goal": "apply exactly one explicit safe file mutation and emit authoritative receipts",
+      "scope_boundary": "do not infer whole-project success, run validation, discover context, or ask broad planning questions",
+      "validation_calibration": "mutation success means file side effect only; software correctness requires a parent validation lane",
+      "visibility": "return compact mutation receipts and safe failure envelopes"
+    }
+  },
+  "single_mutation_execution_contract": {
+    "version": "single_mutation_execution_v1",
+    "input_contract": {
+      "schema": "single_mutation_execution_input_envelope_v1",
+      "required_fields": [
+        "workspace_root",
+        "mutation_kind",
+        "target_path",
+        "permission_receipt",
+        "trace_parent"
+      ],
+      "optional_fields": [
+        "content",
+        "patch",
+        "safety_policy"
+      ],
+      "allowed_mutation_kinds": [
+        "create_file",
+        "overwrite_file",
+        "patch_file",
+        "append_file"
+      ]
+    },
+    "required_behaviors": [
+      "deny_paths_outside_allowed_root",
+      "deny_parent_path_escape_segments",
+      "deny_unsafe_overwrite_without_explicit_overwrite_intent",
+      "require_content_for_create_or_overwrite",
+      "require_exact_patch_for_patch_file",
+      "use_existing_native_file_write_or_patch_substrate",
+      "emit_mutation_receipt_with_path_operation_hashes_and_byte_count",
+      "emit_phase_latency_with_provider_start_and_model_call_set_to_zero",
+      "never_treat_mutation_receipt_as_validation_or_project_completion"
+    ],
+    "output_receipts": [
+      "file_mutation_receipt_v1",
+      "coding_lane_trace_v1"
+    ],
+    "failure_modes": [
+      "unsafe_overwrite",
+      "path_escape",
+      "missing_content",
+      "ambiguous_target",
+      "permission_denied",
+      "patch_target_not_found",
+      "io_error"
+    ],
+    "native_tool_mapping": {
+      "create_file": "file_write",
+      "overwrite_file": "file_write",
+      "patch_file": "file_patch",
+      "append_file": "file_write"
+    },
+    "non_goals": [
+      "do_not_select_context",
+      "do_not_infer_architecture",
+      "do_not_run_validation",
+      "do_not_loop_for_repair",
+      "do_not_branch_on_eval_level_or_fixture_name"
+    ]
+  },
+  "typed_execution_contract": {
+    "gate_kind": "structured_control_plane_gate",
+    "input_kind": "single_mutation_execution_input_envelope_v1",
+    "allowed_transitions": [
+      "mutation_request_intake->path_scope_check",
+      "path_scope_check->content_or_patch_check",
+      "content_or_patch_check->native_file_tool_dispatch",
+      "native_file_tool_dispatch->mutation_receipt_packaging",
+      "mutation_receipt_packaging->completed",
+      "path_scope_check->blocked",
+      "content_or_patch_check->blocked",
+      "native_file_tool_dispatch->failed"
+    ],
+    "timeout_ms": 10000,
+    "retry_policy": {
+      "max_retries": 0,
+      "on_failure": "return_structured_failure"
+    },
+    "terminal_states": [
+      "completed",
+      "blocked",
+      "failed",
+      "aborted"
+    ],
+    "telemetry_streams": [
+      "workflow_state",
+      "tool_trace",
+      "eval_trace",
+      "final_answer"
+    ],
+    "visible_chat_policy": "terminal_artifact_only",
+    "run_budgets": {
+      "max_stages": 5,
+      "max_model_turns": 0,
+      "max_tool_calls": 1,
+      "token_budget": 1000,
+      "loop_signature_detector": "single_mutation_execution_v1"
+    }
+  }
+}

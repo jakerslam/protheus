@@ -1,0 +1,145 @@
+{
+  "name": "coding_execution_shape_gate",
+  "workflow_type": "control_plane_orchestration_workflow",
+  "workflow_role": "assistant_response_workflow",
+  "default": false,
+  "description": "Primitive gate that classifies a local coding task into the cheapest safe execution lane before provider startup.",
+  "primitive_first_contract": {
+    "case_specific_hardcoding_allowed": false,
+    "specificity_owner": "primitive",
+    "extension_surface": "workflow_cd",
+    "registered_capability_id": "workflow.coding_execution_shape_gate",
+    "special_case_policy": "The gate may branch on generic execution shape, safety, permissions, content availability, and validation needs. It must not branch on eval levels, fixture filenames, hardcoded benchmark IDs, or canned prompt phrases.",
+    "monotonic_lower_level_regression_policy": "New higher-tier routing rules must not make explicit safe single-file mutations enter a provider loop."
+  },
+  "provenance_contract": {
+    "source_systems": [
+      "mini-SWE-agent",
+      "SWE-agent"
+    ],
+    "import_rule": "assimilate_runtime_topology_not_surface_success",
+    "artifact_corpus_ref": "references/coding-agent-systems"
+  },
+  "stages": [
+    "task_shape_intake",
+    "target_scope_classification",
+    "content_availability_check",
+    "permission_and_safety_check",
+    "lane_verdict"
+  ],
+  "workflow_composition": {
+    "primitive_level": 0,
+    "composed_of_workflow_ids": []
+  },
+  "final_response_policy": "control_plane_packaged_response",
+  "final_output_contract": {
+    "schema_version": "coding_execution_shape_gate_final_output_contract_v1",
+    "source": "workflow_cd",
+    "visible_chat_source": "runtime_terminal_artifact_only",
+    "required_summary_fields": [
+      "lane",
+      "confidence",
+      "requires_model",
+      "requires_discovery",
+      "requires_validation",
+      "target_scope",
+      "mutation_safety",
+      "escalation_reason"
+    ],
+    "internal_streams": [
+      "workflow_state",
+      "tool_trace",
+      "eval_trace"
+    ],
+    "quality_contract": {
+      "answer_user_goal": "select the cheapest safe execution lane for a local coding task",
+      "scope_boundary": "classify execution shape only; do not mutate files, run validation, or synthesize final user answers",
+      "validation_calibration": "lane selection is not task completion",
+      "visibility": "emit compact public lane verdicts without hidden chain-of-thought"
+    }
+  },
+  "coding_execution_shape_gate_contract": {
+    "version": "coding_execution_shape_gate_v1",
+    "required_verdict_fields": [
+      "lane",
+      "confidence",
+      "requires_model",
+      "requires_discovery",
+      "requires_validation",
+      "target_scope",
+      "mutation_safety",
+      "escalation_reason"
+    ],
+    "allowed_lanes": [
+      "direct_mutation",
+      "deterministic_local_loop",
+      "model_tool_loop",
+      "validation_repair_loop",
+      "project_operator_loop",
+      "structured_blocker"
+    ],
+    "direct_mutation_eligibility": [
+      "local_workspace_root_known_or_absolute_target_path_provided",
+      "target_path_explicit",
+      "target_path_inside_allowed_root",
+      "mutation_kind_known",
+      "required_content_or_exact_patch_available",
+      "no_project_discovery_needed",
+      "no_architecture_decision_needed",
+      "no_validation_requested",
+      "permission_policy_grants_mutation"
+    ],
+    "required_behaviors": [
+      "try_lower_tiers_before_higher_tiers",
+      "set_requires_model_false_for_direct_mutation",
+      "set_requires_model_false_for_deterministic_local_loop",
+      "set_provider_and_model_latency_to_zero_for_direct_mutation",
+      "route_declared_local_action_manifests_to_deterministic_local_loop",
+      "emit_escalation_reason_when_a_higher_tier_is_selected",
+      "return_structured_blocker_for_unsafe_overwrite_or_path_escape"
+    ],
+    "non_goals": [
+      "do_not_generate_large_code",
+      "do_not_select_project_context",
+      "do_not_run_validation",
+      "do_not_branch_on_eval_level_or_fixture_name"
+    ]
+  },
+  "typed_execution_contract": {
+    "gate_kind": "structured_control_plane_gate",
+    "input_kind": "task_contract_or_user_prompt",
+    "allowed_transitions": [
+      "task_shape_intake->target_scope_classification",
+      "target_scope_classification->content_availability_check",
+      "content_availability_check->permission_and_safety_check",
+      "permission_and_safety_check->lane_verdict",
+      "lane_verdict->completed",
+      "permission_and_safety_check->structured_blocker"
+    ],
+    "timeout_ms": 5000,
+    "retry_policy": {
+      "max_retries": 0,
+      "on_failure": "return_structured_failure"
+    },
+    "terminal_states": [
+      "completed",
+      "structured_blocker",
+      "failed",
+      "aborted"
+    ],
+    "telemetry_streams": [
+      "workflow_state",
+      "tool_trace",
+      "eval_trace",
+      "final_answer"
+    ],
+    "visible_chat_policy": "terminal_artifact_only",
+    "run_budgets": {
+      "max_stages": 5,
+      "max_model_turns": 0,
+      "max_tool_calls": 0,
+      "token_budget": 1000,
+      "loop_signature_detector": "coding_execution_shape_gate_v1"
+    }
+  }
+}
