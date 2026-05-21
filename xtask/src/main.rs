@@ -400,12 +400,27 @@ fn run_infring_agent_run(args: &[String]) -> Result<()> {
             .unwrap_or(Value::Null),
         "parent_permissions_manifest": parent_permissions_manifest
     });
-    let native_success_criteria = success_criteria_override.or_else(|| {
-        workflow_context
-            .as_ref()
-            .and_then(|row| row.1.get("native_success_criteria").cloned())
-            .filter(|value| !value.is_null())
-    });
+    let workflow_success_criteria = workflow_context
+        .as_ref()
+        .and_then(|row| row.1.get("native_success_criteria").cloned())
+        .filter(|value| !value.is_null());
+    let native_success_criteria = match (workflow_success_criteria, success_criteria_override) {
+        (Some(mut base), Some(override_value)) => {
+            if let (Some(base_object), Some(override_object)) =
+                (base.as_object_mut(), override_value.as_object())
+            {
+                for (key, value) in override_object {
+                    base_object.insert(key.clone(), value.clone());
+                }
+                Some(base)
+            } else {
+                Some(override_value)
+            }
+        }
+        (Some(base), None) => Some(base),
+        (None, Some(override_value)) => Some(override_value),
+        (None, None) => None,
+    };
     if let Some(criteria) = native_success_criteria {
         if let Some(object) = metadata.as_object_mut() {
             object.insert("native_success_criteria".to_string(), criteria);

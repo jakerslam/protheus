@@ -780,7 +780,7 @@ impl AgentContract {
                 None,
             );
         }
-        let initial_repair_reasons = native_tool_artifact_repair_reasons(
+        let initial_repair_reasons = native_tool_runtime_repair_reasons(
             &self.metadata,
             &self.initial_prompt,
             &response.output,
@@ -907,7 +907,7 @@ impl AgentContract {
                 );
             }
         }
-        let final_repair_reasons = native_tool_artifact_repair_reasons(
+        let final_repair_reasons = native_tool_runtime_repair_reasons(
             &self.metadata,
             &self.initial_prompt,
             &response.output,
@@ -977,7 +977,7 @@ impl AgentContract {
                 "successful_validation_terminal_receipt_synthesis",
             );
         }
-        let mut unresolved_final_reasons = native_tool_artifact_repair_reasons(
+        let mut unresolved_final_reasons = native_tool_runtime_repair_reasons(
             &self.metadata,
             &self.initial_prompt,
             &response.output,
@@ -1098,7 +1098,7 @@ impl AgentContract {
                         None,
                     );
                 }
-                unresolved_final_reasons = native_tool_artifact_repair_reasons(
+                unresolved_final_reasons = native_tool_runtime_repair_reasons(
                     &self.metadata,
                     &self.initial_prompt,
                     &response.output,
@@ -1140,7 +1140,7 @@ impl AgentContract {
                     if !auto_handoff_receipts.is_empty() {
                         all_receipts.extend(auto_handoff_receipts);
                     }
-                    unresolved_final_reasons = native_tool_artifact_repair_reasons(
+                    unresolved_final_reasons = native_tool_runtime_repair_reasons(
                         &self.metadata,
                         &self.initial_prompt,
                         &response.output,
@@ -1654,6 +1654,27 @@ fn native_tool_completion_evidence_repair_max_turns(metadata: &Value) -> u64 {
         .clamp(1, 5)
 }
 
+fn native_tool_runtime_repair_reasons(
+    metadata: &Value,
+    original_prompt: &str,
+    output: &str,
+    receipts: &[NativeToolReceipt],
+) -> Vec<String> {
+    let mut reasons = native_tool_artifact_repair_reasons(metadata, original_prompt, output, receipts);
+    if native_tool_requires_successful_mutation(metadata)
+        && native_tool_prompt_requires_product_mutation(&original_prompt.to_ascii_lowercase())
+        && !native_tool_has_successful_mutation(receipts)
+        && !reasons
+            .iter()
+            .any(|reason| reason == "missing_product_mutation_receipt")
+    {
+        reasons.push("missing_product_mutation_receipt".to_string());
+    }
+    reasons.sort();
+    reasons.dedup();
+    reasons
+}
+
 fn native_tool_repair_reasons_include_product_mutation(repair_reasons: &[String]) -> bool {
     repair_reasons
         .iter()
@@ -1664,6 +1685,7 @@ fn native_tool_repair_reasons_include_product_slice(repair_reasons: &[String]) -
     repair_reasons.iter().any(|reason| {
         reason.starts_with("incomplete_product_slice")
             || reason.starts_with("missing_product_source_evidence:")
+            || reason.starts_with("missing_public_interface_verification:")
     })
 }
 
@@ -1673,6 +1695,7 @@ fn native_tool_repair_reasons_require_product_work(repair_reasons: &[String]) ->
             || reason == "missing_test_change_receipt"
             || reason.starts_with("incomplete_product_slice")
             || reason.starts_with("missing_product_source_evidence:")
+            || reason.starts_with("missing_public_interface_verification:")
             || reason.starts_with("missing_changed_path:")
     })
 }
@@ -2351,15 +2374,24 @@ fn native_tool_stage_block_reason(
     let has_context = native_tool_has_successful_context_receipt(receipts);
     let read_context_count = native_tool_successful_read_context_count(receipts);
     let has_product_source = native_tool_product_source_stage_satisfied(original_prompt, receipts);
+    let needs_requested_pre_mutation_validation =
+        native_tool_prompt_requires_pre_mutation_validation(original_prompt)
+            && !native_tool_has_any_validation_command(receipts);
     match stage {
         "product_mutation" => {
             if native_tool_call_targets_handoff_artifact(call) {
                 Some("staged_controller_requires_product_source_before_checkpoint_handoff")
             } else if native_tool_call_is_memory_closure(call) {
                 Some("staged_controller_requires_product_source_before_memory_closure")
-            } else if !has_product_source && native_tool_call_is_test_mutation(call) {
-                Some("staged_controller_requires_product_source_before_test_file")
-            } else if !has_product_source && native_tool_call_is_command_run(call) {
+            } else if needs_requested_pre_mutation_validation && native_tool_call_is_mutation(call)
+            {
+                Some("staged_controller_requires_requested_validation_before_mutation")
+            } else if native_tool_call_is_test_mutation(call) {
+                None
+            } else if !has_product_source
+                && native_tool_call_is_command_run(call)
+                && !needs_requested_pre_mutation_validation
+            {
                 Some("staged_controller_requires_product_source_mutation_before_command")
             } else if !has_product_source
                 && read_context_count >= native_tool_pre_mutation_read_budget(metadata)
@@ -2493,6 +2525,28 @@ fn native_tool_repair_reasons_include_failed_validation(repair_reasons: &[String
     repair_reasons
         .iter()
         .any(|reason| reason.starts_with("failed_validation_command_receipt:"))
+}
+
+fn native_tool_prompt_requires_pre_mutation_validation(original_prompt: &str) -> bool {
+    let lower = original_prompt.to_ascii_lowercase();
+    let validation_requested = lower.contains("validation")
+        || lower.contains("run tests")
+        || lower.contains("pytest")
+        || lower.contains("unittest");
+    validation_requested
+        && (lower.contains("first run")
+            || lower.contains("before editing")
+            || lower.contains("before mutating")
+            || lower.contains("before making changes")
+            || lower.contains("observe the failure")
+            || lower.contains("observe failing")
+            || lower.contains("failing tests"))
+}
+
+fn native_tool_has_any_validation_command(receipts: &[NativeToolReceipt]) -> bool {
+    receipts
+        .iter()
+        .any(|receipt| receipt.status == "ok" && receipt.tool_name == "command_run")
 }
 
 fn native_tool_call_is_mutation(call: &NativeToolCall) -> bool {
@@ -3069,7 +3123,13 @@ fn native_tool_completion_evidence_repair_loop(
             Err(error) if native_tool_provider_error_is_timeout(&error) => {
                 let completed_with_receipts = native_tool_has_successful_mutation(&receipts)
                     && native_tool_has_successful_validation_command(&receipts)
-                    && native_tool_prompt_evidence_gaps(original_prompt, &receipts).is_empty();
+                    && native_tool_runtime_repair_reasons(
+                        metadata,
+                        original_prompt,
+                        &response.output,
+                        &receipts,
+                    )
+                    .is_empty();
                 let response = if completed_with_receipts {
                     native_tool_synthetic_completion_evidence_response(
                         &response,
@@ -3094,7 +3154,7 @@ fn native_tool_completion_evidence_repair_loop(
         let mut calls = parse_native_tool_calls(&next_response.output);
         if calls.is_empty() {
             response = next_response;
-            repair_reasons = native_tool_artifact_repair_reasons(
+            repair_reasons = native_tool_runtime_repair_reasons(
                 metadata,
                 original_prompt,
                 &response.output,
@@ -3183,7 +3243,7 @@ fn native_tool_completion_evidence_repair_loop(
             receipts.push(receipt);
         }
         response = next_response;
-        repair_reasons = native_tool_artifact_repair_reasons(
+        repair_reasons = native_tool_runtime_repair_reasons(
             metadata,
             original_prompt,
             &response.output,

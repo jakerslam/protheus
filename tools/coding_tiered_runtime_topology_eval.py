@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Evaluate Tier 0 through Tier 3 coding runtime topology.
+"""Evaluate Tier 0 through Tier 4 coding runtime topology.
 
 This harness proves routing shape, not just file existence:
 
@@ -7,6 +7,7 @@ This harness proves routing shape, not just file existence:
 - Tier 1 deterministic manifests must use deterministic_local_loop.
 - Tier 2 bounded natural-language local tasks must use model_manifest_planner.
 - Tier 3 existing-project tasks must use native discovery/read/edit/validation tooling.
+- Tier 4 repair tasks must use failed validation as input, mutate, then pass validation.
 - Tier 0 and Tier 1 must skip provider startup and model calls.
 - Tier 2 must skip provider startup, but may use one model planning call.
 - Mutation/validation claims must be receipt-backed.
@@ -187,6 +188,40 @@ def tier3_cases() -> list[dict]:
                 "Run the local unittest validation after editing."
             ),
             "expected_content_markers": ["def subtract", "test_subtract"],
+        }
+    ]
+
+
+def tier4_cases() -> list[dict]:
+    return [
+        {
+            "name": "tier4-validation-guided-repair",
+            "initial_files": {
+                "slug_tools.py": (
+                    "def slugify(value: str) -> str:\n"
+                    "    return value.lower().replace(\" \", \"-\")\n"
+                ),
+                "test_slug_tools.py": (
+                    "import unittest\n"
+                    "from slug_tools import slugify\n\n"
+                    "class SlugToolsTests(unittest.TestCase):\n"
+                    "    def test_removes_punctuation(self):\n"
+                    "        self.assertEqual(slugify(\"Hello, World!\"), \"hello-world\")\n\n"
+                    "    def test_collapses_spaces(self):\n"
+                    "        self.assertEqual(slugify(\"multi   space\"), \"multi-space\")\n\n"
+                    "    def test_preserves_existing_slug_shape(self):\n"
+                    "        self.assertEqual(slugify(\"Already-Slug\"), \"already-slug\")\n\n"
+                    "if __name__ == \"__main__\":\n"
+                    "    unittest.main()\n"
+                ),
+            },
+            "expected_paths": ["slug_tools.py", "test_slug_tools.py"],
+            "prompt": lambda root: (
+                f"Project root: {root}\n"
+                "This is an existing Python project with failing tests. First run the local "
+                "unittest validation to observe the failure, then inspect the relevant files, "
+                "repair the slugify implementation, and rerun validation until the tests pass."
+            ),
         }
     ]
 
@@ -404,6 +439,87 @@ def evaluate_tier3(case: dict) -> dict:
     return result
 
 
+def evaluate_tier4(case: dict) -> dict:
+    root = Path(tempfile.mkdtemp(prefix=f"infring-{case['name']}-root-"))
+    for relative_path, content in case["initial_files"].items():
+        target = root / relative_path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(content, encoding="utf-8")
+
+    prompt = case["prompt"](root)
+    run, _ = run_infring(prompt, case["name"])
+    response = run["response"] or {}
+    receipts = response.get("receipt", {}).get("native_tool_receipts", [])
+    output = response.get("output", "")
+    tool_names = [receipt.get("tool_name") for receipt in receipts]
+    mutation_indices = [
+        idx
+        for idx, receipt in enumerate(receipts)
+        if receipt.get("status") == "ok"
+        and receipt.get("tool_name") in ["file_write", "file_patch"]
+    ]
+    command_results = [
+        (idx, receipt.get("result", {}).get("success"))
+        for idx, receipt in enumerate(receipts)
+        if receipt.get("tool_name") == "command_run"
+    ]
+    first_mutation_idx = min(mutation_indices) if mutation_indices else None
+    has_failed_validation_before_mutation = (
+        first_mutation_idx is not None
+        and any(idx < first_mutation_idx and success is False for idx, success in command_results)
+    )
+    has_successful_validation_after_mutation = (
+        first_mutation_idx is not None
+        and any(idx > first_mutation_idx and success is True for idx, success in command_results)
+    )
+    expected_files_exist = all((root / path).exists() for path in case["expected_paths"])
+    lower_output = output.lower()
+    false_receipt_blocker = any(
+        marker in lower_output
+        for marker in [
+            "receipt-backed evidence unavailable",
+            "receipts are not present",
+            "none confirmed",
+            "pending tool receipts",
+            "no command_run receipt surfaced",
+        ]
+    )
+    result = {
+        "case": case["name"],
+        "tier": 4,
+        "provider": response.get("contract", {}).get("provider"),
+        "workflow_native_success_criteria": response.get("contract", {})
+        .get("workflow", {})
+        .get("native_success_criteria"),
+        "tool_names": tool_names,
+        "has_failed_validation_before_mutation": has_failed_validation_before_mutation,
+        "has_mutation": bool(mutation_indices),
+        "has_successful_validation_after_mutation": has_successful_validation_after_mutation,
+        "expected_files_exist": expected_files_exist,
+        "false_receipt_blocker": false_receipt_blocker,
+        "elapsed_ms": run["elapsed_ms"],
+        "root": str(root),
+    }
+    result["ok"] = (
+        response.get("ok") is True
+        and result["provider"] is not None
+        and (result["workflow_native_success_criteria"] or {}).get(
+            "requires_successful_mutation_receipt"
+        )
+        is True
+        and (result["workflow_native_success_criteria"] or {}).get(
+            "repair_uncovered_requirements_before_final"
+        )
+        is True
+        and has_failed_validation_before_mutation
+        and bool(mutation_indices)
+        and has_successful_validation_after_mutation
+        and expected_files_exist
+        and not false_receipt_blocker
+    )
+    return result
+
+
 def main() -> int:
     results = []
     for case in tier0_cases():
@@ -414,9 +530,11 @@ def main() -> int:
         results.append(evaluate_tier2(case))
     for case in tier3_cases():
         results.append(evaluate_tier3(case))
+    for case in tier4_cases():
+        results.append(evaluate_tier4(case))
 
     payload = {
-        "schema_version": "coding_tiered_runtime_topology_eval_v3",
+        "schema_version": "coding_tiered_runtime_topology_eval_v4",
         "attempts": len(results),
         "passes": sum(1 for result in results if result["ok"]),
         "results": results,
@@ -426,12 +544,15 @@ def main() -> int:
             "tier2_requires_lane": "model_manifest_planner",
             "tier2_requires_execution_lane": "deterministic_local_loop",
             "tier3_requires_native_existing_project_loop": True,
+            "tier4_requires_validation_guided_repair_loop": True,
             "tier0_tier1_provider_start_ms": 0,
             "tier0_tier1_model_call_ms": 0,
             "tier2_provider_start_ms": 0,
             "tier2_model_call_ms": "greater_than_zero",
             "tier3_requires_read_before_mutation": True,
             "tier3_forbids_false_receipt_blocker": True,
+            "tier4_requires_failed_validation_before_mutation": True,
+            "tier4_requires_successful_validation_after_mutation": True,
         },
     }
     print(json.dumps(payload, indent=2))

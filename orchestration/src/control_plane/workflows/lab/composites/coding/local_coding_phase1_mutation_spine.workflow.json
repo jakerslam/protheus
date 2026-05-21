@@ -14,6 +14,13 @@
   },
   "native_execution_success_contract": {
     "native_success_criteria": {
+      "requires_successful_mutation_receipt": true,
+      "repair_uncovered_requirements_before_final": true,
+      "staged_execution_controller_enabled": true,
+      "staged_pre_mutation_read_budget": 4,
+      "completion_evidence_repair_max_turns": 3,
+      "partial_recovery_max_turns": 4,
+      "recovery_provider_timeout_seconds": 180,
       "synthesize_final_after_successful_validation": true,
       "synthesize_completion_evidence_on_finalization_timeout": true
     }
