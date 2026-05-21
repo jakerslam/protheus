@@ -141,6 +141,31 @@ fn strip_internal_evidence_posture_prefix(response_text: &str) -> String {
         });
         return clean_chat_text(after_posture.trim_start(), 32_000);
     }
+    strip_internal_evidence_posture_disclosure(&cleaned)
+}
+
+fn strip_internal_evidence_posture_disclosure(response_text: &str) -> String {
+    let mut cleaned = clean_chat_text(response_text, 32_000);
+    for posture in [
+        "supported_answer",
+        "bounded_partial_answer",
+        "evidence_insufficient_answer",
+    ] {
+        for marker in [
+            format!("**Posture: `{posture}`** — "),
+            format!("**Posture: `{posture}`** - "),
+            format!("**Posture:** `{posture}` — "),
+            format!("**Posture:** `{posture}` - "),
+            format!("Posture: `{posture}` — "),
+            format!("Posture: `{posture}` - "),
+            format!("Posture: {posture} — "),
+            format!("Posture: {posture} - "),
+            format!("`{posture}` — "),
+            format!("`{posture}` - "),
+        ] {
+            cleaned = cleaned.replace(&marker, "");
+        }
+    }
     cleaned
 }
 
@@ -329,6 +354,15 @@ mod visible_response_sanitizer_tests {
         assert_eq!(
             sanitize_workflow_visible_response_text(response),
             "Here is the useful answer from the recorded evidence."
+        );
+    }
+
+    #[test]
+    fn sanitizer_strips_inline_internal_evidence_posture_disclosure() {
+        let response = "Here is the answer. **Posture: `bounded_partial_answer`** — I have some relevant signals, but gaps remain.";
+        assert_eq!(
+            sanitize_workflow_visible_response_text(response),
+            "Here is the answer. I have some relevant signals, but gaps remain."
         );
     }
 

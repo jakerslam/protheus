@@ -523,7 +523,7 @@ fn finalize_message_finalization_and_payload(
             &response_tools,
         );
     tool_completion = enrich_tool_completion_receipt(tool_completion, &response_tools);
-    response_text = finalized_response;
+    response_text = workflow_final_visible_response_text(&finalized_response);
     if response_text.trim().is_empty() {
         finalization_outcome = merge_response_outcomes(
             &finalization_outcome,
@@ -829,7 +829,7 @@ fn finalize_message_finalization_and_payload(
         visible_response_repaired,
         &finalization_outcome,
     );
-    let canonical_finalized_response = clean_chat_text(&response_text, 32_000);
+    let canonical_finalized_response = workflow_final_visible_response_text(&response_text);
     if !canonical_finalized_response.trim().is_empty() {
         response_finalization["finalized_output"] =
             Value::String(canonical_finalized_response.clone());
