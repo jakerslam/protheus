@@ -946,7 +946,10 @@ fn comparison_lead_token(raw: &str) -> bool {
 fn comparison_tail_boundary_token(raw: &str) -> bool {
     matches!(
         raw.to_ascii_lowercase().as_str(),
-        "as" | "for"
+        "across"
+            | "as"
+            | "by"
+            | "for"
             | "focus"
             | "focused"
             | "focusing"
@@ -955,6 +958,8 @@ fn comparison_tail_boundary_token(raw: &str) -> bool {
             | "including"
             | "against"
             | "about"
+            | "on"
+            | "regarding"
             | "when"
             | "where"
             | "while"

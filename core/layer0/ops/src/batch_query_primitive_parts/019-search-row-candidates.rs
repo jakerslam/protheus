@@ -74,9 +74,85 @@ fn structured_result_collection_key(key: &str) -> bool {
 }
 
 fn structured_result_source_kind(key: &str, fallback: &str) -> String {
-    match key.to_ascii_lowercase().as_str() {
+    let key = key.to_ascii_lowercase();
+    let fallback_lower = fallback.to_ascii_lowercase();
+    if (fallback_lower.contains("api")
+        || fallback_lower.contains("rss")
+        || fallback_lower.contains("feed"))
+        && matches!(
+            key.as_str(),
+            "web" | "news" | "results" | "items" | "organic" | "documents" | "data"
+        )
+    {
+        return fallback.to_string();
+    }
+    match key.as_str() {
         "web" | "news" | "images" | "image" | "document" | "documents" => key.to_ascii_lowercase(),
         _ => fallback.to_string(),
+    }
+}
+
+fn search_payload_result_source_kind(payload: &Value) -> String {
+    let explicit = clean_text(
+        payload
+            .get("source_kind")
+            .or_else(|| payload.get("sourceKind"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        80,
+    )
+    .to_ascii_lowercase();
+    if !explicit.is_empty() {
+        return explicit;
+    }
+    let provider = clean_text(
+        payload
+            .get("provider")
+            .or_else(|| payload.get("selected_provider"))
+            .or_else(|| payload.get("search_provider"))
+            .or_else(|| payload.get("searchProvider"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        80,
+    )
+    .to_ascii_lowercase();
+    match provider.as_str() {
+        "tavily" | "exa" | "brave" | "serperdev" => {
+            format!("{provider}_api_search_result")
+        }
+        "google_news_rss" | "bing_rss" => provider,
+        _ => "web".to_string(),
+    }
+}
+
+fn append_candidate_permission_flag(candidate: &mut Candidate, flag: &str) {
+    if flag.is_empty() {
+        return;
+    }
+    let existing = candidate.permissions.clone().unwrap_or_default();
+    if existing
+        .split(';')
+        .any(|part| part.trim().eq_ignore_ascii_case(flag))
+    {
+        return;
+    }
+    candidate.permissions = Some(if existing.is_empty() {
+        flag.to_string()
+    } else {
+        format!("{existing};{flag}")
+    });
+}
+
+fn apply_search_payload_source_kind(candidate: &mut Candidate, source_kind: &str) {
+    let cleaned = clean_text(source_kind, 80).to_ascii_lowercase();
+    if cleaned.is_empty() || cleaned == "web" {
+        return;
+    }
+    candidate.source_kind = cleaned.clone();
+    if cleaned.contains("api") {
+        append_candidate_permission_flag(candidate, "structured_feed");
+    } else if cleaned.contains("rss") || cleaned.contains("feed") {
+        append_candidate_permission_flag(candidate, "headline_feed");
     }
 }
 
@@ -333,8 +409,15 @@ fn candidates_from_structured_search_payload(
         return Vec::new();
     }
     let mut out = Vec::<Candidate>::new();
+    let source_kind = search_payload_result_source_kind(payload);
     collect_structured_search_candidates_from_value(
-        query, payload, "web", false, 0, max_rows, &mut out,
+        query,
+        payload,
+        &source_kind,
+        false,
+        0,
+        max_rows,
+        &mut out,
     );
     let mut seen = HashSet::<String>::new();
     out.retain(|candidate| {
@@ -365,12 +448,14 @@ fn candidates_from_rendered_search_payload(
         .get("status_code")
         .and_then(Value::as_i64)
         .unwrap_or(0);
+    let source_kind = search_payload_result_source_kind(payload);
     let mut out = Vec::<Candidate>::new();
     let mut seen = HashSet::<String>::new();
     for row in raw_content.lines() {
-        let Some(candidate) = candidate_from_rendered_search_row(query, row, status_code) else {
+        let Some(mut candidate) = candidate_from_rendered_search_row(query, row, status_code) else {
             continue;
         };
+        apply_search_payload_source_kind(&mut candidate, &source_kind);
         let key = format!(
             "{}|{}|{}",
             candidate.locator.to_ascii_lowercase(),

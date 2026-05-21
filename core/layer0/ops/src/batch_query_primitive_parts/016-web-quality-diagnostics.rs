@@ -3058,8 +3058,6 @@ fn issue_quality_flags(partial_failures: &[String]) -> Vec<String> {
             || lowered.contains("configured_provider_credential_unresolved")
             || lowered.contains("credential_unresolved")
             || lowered.contains("search_providers_exhausted")
-            || lowered.contains("web_search_tool_surface_degraded")
-            || lowered.contains("provider readiness mismatch")
         {
             flags.push("provider_starved".to_string());
         }

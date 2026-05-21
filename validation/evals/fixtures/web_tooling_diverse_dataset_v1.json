@@ -1,0 +1,412 @@
+{
+  "schema_version": 1,
+  "dataset_id": "web_tooling_diverse_dataset_v1",
+  "description": "Diverse standalone web-tooling prompts for checking broad retrieval usefulness beyond the research golden comparison cluster.",
+  "domain": "web_tooling_diverse",
+  "reliability_thresholds": {
+    "web_tooling_success_min": 0.8,
+    "workflow_gate_pass_min": 0.9
+  },
+  "cases": [
+    {
+      "id": "diverse_001_weekly_world_news",
+      "category": "current_events",
+      "prompt": "Give me the biggest world news from this week.",
+      "required_facets": [
+        "world news",
+        "this week"
+      ],
+      "expected_gate_path": {
+        "gate_1": "tool_required",
+        "gate_2": "web_research",
+        "gate_3": "web_search",
+        "gate_4_required_fields": [
+          "query",
+          "aperture"
+        ]
+      }
+    },
+    {
+      "id": "diverse_002_ai_agentic_landscape",
+      "category": "current_state",
+      "prompt": "Give me an update on the AI agentic landscape in May 2026.",
+      "required_facets": [
+        "AI agentic landscape",
+        "May 2026"
+      ],
+      "expected_gate_path": {
+        "gate_1": "tool_required",
+        "gate_2": "web_research",
+        "gate_3": "web_search",
+        "gate_4_required_fields": [
+          "query",
+          "aperture"
+        ]
+      }
+    },
+    {
+      "id": "diverse_003_research_api_comparison",
+      "category": "comparison",
+      "prompt": "Compare Firecrawl, Tavily, and Exa for developer-facing web research APIs.",
+      "required_entities": [
+        "Firecrawl",
+        "Tavily",
+        "Exa"
+      ],
+      "required_facets": [
+        "developer-facing web research APIs"
+      ],
+      "expected_gate_path": {
+        "gate_1": "tool_required",
+        "gate_2": "web_research",
+        "gate_3": "batch_query",
+        "gate_4_required_fields": [
+          "query",
+          "aperture"
+        ]
+      }
+    },
+    {
+      "id": "diverse_004_scientific_breakthroughs",
+      "category": "broad_summary",
+      "prompt": "What are some scientific breakthroughs in 2026 so far?",
+      "required_facets": [
+        "scientific breakthroughs",
+        "2026 so far"
+      ],
+      "expected_gate_path": {
+        "gate_1": "tool_required",
+        "gate_2": "web_research",
+        "gate_3": "web_search",
+        "gate_4_required_fields": [
+          "query",
+          "aperture"
+        ]
+      }
+    },
+    {
+      "id": "diverse_005_robot_vacuum_comparison",
+      "category": "shopping_comparison",
+      "prompt": "Compare Dyson, Roborock, and iRobot for pet hair in apartments.",
+      "required_entities": [
+        "Dyson",
+        "Roborock",
+        "iRobot"
+      ],
+      "required_facets": [
+        "pet hair",
+        "apartments"
+      ],
+      "expected_gate_path": {
+        "gate_1": "tool_required",
+        "gate_2": "web_research",
+        "gate_3": "batch_query",
+        "gate_4_required_fields": [
+          "query",
+          "aperture"
+        ]
+      }
+    },
+    {
+      "id": "diverse_006_ev_charging_changes",
+      "category": "market_update",
+      "prompt": "What changed this month in the US EV charging landscape?",
+      "required_facets": [
+        "US EV charging landscape",
+        "this month"
+      ],
+      "expected_gate_path": {
+        "gate_1": "tool_required",
+        "gate_2": "web_research",
+        "gate_3": "web_search",
+        "gate_4_required_fields": [
+          "query",
+          "aperture"
+        ]
+      }
+    },
+    {
+      "id": "diverse_007_figma_ai_sentiment",
+      "category": "sentiment",
+      "prompt": "Summarize public sentiment around Figma AI features in 2026.",
+      "required_entities": [
+        "Figma AI"
+      ],
+      "required_facets": [
+        "public sentiment",
+        "2026"
+      ],
+      "expected_gate_path": {
+        "gate_1": "tool_required",
+        "gate_2": "web_research",
+        "gate_3": "batch_query",
+        "gate_4_required_fields": [
+          "query",
+          "aperture"
+        ]
+      }
+    },
+    {
+      "id": "diverse_008_web_frameworks_content_sites",
+      "category": "comparison",
+      "prompt": "Compare Next.js, Remix, and Astro for content-heavy product sites.",
+      "required_entities": [
+        "Next.js",
+        "Remix",
+        "Astro"
+      ],
+      "required_facets": [
+        "content-heavy product sites"
+      ],
+      "expected_gate_path": {
+        "gate_1": "tool_required",
+        "gate_2": "web_research",
+        "gate_3": "batch_query",
+        "gate_4_required_fields": [
+          "query",
+          "aperture"
+        ]
+      }
+    },
+    {
+      "id": "diverse_009_browser_automation_frameworks",
+      "category": "comparison",
+      "prompt": "What are the biggest browser automation frameworks for QA in 2026 and what are their tradeoffs?",
+      "required_facets": [
+        "browser automation frameworks",
+        "QA",
+        "2026",
+        "tradeoffs"
+      ],
+      "expected_gate_path": {
+        "gate_1": "tool_required",
+        "gate_2": "web_research",
+        "gate_3": "web_search",
+        "gate_4_required_fields": [
+          "query",
+          "aperture"
+        ]
+      }
+    },
+    {
+      "id": "diverse_010_mcp_adoption",
+      "category": "current_state",
+      "prompt": "What is happening with MCP adoption across major AI tool vendors right now?",
+      "required_entities": [
+        "MCP"
+      ],
+      "required_facets": [
+        "AI tool vendors",
+        "adoption",
+        "right now"
+      ],
+      "expected_gate_path": {
+        "gate_1": "tool_required",
+        "gate_2": "web_research",
+        "gate_3": "batch_query",
+        "gate_4_required_fields": [
+          "query",
+          "aperture"
+        ]
+      }
+    },
+    {
+      "id": "diverse_011_note_taking_research_workflows",
+      "category": "comparison",
+      "prompt": "Compare Notion, Obsidian, and Capacities for personal research workflows.",
+      "required_entities": [
+        "Notion",
+        "Obsidian",
+        "Capacities"
+      ],
+      "required_facets": [
+        "personal research workflows"
+      ],
+      "expected_gate_path": {
+        "gate_1": "tool_required",
+        "gate_2": "web_research",
+        "gate_3": "batch_query",
+        "gate_4_required_fields": [
+          "query",
+          "aperture"
+        ]
+      }
+    },
+    {
+      "id": "diverse_012_open_source_coding_agents",
+      "category": "comparison",
+      "prompt": "What are the biggest open-source coding agents right now and which are actually useful?",
+      "required_facets": [
+        "open-source coding agents",
+        "right now",
+        "usefulness"
+      ],
+      "expected_gate_path": {
+        "gate_1": "tool_required",
+        "gate_2": "web_research",
+        "gate_3": "web_search",
+        "gate_4_required_fields": [
+          "query",
+          "aperture"
+        ]
+      }
+    },
+    {
+      "id": "diverse_013_gpu_market_local_ai",
+      "category": "market_snapshot",
+      "prompt": "Give me a current snapshot of the GPU market for local AI builds.",
+      "required_facets": [
+        "GPU market",
+        "local AI builds",
+        "current snapshot"
+      ],
+      "expected_gate_path": {
+        "gate_1": "tool_required",
+        "gate_2": "web_research",
+        "gate_3": "web_search",
+        "gate_4_required_fields": [
+          "query",
+          "aperture"
+        ]
+      }
+    },
+    {
+      "id": "diverse_014_cybersecurity_news_week",
+      "category": "current_events",
+      "prompt": "What are the major themes in cybersecurity news this week?",
+      "required_facets": [
+        "cybersecurity news",
+        "this week",
+        "major themes"
+      ],
+      "expected_gate_path": {
+        "gate_1": "tool_required",
+        "gate_2": "web_research",
+        "gate_3": "web_search",
+        "gate_4_required_fields": [
+          "query",
+          "aperture"
+        ]
+      }
+    },
+    {
+      "id": "diverse_015_repo_engineering_tools",
+      "category": "comparison",
+      "prompt": "Compare Claude Code, Codex, and Cursor for repository-scale engineering work.",
+      "required_entities": [
+        "Claude Code",
+        "Codex",
+        "Cursor"
+      ],
+      "required_facets": [
+        "repository-scale engineering work"
+      ],
+      "expected_gate_path": {
+        "gate_1": "tool_required",
+        "gate_2": "web_research",
+        "gate_3": "batch_query",
+        "gate_4_required_fields": [
+          "query",
+          "aperture"
+        ]
+      }
+    },
+    {
+      "id": "diverse_016_mortgage_rates_month",
+      "category": "economic_update",
+      "prompt": "What are the main trends in US mortgage rates this month?",
+      "required_facets": [
+        "US mortgage rates",
+        "this month",
+        "main trends"
+      ],
+      "expected_gate_path": {
+        "gate_1": "tool_required",
+        "gate_2": "web_research",
+        "gate_3": "web_search",
+        "gate_4_required_fields": [
+          "query",
+          "aperture"
+        ]
+      }
+    },
+    {
+      "id": "diverse_017_japan_tourism_crowding_sentiment",
+      "category": "sentiment",
+      "prompt": "What are travelers saying about Japan tourism crowding in 2026?",
+      "required_facets": [
+        "Japan tourism crowding",
+        "travelers saying",
+        "2026"
+      ],
+      "expected_gate_path": {
+        "gate_1": "tool_required",
+        "gate_2": "web_research",
+        "gate_3": "web_search",
+        "gate_4_required_fields": [
+          "query",
+          "aperture"
+        ]
+      }
+    },
+    {
+      "id": "diverse_018_project_management_tools",
+      "category": "comparison",
+      "prompt": "Compare Linear, Jira, and Asana for startup product teams.",
+      "required_entities": [
+        "Linear",
+        "Jira",
+        "Asana"
+      ],
+      "required_facets": [
+        "startup product teams"
+      ],
+      "expected_gate_path": {
+        "gate_1": "tool_required",
+        "gate_2": "web_research",
+        "gate_3": "batch_query",
+        "gate_4_required_fields": [
+          "query",
+          "aperture"
+        ]
+      }
+    },
+    {
+      "id": "diverse_019_obesity_drug_developments",
+      "category": "medical_update",
+      "prompt": "What are the biggest obesity drug developments in 2026 so far?",
+      "required_facets": [
+        "obesity drug developments",
+        "2026 so far"
+      ],
+      "expected_gate_path": {
+        "gate_1": "tool_required",
+        "gate_2": "web_research",
+        "gate_3": "web_search",
+        "gate_4_required_fields": [
+          "query",
+          "aperture"
+        ]
+      }
+    },
+    {
+      "id": "diverse_020_antibot_defenses",
+      "category": "technical_summary",
+      "prompt": "What changed recently in browser anti-bot defenses that matters for automation teams?",
+      "required_facets": [
+        "browser anti-bot defenses",
+        "automation teams",
+        "recent changes"
+      ],
+      "expected_gate_path": {
+        "gate_1": "tool_required",
+        "gate_2": "web_research",
+        "gate_3": "web_search",
+        "gate_4_required_fields": [
+          "query",
+          "aperture"
+        ]
+      }
+    }
+  ]
+}

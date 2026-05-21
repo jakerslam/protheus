@@ -846,10 +846,15 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             actionable_ranked.clear();
         }
     }
+    let allow_comparison_gap_evidence_recovery =
+        !comparison_coverage_gap || preserve_partial_comparison_evidence;
 
     let mut evidence_ranked = actionable_ranked.clone();
     let mut low_confidence_evidence_used = false;
-    if evidence_ranked.is_empty() && low_confidence_retention_enabled(&policy) {
+    if allow_comparison_gap_evidence_recovery
+        && evidence_ranked.is_empty()
+        && low_confidence_retention_enabled(&policy)
+    {
         let mut low_confidence_ranked = retained_ranked
             .iter()
             .filter(|(row, _)| candidate_is_low_confidence_retained(row))
@@ -878,15 +883,19 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
         .iter()
         .filter(|(row, _)| candidate_is_low_confidence_retained(row))
         .count();
-    let facet_backfill_count = backfill_missing_facet_ranked_candidates(
-        &rerank_query,
-        &mut evidence_ranked,
-        &ranked_pool,
-        &research_facets,
-        budget.max_evidence,
-        facet_min_terms,
-        low_confidence_retention_enabled(&policy),
-    );
+    let facet_backfill_count = if allow_comparison_gap_evidence_recovery {
+        backfill_missing_facet_ranked_candidates(
+            &rerank_query,
+            &mut evidence_ranked,
+            &ranked_pool,
+            &research_facets,
+            budget.max_evidence,
+            facet_min_terms,
+            low_confidence_retention_enabled(&policy),
+        )
+    } else {
+        0
+    };
     if facet_backfill_count > 0 {
         partial_failures.push(format!(
             "facet_coverage_backfill_used:{facet_backfill_count}"
@@ -899,15 +908,19 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             partial_failures.push("low_confidence_facet_backfill_used".to_string());
         }
     }
-    let trusted_primary_preserved = preserve_trusted_primary_lane_candidates(
-        &rerank_query,
-        &mut evidence_ranked,
-        &ranked_pool,
-        &query_lane_sources,
-        &research_facets,
-        budget.max_evidence,
-        facet_min_terms,
-    );
+    let trusted_primary_preserved = if allow_comparison_gap_evidence_recovery {
+        preserve_trusted_primary_lane_candidates(
+            &rerank_query,
+            &mut evidence_ranked,
+            &ranked_pool,
+            &query_lane_sources,
+            &research_facets,
+            budget.max_evidence,
+            facet_min_terms,
+        )
+    } else {
+        0
+    };
     if trusted_primary_preserved > 0 {
         partial_failures.push(format!(
             "trusted_primary_lane_preserved:{trusted_primary_preserved}"

@@ -126,6 +126,12 @@ fn comparison_entities_regex() -> &'static Regex {
 fn normalize_entity_phrase(raw: &str) -> String {
     let phrase = clean_text(raw, 120)
         .split_whitespace()
+        .take_while(|token| {
+            !matches!(
+                token.to_ascii_lowercase().as_str(),
+                "about" | "across" | "by" | "for" | "on" | "regarding"
+            )
+        })
         .take(4)
         .collect::<Vec<_>>()
         .join(" ")

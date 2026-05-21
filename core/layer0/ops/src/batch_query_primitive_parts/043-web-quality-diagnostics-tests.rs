@@ -82,6 +82,20 @@ mod web_quality_diagnostics_tests {
         }
     }
 
+    fn materialized_candidate(locator: &str, snippet: &str) -> Candidate {
+        let mut candidate = candidate(locator, snippet);
+        candidate.source_kind = "browser_materialized_page".to_string();
+        candidate.permissions = Some("public_web;browser_materialized".to_string());
+        candidate
+    }
+
+    fn structured_feed_candidate(locator: &str, snippet: &str) -> Candidate {
+        let mut candidate = candidate(locator, snippet);
+        candidate.source_kind = "google_news_rss".to_string();
+        candidate.permissions = Some("public_web;headline_feed".to_string());
+        candidate
+    }
+
     #[test]
     fn source_class_path_rules_do_not_match_url_host_text() {
         let policy = json!({
@@ -364,7 +378,7 @@ mod web_quality_diagnostics_tests {
         );
         let flags = quality_flags(&out);
         assert!(
-            flags.iter().any(|flag| flag == "junk_filtered"),
+            flags.iter().any(|flag| flag == "access_denied"),
             "{flags:?}"
         );
         assert!(!out
@@ -790,6 +804,86 @@ mod web_quality_diagnostics_tests {
     }
 
     #[test]
+    fn admitted_api_search_rows_keep_structured_evidence_provenance() {
+        let payload = json!({
+            "ok": true,
+            "provider": "tavily",
+            "content": "Agent research systems comparison — https://example.org/agent-research-systems — The comparison explains how agent research systems use query planning, source retrieval, evidence extraction, citation packaging, and synthesis checks to produce grounded answers for users.",
+            "status_code": 200
+        });
+        let candidates =
+            candidates_from_rendered_search_payload("agent research systems comparison", &payload, 4);
+        let candidate = candidates.first().expect("candidate").clone();
+        assert_eq!(candidate.source_kind, "tavily_api_search_result");
+        assert!(
+            candidate
+                .permissions
+                .as_deref()
+                .unwrap_or("")
+                .contains("structured_feed")
+        );
+
+        let pack = evidence_pack_from_ranked_candidates(
+            &default_policy(),
+            "agent research systems comparison",
+            &[],
+            1,
+            &[(candidate, 0.91)],
+            1,
+        );
+        let first = pack
+            .as_array()
+            .and_then(|rows| rows.first())
+            .expect("evidence item");
+        assert_eq!(
+            first.get("materialization_quality").and_then(Value::as_str),
+            Some("trusted_structured_feed")
+        );
+        assert_eq!(
+            first
+                .get("counts_as_usable_evidence")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+    }
+
+    #[test]
+    fn rss_structured_rows_keep_feed_evidence_provenance() {
+        let payload = json!({
+            "ok": true,
+            "provider": "google_news_rss",
+            "results": [{
+                "title": "World policy update",
+                "url": "https://news.example.org/world-policy-update",
+                "snippet": "The world policy update report says governments announced new agreements, implementation deadlines, public reactions, and agency follow-up steps during the current news cycle."
+            }],
+            "status_code": 200
+        });
+        let candidates =
+            candidates_from_structured_search_payload("world policy update", &payload, 4);
+        let candidate = candidates.first().expect("candidate").clone();
+        assert_eq!(candidate.source_kind, "google_news_rss");
+
+        let pack = evidence_pack_from_ranked_candidates(
+            &default_policy(),
+            "world policy update",
+            &[],
+            1,
+            &[(candidate, 0.84)],
+            1,
+        );
+        assert_eq!(
+            pack.pointer("/0/materialization_quality").and_then(Value::as_str),
+            Some("trusted_structured_feed")
+        );
+        assert_eq!(
+            pack.pointer("/0/counts_as_usable_evidence")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+    }
+
+    #[test]
     fn evidence_claims_promote_materialized_rows_into_claim_units() {
         let pack = json!([{
             "title": "Agent SDK docs",
@@ -882,14 +976,14 @@ mod web_quality_diagnostics_tests {
     fn usable_evidence_does_not_misclassify_missing_premium_provider_as_starvation() {
         let ranked = vec![
             (
-                candidate(
+                structured_feed_candidate(
                     "https://news.google.com/rss/articles/example-a",
                     "Published: Mon, 20 Apr 2026 07:00:00 GMT. Source: Nature (www.nature.com). New tools drive scientific discovery with evidence from major breakthroughs, publication metadata, institution context, and direct research findings suitable for bounded synthesis.",
                 ),
                 0.88,
             ),
             (
-                candidate(
+                structured_feed_candidate(
                     "https://news.google.com/rss/articles/example-b",
                     "Published: Wed, 01 Apr 2026 07:00:00 GMT. Source: Phys.org (phys.org). A large-scale analysis identifies disruptive innovations in research history, describes the method used to detect breakthroughs, and gives enough context for evidence-backed synthesis.",
                 ),
@@ -1137,15 +1231,15 @@ mod web_quality_diagnostics_tests {
             &[],
             &facets,
             &[
-                candidate(
+                materialized_candidate(
                     "https://example.org/openai-agents",
                     "OpenAI Agents SDK release notes for production agents.",
                 ),
-                candidate(
+                materialized_candidate(
                     "https://example.org/langchain",
                     "LangChain platform documentation for production agents.",
                 ),
-                candidate(
+                materialized_candidate(
                     "https://example.org/langgraph",
                     "LangGraph runtime documentation for production agents.",
                 ),
@@ -1494,6 +1588,28 @@ mod web_quality_diagnostics_tests {
             &actionable_ranked,
             &retained_ranked,
         ));
+    }
+
+    #[test]
+    fn comparison_query_entities_stop_before_dimension_tail() {
+        let query = "Compare LangGraph vs CrewAI on reliability and deployment";
+        let request = json!({
+            "source": "web",
+            "query": query,
+            "aperture": "medium"
+        });
+        let budget = aperture_budget("medium").expect("medium budget");
+        let plan = resolve_query_plan(&json!({}), &request, query, budget);
+
+        assert_eq!(plan.query_metadata.entities, vec!["LangGraph", "CrewAI"]);
+        assert!(
+            plan.query_metadata
+                .keywords
+                .iter()
+                .any(|keyword| keyword == "reliability"),
+            "{:#?}",
+            plan.query_metadata
+        );
     }
 
     #[test]
